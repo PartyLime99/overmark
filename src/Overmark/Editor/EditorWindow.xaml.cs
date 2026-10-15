@@ -64,6 +64,7 @@ internal partial class EditorWindow : Window
             [ToolKind.Arrow] = ArrowTool,
             [ToolKind.Curve] = CurveTool,
             [ToolKind.Rectangle] = RectangleTool,
+            [ToolKind.Ellipse] = EllipseTool,
             [ToolKind.Highlighter] = HighlighterTool,
             [ToolKind.Eraser] = EraserTool,
             [ToolKind.Crop] = CropTool,
@@ -85,7 +86,6 @@ internal partial class EditorWindow : Window
         CopyButton.Click += (_, _) => Copy();
         SaveButton.Click += (_, _) => Save();
         PinButton.Click += (_, _) => Pin();
-        DragOut.AttachGesture(DragHandle, DragOutImage, () => ShowStatus("Drag this onto an email, chat or folder"));
 
         DrawingLayer.MouseLeftButtonDown += OnPointerDown;
         DrawingLayer.MouseMove += OnPointerMove;
@@ -437,6 +437,9 @@ internal partial class EditorWindow : Window
             case Key.R when !ctrl:
                 RectangleTool.IsChecked = true;
                 break;
+            case Key.O when !ctrl:
+                EllipseTool.IsChecked = true;
+                break;
             case Key.H when !ctrl:
                 HighlighterTool.IsChecked = true;
                 break;
@@ -511,20 +514,6 @@ internal partial class EditorWindow : Window
         _tools.Finish();
         _pin(_document.Render());
         WindowState = WindowState.Minimized;
-    }
-
-    /// <summary>The saved file if nothing has changed since, otherwise a copy with the edits.</summary>
-    private void DragOutImage()
-    {
-        _tools.Finish();
-        if (_document.HasUnsavedChanges)
-        {
-            DragOut.DragImage(DragHandle, _document.Render(), Path.GetFileName(_path));
-        }
-        else
-        {
-            DragOut.DragFile(DragHandle, _path);
-        }
     }
 
     /// <summary>Saves over the capture file. Returns false if that failed.</summary>

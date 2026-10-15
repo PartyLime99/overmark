@@ -113,6 +113,10 @@ public class EditorDocumentTests
         Assert.False(rectangle.IsTouchedBy(new Point(60, 60), 5));
         Assert.True(rectangle.IsTouchedBy(new Point(60, 12), 5));
         Assert.True(new FreehandMark(Red, [new Point(50, 50)]).IsTouchedBy(new Point(54, 50), 3));
+
+        var circle = new EllipseMark(Red, new Rect(0, 0, 100, 100));
+        Assert.False(circle.IsTouchedBy(new Point(50, 50), 5));
+        Assert.True(circle.IsTouchedBy(new Point(50, 2), 5));
     }
 
     [Fact]

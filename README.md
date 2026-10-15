@@ -33,9 +33,9 @@ Pick the colour and thickness **first**; they apply to the next mark only.
 
 | Key | Tool or action |
 |---|---|
-| P / L / A / C / R / H | Freehand, Line, Arrow, Curve, Rectangle, Highlighter |
+| P / L / A / C / R / O / H | Freehand, Line, Arrow, Curve, Rectangle, Circle, Highlighter |
 | E / X | Eraser (removes whole marks) / Crop (drag a box, then Enter) |
-| Shift (while drawing) | Straight angles for lines, arrows and curves; squares; straight highlighter |
+| Shift (while drawing) | Straight angles for lines, arrows and curves; squares and circles; straight highlighter |
 | 1–8, 9 | The palette colours; your custom colour |
 | [ / ] | Thinner / thicker (Shift: by 5) |
 | Enter / Esc | Finish a curve or crop / drop it |
@@ -45,7 +45,7 @@ Pick the colour and thickness **first**; they apply to the next mark only.
 
 To draw a **curve**, drag a straight line, then drag the round handle in its middle to bend it. The arrowhead toggle next to the tools adds an arrowhead.
 
-Press and drag the **Drag** button onto an email, a Teams chat, a Word document or a folder to drop the image there. The **pin** button floats it on top of everything.
+The **pin** button floats the image on top of everything. To drop a capture into an email, chat or folder, drag the preview that pops up after capturing.
 
 ## Pins
 
@@ -57,6 +57,7 @@ Open **Settings…** from the tray menu (or the gear on the capture toolbar):
 
 - **Hotkeys:** click a box and press the keys you want.
 - **Capture as soon as I let go of the mouse** (on by default); turn it off to adjust the selection with handles and press Enter.
+- **Crosshair lines** and the **magnifier**, each of which can be turned off.
 - **Save folder** and **file name pattern**, with a live example.
 - **How long the preview stays** in the corner (0 shows a plain notification instead).
 - **Start with Windows** and **check for updates automatically**.

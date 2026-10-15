@@ -40,6 +40,8 @@ internal sealed class CaptureSession
     private readonly IReadOnlyList<MonitorInfo> _monitors;
     private readonly IReadOnlyList<WindowInfo> _windows;
     private readonly bool _adjustBeforeCapture;
+    private readonly bool _crosshair;
+    private readonly bool _magnifier;
     private readonly Action<PixelPoint> _moveCursor;
     private PixelPoint _pressPoint;
     private ScreenRect _dragAnchor;
@@ -52,12 +54,16 @@ internal sealed class CaptureSession
         ScreenRect? lastRegion,
         bool adjustBeforeCapture,
         PixelPoint cursor,
-        Action<PixelPoint> moveCursor)
+        Action<PixelPoint> moveCursor,
+        bool crosshair = true,
+        bool magnifier = true)
     {
         Desktop = desktop;
         _monitors = monitors;
         _windows = windows;
         _adjustBeforeCapture = adjustBeforeCapture;
+        _crosshair = crosshair;
+        _magnifier = magnifier;
         _moveCursor = moveCursor;
         LastRegion = lastRegion?.Intersect(desktop);
         Cursor = Clamp(cursor);
@@ -100,10 +106,13 @@ internal sealed class CaptureSession
         _ => HoveredWindow?.Bounds,
     };
 
-    public bool ShowsCrosshair => !ToolbarHovered && Mode is SessionMode.Idle or SessionMode.Pressing or SessionMode.Dragging;
+    public bool ShowsCrosshair => _crosshair && IsAiming;
 
     public bool ShowsMagnifier =>
-        ShowsCrosshair || (Mode == SessionMode.Adjusting && ActiveHandle is not (SelectionHandle.None or SelectionHandle.Move));
+        _magnifier && (IsAiming || (Mode == SessionMode.Adjusting && ActiveHandle is not (SelectionHandle.None or SelectionHandle.Move)));
+
+    // Picking a point: before or during a drag, and not over the toolbar.
+    private bool IsAiming => !ToolbarHovered && Mode is SessionMode.Idle or SessionMode.Pressing or SessionMode.Dragging;
 
     public SelectionHandle HandleAt(PixelPoint point, int tolerance) =>
         Mode == SessionMode.Adjusting && Selection is { } selection

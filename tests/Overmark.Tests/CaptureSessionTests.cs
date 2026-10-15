@@ -221,6 +221,16 @@ public class CaptureSessionTests
     }
 
     [Fact]
+    public void Crosshair_and_magnifier_can_be_turned_off_separately()
+    {
+        var session = new CaptureSession(
+            Desktop, [LeftMonitor], [], null, false, new PixelPoint(10, 10), _ => { }, crosshair: false, magnifier: true);
+
+        Assert.False(session.ShowsCrosshair);
+        Assert.True(session.ShowsMagnifier);
+    }
+
+    [Fact]
     public void Nothing_happens_after_finishing()
     {
         var session = Start();

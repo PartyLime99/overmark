@@ -103,6 +103,16 @@ public class DrawingToolsTests
     }
 
     [Fact]
+    public void Shift_makes_ellipses_circles()
+    {
+        _tools.Tool = ToolKind.Ellipse;
+
+        Drag(10, 10, 60, 30, shift: true);
+
+        Assert.Equal(new Rect(10, 10, 50, 50), Assert.IsType<EllipseMark>(Assert.Single(_committed)).Bounds);
+    }
+
+    [Fact]
     public void Shift_makes_the_highlighter_a_straight_line()
     {
         _tools.Tool = ToolKind.Highlighter;

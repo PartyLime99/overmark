@@ -167,6 +167,20 @@ internal sealed record CurveMark(StrokeStyle Style, Point Start, Point Through, 
     }
 }
 
+/// <summary>An ellipse (a circle when its bounds are square), outline only.</summary>
+internal sealed record EllipseMark(StrokeStyle Style, Rect Bounds) : Mark(Style)
+{
+    public override void Draw(DrawingContext dc)
+    {
+        var pen = new Pen(Fill(), Style.Width);
+        pen.Freeze();
+        dc.DrawGeometry(null, pen, Centreline());
+    }
+
+    // Only the outline counts, as with rectangles.
+    protected override Geometry Centreline() => new EllipseGeometry(Bounds);
+}
+
 internal sealed record RectangleMark(StrokeStyle Style, Rect Bounds) : Mark(Style)
 {
     public override void Draw(DrawingContext dc)

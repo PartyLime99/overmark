@@ -9,6 +9,7 @@ internal enum ToolKind
     Arrow,
     Curve,
     Rectangle,
+    Ellipse,
     Highlighter,
     Eraser,
     Crop,

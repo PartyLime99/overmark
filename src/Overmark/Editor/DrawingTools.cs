@@ -249,6 +249,7 @@ internal sealed class DrawingTools
             ToolKind.Arrow when longEnough => new ArrowMark(_style, _start, _snappedEnd),
             ToolKind.Curve when longEnough => new CurveMark(_style, _start, MarkGeometry.Midpoint(_start, _snappedEnd), _snappedEnd, _curveArrowhead),
             ToolKind.Rectangle when rectangle.Width >= MinimumSize || rectangle.Height >= MinimumSize => new RectangleMark(_style, rectangle),
+            ToolKind.Ellipse when rectangle.Width >= MinimumSize || rectangle.Height >= MinimumSize => new EllipseMark(_style, rectangle),
             _ => null,
         };
         PreviewChanged?.Invoke();

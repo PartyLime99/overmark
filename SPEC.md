@@ -41,8 +41,8 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 ## Capture overlay
 
 - Freezes every monitor as soon as the key is pressed. Typically visible about 125 ms after the key press (the first capture after starting is slower).
-- Dashed crosshair lines through the pointer, the full width and height of the screen.
-- **Magnifier:** a circle beside the pointer showing zoomed pixels on a grid, with the centre pixel outlined and a coordinate label underneath (e.g. `X: 3444 Y: 800`). It flips sides near screen edges.
+- Dashed crosshair lines through the pointer, the full width and height of the screen (can be turned off).
+- **Magnifier:** a circle beside the pointer showing zoomed pixels on a grid, with the centre pixel outlined and a coordinate label underneath (e.g. `X: 3444 Y: 800`). It flips sides near screen edges (can be turned off).
 - Drag to select a region, with a live size readout (`W × H`).
 - **Window snap:** the window under the pointer is highlighted, and a click (without dragging) selects exactly that window.
 - **Capture on release** (default): letting go of the mouse, or clicking a window, captures straight away.
@@ -64,7 +64,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 ## Editor
 
-**Toolbar:** tools · colour swatches · thickness slider · undo/redo · zoom · Drag · Pin · Copy · Save
+**Toolbar:** tools · colour swatches · thickness slider · undo/redo · zoom · Pin · Copy · Save
 
 **Colour and thickness**
 - 8 preset colours plus a custom colour picker. Keys 1–8 pick the presets, 9 the custom colour.
@@ -81,6 +81,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 | Arrow | A | Like Line, with an arrowhead that scales with thickness |
 | Curve | C | Drag a straight line, then drag the handle at its middle to bend it; Enter or clicking elsewhere finishes it. A toggle adds an arrowhead |
 | Rectangle | R | Outline only. Shift makes a square |
+| Circle | O | An ellipse, outline only. Shift makes a perfect circle |
 | Highlighter | H | Wide translucent stroke; text underneath stays readable. Shift makes it straight |
 | Eraser | E | Click or drag across marks; each mark touched is removed whole (empty rectangles only by their outline) |
 | Crop | X | Drag a box, then Enter |
@@ -89,8 +90,8 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Undo/redo:** Ctrl+Z / Ctrl+Y, covering drawing, erasing (one step per eraser drag) and cropping.
 - **Zoom:** fits the window to start with; Ctrl+scroll zooms around the pointer; Ctrl+0 fits, Ctrl+1 is actual size.
 - **Saving:** only Save or Ctrl+S writes to disk, overwriting the capture file with the annotated version. Closing with unsaved changes asks first. The window title starts with `*` while there are unsaved changes.
-- **Copy** (Ctrl+C), **Drag** (press and drag onto another app) and **Pin** all use the current image, crop and marks included. Dragging hands over the saved file, or a copy with the edits if there are unsaved changes. Pinning minimises the editor.
-- **Flatten:** marks are merged into the image when it's copied, saved, dragged or pinned. There are no project files.
+- **Copy** (Ctrl+C) and **Pin** use the current image, crop and marks included. Pinning minimises the editor. (A Drag button was tried and removed; dragging into other apps is done from the preview popup.)
+- **Flatten:** marks are merged into the image when it's copied, saved or pinned. There are no project files.
 - **Opening:** click the preview, use *Edit last capture* in the tray menu, or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it).
 
 ## Pin to screen
@@ -109,6 +110,7 @@ The settings window (tray menu → *Settings…*, or the gear on the capture too
 
 - **Hotkeys:** click a box and press the keys. While recording, Overmark's keyboard hook hands key presses to the window, so PrtScn can be recorded even though Overmark owns it. Recording stops as soon as the box loses focus, or after 10 seconds.
 - **Capture on release**, or adjust the selection first.
+- **Crosshair lines** and **magnifier** on or off.
 - **Save folder** (default `Pictures\Screenshots`) and **file name pattern** (a .NET date/time format, default `yyyy-MM-dd_HH-mm-ss`), with a live example.
 - **Preview duration**, or 0 for a plain notification.
 - **Start with Windows:** the standard per-user Run registry entry, so it also shows in Task Manager's Startup apps. Started this way, Overmark starts quietly.
@@ -123,7 +125,7 @@ Settings are stored in `%AppData%\Overmark\settings.json`, which can also be edi
 - **Unsigned for now.** On first install, Windows shows "Windows protected your PC"; click *More info → Run anyway*.
 - **Planned before a wider release:**
   - Release builds made by GitHub Actions directly from the public code, so anyone can verify what's in the installer (free signing services require this).
-  - Code signing, so the installer shows a publisher instead of a warning: first choice is free open-source signing from SignPath Foundation; otherwise Azure Artifact Signing or a traditional certificate. Even signed, SmartScreen can warn until a release builds up download history.
+  - Code signing, so the installer shows a publisher instead of an "unknown publisher" warning. First choice: free open-source signing from SignPath Foundation (needs automated builds, which the GitHub Actions release workflow provides, and a published code-signing policy; the certificate names SignPath Foundation as publisher). Azure Artifact Signing only accepts individuals in the US and Canada; a traditional OV certificate costs a few hundred a year. Since 2024 no certificate, EV included, skips SmartScreen outright: reputation builds with downloads. Updates installed by Overmark itself don't trigger SmartScreen, only the first install from a browser.
   - Antivirus false positives are possible, because watching the keyboard for PrtScn is also what keyloggers do. Signing, open source and submitting releases to Microsoft for analysis all help.
   - A winget listing (`winget install Overmark`), and possibly the Microsoft Store later (which signs and updates apps itself, but needs an MSIX package).
   - A name check (domains and trademarks) for "Overmark".

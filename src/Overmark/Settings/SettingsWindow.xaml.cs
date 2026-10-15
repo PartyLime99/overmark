@@ -51,6 +51,8 @@ internal partial class SettingsWindow : Window
         Closed += (_, _) => StopRecording();
 
         CaptureOnRelease.IsChecked = !settings.AdjustBeforeCapture;
+        ShowCrosshairBox.IsChecked = settings.ShowCrosshair;
+        ShowMagnifierBox.IsChecked = settings.ShowMagnifier;
         SaveFolderBox.Text = settings.SaveFolder ?? "";
         SaveFolderBox.TextChanged += (_, _) => ShowSaveFolderHint();
         BrowseButton.Click += (_, _) => BrowseForFolder();
@@ -169,6 +171,8 @@ internal partial class SettingsWindow : Window
     {
         StopRecording();
         _settings.AdjustBeforeCapture = CaptureOnRelease.IsChecked != true;
+        _settings.ShowCrosshair = ShowCrosshairBox.IsChecked == true;
+        _settings.ShowMagnifier = ShowMagnifierBox.IsChecked == true;
         _settings.SaveFolder = SaveFolderBox.Text.Trim();
         _settings.FileNamePattern = string.IsNullOrWhiteSpace(PatternBox.Text) ? FileNamer.DefaultPattern : PatternBox.Text;
         _settings.PopupSeconds = PopupSlider.Value;

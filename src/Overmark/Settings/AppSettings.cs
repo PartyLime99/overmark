@@ -20,6 +20,12 @@ internal sealed class AppSettings
     /// </summary>
     public bool AdjustBeforeCapture { get; set; }
 
+    /// <summary>Whether the capture overlay shows the full-screen crosshair lines.</summary>
+    public bool ShowCrosshair { get; set; } = true;
+
+    /// <summary>Whether the capture overlay shows the magnifier beside the pointer.</summary>
+    public bool ShowMagnifier { get; set; } = true;
+
     /// <summary>How many seconds the preview popup stays up after a capture. 0 shows a plain notification instead.</summary>
     public double PopupSeconds { get; set; } = 5;
 

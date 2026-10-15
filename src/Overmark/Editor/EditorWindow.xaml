@@ -124,24 +124,6 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="StatusText" Style="{StaticResource Caption}" Foreground="#CCFFFFFF" Margin="0,0,10,0" />
-                    <Border x:Name="DragHandle" Padding="9,7" CornerRadius="6" Cursor="Hand"
-                            ToolTip="Press and drag this onto an email, a Teams chat, a Word document or a folder to drop the image there">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="Transparent" />
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#22FFFFFF" />
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <Path Style="{StaticResource Icon}"
-                                  Data="M9,1.5 V16.5 M1.5,9 H16.5 M9,1.5 L6.5,4 M9,1.5 L11.5,4 M9,16.5 L6.5,14 M9,16.5 L11.5,14 M1.5,9 L4,6.5 M1.5,9 L4,11.5 M16.5,9 L14,6.5 M16.5,9 L14,11.5" />
-                            <TextBlock Style="{StaticResource Caption}" Text="Drag" Margin="7,0,0,0" />
-                        </StackPanel>
-                    </Border>
                     <Button x:Name="PinButton" Style="{StaticResource Action}" ToolTip="Pin to the screen: keep it on top of everything">
                         <TextBlock Style="{StaticResource Glyph}" Text="&#xE718;" />
                     </Button>
@@ -174,6 +156,9 @@
                     </RadioButton>
                     <RadioButton x:Name="RectangleTool" Style="{StaticResource Tool}" ToolTip="Rectangle (R). Hold Shift for a square.">
                         <Path Style="{StaticResource Icon}" Data="M3,4 H15 V14 H3 Z" />
+                    </RadioButton>
+                    <RadioButton x:Name="EllipseTool" Style="{StaticResource Tool}" ToolTip="Circle (O). Hold Shift for a perfect circle.">
+                        <Path Style="{StaticResource Icon}" Data="M2.5,9 A6.5,5.5 0 1 1 15.5,9 A6.5,5.5 0 1 1 2.5,9 Z" />
                     </RadioButton>
                     <RadioButton x:Name="HighlighterTool" Style="{StaticResource Tool}" ToolTip="Highlighter (H). Hold Shift for a straight line.">
                         <Path Style="{StaticResource Icon}" Data="M2,9 H16" StrokeThickness="7" Opacity="0.6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />

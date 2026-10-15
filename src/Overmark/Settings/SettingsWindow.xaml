@@ -135,6 +135,8 @@
             <TextBlock Style="{StaticResource Heading}" Text="Capturing" />
             <CheckBox x:Name="CaptureOnRelease" Content="Capture as soon as I let go of the mouse" />
             <TextBlock Style="{StaticResource Hint}" Text="Turn this off to adjust the selection with handles first, then press Enter to capture." />
+            <CheckBox x:Name="ShowCrosshairBox" Content="Show crosshair lines across the screen" Margin="0,10,0,0" />
+            <CheckBox x:Name="ShowMagnifierBox" Content="Show the magnifier beside the pointer" />
 
             <TextBlock Style="{StaticResource Heading}" Text="Saving" />
             <TextBlock Style="{StaticResource Label}" Text="Folder" Margin="0,0,0,4" />
