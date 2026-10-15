@@ -1,0 +1,39 @@
+name: Release
+
+# Builds the installer on GitHub from this repository's code and publishes it as a release.
+# To use it: Actions tab → Release → Run workflow → type the new version number → Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version number, e.g. 0.2.0 (higher than the last release)
+        required: true
+        type: string
+
+permissions:
+  contents: write # to create the release and its tag
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check the version number
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+$') { throw "The version must look like 1.2.3, not '$env:VERSION'." }
+
+      - name: Test, build, pack and publish
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./tools/release.ps1 -Version $env:VERSION -Publish
