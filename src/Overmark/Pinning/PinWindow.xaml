@@ -1,0 +1,69 @@
+<Window x:Class="Overmark.Pinning.PinWindow"
+        x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Overmark pin"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        SizeToContent="WidthAndHeight"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Opacity="0">
+
+    <Window.Resources>
+        <Style x:Key="Glyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="StripButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="4" Padding="7,5">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E5484D" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Transparent behind the image, so fading it shows whatever is underneath the pin. -->
+    <Border BorderBrush="#E5484D" BorderThickness="1" Background="Transparent">
+        <DockPanel>
+            <!-- The title strip: drag it (or the image) to move the pin. -->
+            <Border x:Name="Strip" DockPanel.Dock="Top" Height="26" Background="#2A2A2A" Cursor="SizeAll" ToolTip="Drag to move">
+                <DockPanel Margin="6,0,2,0">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE7B3;" Foreground="#AAFFFFFF" Margin="4,0,4,0" />
+                        <Slider x:Name="SeeThrough" Width="64" Minimum="0.2" Maximum="1" Value="1" SmallChange="0.1" LargeChange="0.2"
+                                Focusable="False" VerticalAlignment="Center" Cursor="Arrow"
+                                ToolTip="See-through: slide left to fade the image (or Shift+scroll)" />
+                        <Button x:Name="CloseButton" Style="{StaticResource StripButton}" Margin="4,0,0,0" ToolTip="Close (Esc)">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE711;" FontSize="10" />
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Text="&#x283F;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="#AAFFFFFF" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Text="Pinned" FontFamily="Segoe UI" FontSize="12" Foreground="#DDFFFFFF" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
+            <Image x:Name="Picture" Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Top" Cursor="SizeAll" />
+        </DockPanel>
+    </Border>
+</Window>

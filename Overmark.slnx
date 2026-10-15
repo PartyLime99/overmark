@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Overmark/Overmark.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Overmark.Tests/Overmark.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- Windows Forms is only used for the tray icon, which WPF doesn't have. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Overmark.ico</ApplicationIcon>
+    <RootNamespace>Overmark</RootNamespace>
+    <Product>Overmark</Product>
+    <Version>0.1.0</Version>
+    <Copyright>Copyright (c) 2026 Ben Fowler</Copyright>
+    <!-- WFO0003 asks Windows Forms apps to set DPI mode in code, but WPF owns this process, so the manifest is right. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+    <!-- Our own Main, so the installer's hooks (Velopack) run before the app starts. -->
+    <StartupObject>Overmark.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Keep Windows Forms types out of global scope so they don't clash with WPF's (Application, MessageBox, ...). -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <!-- WPF projects leave this out by default. -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Overmark.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Overmark.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="1.2.161" />
+  </ItemGroup>
+
+</Project>
