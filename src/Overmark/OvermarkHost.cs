@@ -8,6 +8,7 @@ using Overmark.Editor;
 using Overmark.Hotkeys;
 using Overmark.Pinning;
 using Overmark.Platform;
+using Overmark.Recording;
 using Overmark.Settings;
 using Overmark.Tray;
 
@@ -22,6 +23,7 @@ internal sealed class OvermarkHost : IDisposable
     private readonly CaptureController _captures;
     private readonly EditorLauncher _editors;
     private readonly PinBoard _pins = new();
+    private readonly RecordingController _recordings;
     private readonly Action _quit;
     private readonly FileSystemWatcher _settingsWatcher;
     private readonly DispatcherTimer _reloadTimer;
@@ -43,7 +45,9 @@ internal sealed class OvermarkHost : IDisposable
         _quit = quit;
         _tray = new TrayIcon(RunFromMenu, EditLastCapture, ShowDisplayInfo, OpenSettings, Quit);
         _editors = new EditorLauncher(() => _settings, RememberEditorSettings, _pins, _tray);
-        _captures = new CaptureController(() => _settings, RememberLastRegion, _editors.Open, OpenSettings, _pins, _tray);
+        _recordings = new RecordingController(
+            () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop : null, _tray);
+        _captures = new CaptureController(() => _settings, RememberLastRegion, _editors.Open, OpenSettings, _pins, _recordings, _tray);
         _hotkeys = new HotkeyService(dispatcher);
         _hotkeys.Triggered += Run;
         ApplyHotkeys();
@@ -185,13 +189,17 @@ internal sealed class OvermarkHost : IDisposable
     }
 
     // Editors with unsaved changes ask first; if the user cancels one, Overmark keeps running.
-    private void Quit()
+    // A recording in progress is finished and saved before quitting.
+    private async void Quit()
     {
-        if (_editors.CloseAll())
+        if (!_editors.CloseAll())
         {
-            _pins.Close();
-            _quit();
+            return;
         }
+
+        _pins.Close();
+        await _recordings.StopAsync(keep: true);
+        _quit();
     }
 
     private void ApplyHotkeys()

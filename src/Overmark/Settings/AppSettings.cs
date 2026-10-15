@@ -29,6 +29,12 @@ internal sealed class AppSettings
     /// <summary>How many seconds the preview popup stays up after a capture. 0 shows a plain notification instead.</summary>
     public double PopupSeconds { get; set; } = 5;
 
+    /// <summary>Frames a second for screen recordings: 15, 30 or 60.</summary>
+    public int RecordFrameRate { get; set; } = 30;
+
+    /// <summary>Whether recordings show the mouse pointer.</summary>
+    public bool RecordCursor { get; set; } = true;
+
     /// <summary>Whether an installed Overmark checks GitHub for new versions and installs them on the next restart.</summary>
     public bool CheckForUpdates { get; set; } = true;
 
@@ -51,11 +57,15 @@ internal sealed class HotkeySettings
 
     public string? FullScreen { get; set; } = "Ctrl+PrintScreen";
 
+    /// <summary>Starts a recording (pick the area as for a screenshot), or stops one.</summary>
+    public string? Record { get; set; } = "Ctrl+Shift+PrintScreen";
+
     public string? Get(HotkeyAction action) => action switch
     {
         HotkeyAction.RegionCapture => RegionCapture,
         HotkeyAction.LastRegion => LastRegion,
         HotkeyAction.FullScreen => FullScreen,
+        HotkeyAction.Record => Record,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
     };
 
@@ -71,6 +81,9 @@ internal sealed class HotkeySettings
                 break;
             case HotkeyAction.FullScreen:
                 FullScreen = hotkey;
+                break;
+            case HotkeyAction.Record:
+                Record = hotkey;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(action), action, null);

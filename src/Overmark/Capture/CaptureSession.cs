@@ -26,7 +26,8 @@ internal enum CaptureKind
     FullScreen,
 }
 
-internal sealed record CaptureOutcome(ScreenRect Region, CaptureKind Kind);
+/// <summary>What to capture. <see cref="Record"/> means record a video of it rather than take a screenshot.</summary>
+internal sealed record CaptureOutcome(ScreenRect Region, CaptureKind Kind, bool Record = false);
 
 /// <summary>
 /// The state of one capture overlay, shared by the overlay windows on every monitor. All positions are physical
@@ -56,8 +57,10 @@ internal sealed class CaptureSession
         PixelPoint cursor,
         Action<PixelPoint> moveCursor,
         bool crosshair = true,
-        bool magnifier = true)
+        bool magnifier = true,
+        bool recordMode = false)
     {
+        RecordMode = recordMode;
         Desktop = desktop;
         _monitors = monitors;
         _windows = windows;
@@ -96,6 +99,9 @@ internal sealed class CaptureSession
     public bool PreviewingLastRegion { get; private set; }
 
     public bool IsFinished { get; private set; }
+
+    /// <summary>True when the area picked will be recorded as a video instead of captured as a screenshot.</summary>
+    public bool RecordMode { get; private set; }
 
     /// <summary>The area left undimmed: the selection, the last-region preview, or the window under the cursor.</summary>
     public ScreenRect? FocusRect => Mode switch
@@ -262,6 +268,9 @@ internal sealed class CaptureSession
             case Key.F:
                 CaptureFullScreen();
                 return true;
+            case Key.R:
+                SetRecordMode(!RecordMode);
+                return true;
             case Key.Left:
                 Nudge(-step, 0, modifiers);
                 return true;
@@ -277,6 +286,17 @@ internal sealed class CaptureSession
             default:
                 return false;
         }
+    }
+
+    public void SetRecordMode(bool on)
+    {
+        if (IsFinished || RecordMode == on)
+        {
+            return;
+        }
+
+        RecordMode = on;
+        Changed?.Invoke();
     }
 
     public void SetToolbarHovered(bool hovered)
@@ -372,7 +392,7 @@ internal sealed class CaptureSession
         }
 
         IsFinished = true;
-        Finished?.Invoke(outcome);
+        Finished?.Invoke(outcome is null ? null : outcome with { Record = RecordMode });
     }
 
     private bool MovedPastThreshold() =>

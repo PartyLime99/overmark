@@ -92,6 +92,12 @@
                         <TextBlock Style="{StaticResource Caption}" Text="Full screen" />
                     </StackPanel>
                 </Button>
+                <Button x:Name="RecordButton" Style="{StaticResource ToolbarButton}" ToolTip="Record a video of an area instead of a screenshot (R)">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="11" Height="11" Fill="#E5484D" VerticalAlignment="Center" />
+                        <TextBlock x:Name="RecordCaption" Style="{StaticResource Caption}" Text="Record" />
+                    </StackPanel>
+                </Button>
                 <Rectangle Width="1" Margin="4,6" Fill="#40FFFFFF" />
                 <Button x:Name="SettingsButton" Style="{StaticResource ToolbarButton}" ToolTip="Settings">
                     <TextBlock Style="{StaticResource Glyph}" Text="&#xE713;" />

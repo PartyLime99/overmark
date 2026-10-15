@@ -294,4 +294,44 @@ internal static class NativeMethods
 
     [DllImport("dwmapi.dll")]
     public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    // Screen recording
+
+    public const int CURSOR_SHOWING = 0x00000001;
+    public const int DI_NORMAL = 0x0003;
+    public const int WS_EX_LAYERED = 0x00080000;
+
+    /// <summary>Keeps a window out of every screen capture, including Overmark's own (Windows 10 2004+).</summary>
+    public const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct CURSORINFO
+    {
+        public int cbSize;
+        public int flags;
+        public IntPtr hCursor;
+        public POINT ptScreenPos;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ICONINFO
+    {
+        public bool fIcon;
+        public int xHotspot;
+        public int yHotspot;
+        public IntPtr hbmMask;
+        public IntPtr hbmColor;
+    }
+
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorInfo(ref CURSORINFO info);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetIconInfo(IntPtr icon, out ICONINFO info);
+
+    [DllImport("user32.dll")]
+    public static extern bool DrawIconEx(IntPtr hdc, int x, int y, IntPtr icon, int width, int height, int step, IntPtr brush, int flags);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
 }

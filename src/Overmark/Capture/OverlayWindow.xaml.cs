@@ -18,6 +18,8 @@ internal partial class OverlayWindow : Window
 {
     private const double HandleToleranceDips = 6;
 
+    private static readonly Brush RecordingBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x80, 0xE5, 0x48, 0x4D)));
+
     private CaptureSession? _session;
     private bool _hasToolbar;
     private int _framesUntilReveal;
@@ -52,6 +54,7 @@ internal partial class OverlayWindow : Window
         FullScreenButton.Click += (_, _) => _session?.CaptureFullScreen();
         CancelButton.Click += (_, _) => _session?.Cancel();
         SettingsButton.Click += (_, _) => SettingsRequested?.Invoke();
+        RecordButton.Click += (_, _) => _session?.SetRecordMode(!_session.RecordMode);
     }
 
     /// <summary>Raised once the first frame of a capture is on screen.</summary>
@@ -137,6 +140,13 @@ internal partial class OverlayWindow : Window
         FrozenImage.Height = bounds.Height / scale;
     }
 
+    private static T Frozen<T>(T freezable)
+        where T : Freezable
+    {
+        freezable.Freeze();
+        return freezable;
+    }
+
     private void SetCloaked(bool cloaked)
     {
         var value = cloaked ? 1 : 0;
@@ -172,6 +182,8 @@ internal partial class OverlayWindow : Window
 
         Overlay.InvalidateVisual();
         Toolbar.Visibility = _hasToolbar && session.Mode == SessionMode.Idle ? Visibility.Visible : Visibility.Collapsed;
+        RecordButton.Background = session.RecordMode ? RecordingBrush : Brushes.Transparent;
+        RecordCaption.Text = session.RecordMode ? "Recording: pick an area" : "Record";
 
         var handle = session.ActiveHandle != SelectionHandle.None
             ? session.ActiveHandle

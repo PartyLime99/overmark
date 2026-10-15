@@ -19,9 +19,24 @@ internal partial class CapturePopup : Window
     private bool _closing;
 
     /// <param name="path">The saved file, or null if it couldn't be saved (then it can't be edited or dragged).</param>
-    public CapturePopup(BitmapSource image, string heading, string details, string? path, MonitorInfo monitor, TimeSpan showFor, Action? edit, Action pin)
+    /// <param name="edit">What a click does: open the editor, or play a video.</param>
+    /// <param name="pin">Pins the image; null hides the pin button (e.g. for a video).</param>
+    /// <param name="hint">The line under the details; null keeps the default for screenshots.</param>
+    public CapturePopup(
+        BitmapSource image, string heading, string details, string? path, MonitorInfo monitor, TimeSpan showFor,
+        Action? edit, Action? pin, string? hint = null)
     {
         InitializeComponent();
+        if (hint is not null)
+        {
+            Hint.Text = hint;
+        }
+
+        if (pin is null)
+        {
+            PinButton.Visibility = Visibility.Collapsed;
+        }
+
         _monitor = monitor;
         Preview.Source = image;
         Heading.Text = heading;
@@ -33,7 +48,7 @@ internal partial class CapturePopup : Window
         MouseLeave += (_, _) => _closeTimer.Start();
         PinButton.Click += (_, _) =>
         {
-            pin();
+            pin?.Invoke();
             FadeOut();
         };
         CloseButton.Click += (_, _) => FadeOut();

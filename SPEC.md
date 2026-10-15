@@ -1,6 +1,6 @@
 # Overmark: design
 
-**Overmark** is a Windows screenshot tool that combines ShareX-style capture (crosshairs, magnifier, capture last region) with a Snipping Tool–style editor where you pick the colour and thickness *before* drawing. It's free and open source under the MIT licence. Screen recording is deliberately left out.
+**Overmark** is a Windows screenshot tool that combines ShareX-style capture (crosshairs, magnifier, capture last region) with a Snipping Tool–style editor where you pick the colour and thickness *before* drawing. It also records the screen to MP4, without sound. It's free and open source under the MIT licence.
 
 This document describes how Overmark behaves and why. The [README](README.md) is the short user guide.
 
@@ -35,6 +35,7 @@ Changeable in Settings.
 | PrtScn | Region capture (opens the overlay) |
 | Shift+PrtScn | Capture the last region again straight away. Remembered across restarts; if there's no previous region, it opens the overlay. |
 | Ctrl+PrtScn | Full screen: the monitor under the pointer |
+| Ctrl+Shift+PrtScn | Record the screen: opens the overlay in record mode. While recording, it stops the recording instead. |
 
 On first run, if Windows' *"Use the Print screen key to open screen capture"* setting is on, Overmark explains why it should be off and offers to open that setting.
 
@@ -51,6 +52,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Toolbar** at the top of the monitor the pointer is on, until a selection starts:
   - **Last region** (L): captures the previous region or window capture again. Hovering it previews that area with a dashed outline. Greyed out until there is one.
   - **Full screen** (F): the whole monitor.
+  - **Record** (R): switches to record mode, where whatever is picked next (region, window, last region or full screen) is recorded as a video instead of captured. The button turns red and reads *Recording: pick an area*; pressing it again switches back.
   - **Settings** (gear): cancels the capture and opens Settings.
   - **Cancel** (×).
 
@@ -104,6 +106,24 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Close:** the ✕, Esc, or right-click → Close. Right-click also offers Copy, Save as… and Edit.
 - **Placement:** from the preview, exactly over the spot it was captured from; from the editor, centred on the screen. Always kept on screen so the strip stays reachable.
 
+## Screen recording
+
+- **No sound.** Video only, as H.264 in an MP4 file, made by Windows' own encoder (Media Foundation, through `MediaTranscoder`), which uses the graphics card when it can. Nothing extra to install, except on Windows "N" editions, which need the Media Feature Pack; Overmark says so if the encoder is missing.
+- **Picking the area** works exactly as for a screenshot, in record mode (see the overlay toolbar). The area is trimmed to even dimensions, as H.264 needs. Areas bigger than 3840 × 2160 are scaled down to fit.
+- **Frames** are copied from the screen with GDI at a steady 15, 30 or 60 a second (30 by default), on their own thread. If the encoder falls behind, frames are skipped rather than letting the video drift. The mouse pointer is drawn in (can be turned off).
+- **While recording:**
+  - A 2 px red frame just outside the area. It ignores the mouse, so clicks go through to whatever is underneath.
+  - A small **bar** just below the area (or above it, or inside its bottom edge when there's no room): a red dot, the elapsed time, **Pause/Resume**, **Stop** and **Discard**. It never takes focus.
+  - Both are excluded from all screen captures (`WDA_EXCLUDEFROMCAPTURE`), so they never appear in the video, or in screenshots taken meanwhile.
+  - The tray menu's *Record screen* item reads *Stop recording*.
+- **Pause** leaves no gap: the video continues from where it paused. The time shown excludes pauses.
+- **Stop** (the button, the record hotkey, the tray item, or quitting Overmark) finishes the file. Then:
+  - It's saved in the save folder, named like screenshots but `.mp4`.
+  - It's copied to the clipboard as a file, so Ctrl+V pastes it into Teams, Outlook or Explorer.
+  - The preview pops up with the first frame, length, size and file name. Clicking it plays the video in the default player; dragging it drops the file. There's no pin button.
+- **Discard** stops and deletes the file.
+- One recording at a time. Screenshots still work while recording.
+
 ## Settings
 
 The settings window (tray menu → *Settings…*, or the gear on the capture toolbar) edits a copy; nothing changes until Save.
@@ -112,6 +132,7 @@ The settings window (tray menu → *Settings…*, or the gear on the capture too
 - **Capture on release**, or adjust the selection first.
 - **Crosshair lines** and **magnifier** on or off.
 - **Save folder** (default `Pictures\Screenshots`) and **file name pattern** (a .NET date/time format, default `yyyy-MM-dd_HH-mm-ss`), with a live example.
+- **Recording:** frames a second (15, 30 or 60) and whether to show the mouse pointer.
 - **Preview duration**, or 0 for a plain notification.
 - **Start with Windows:** the standard per-user Run registry entry, so it also shows in Task Manager's Startup apps. Started this way, Overmark starts quietly.
 - **Check for updates automatically.**
@@ -132,7 +153,7 @@ Settings are stored in `%AppData%\Overmark\settings.json`, which can also be edi
 
 ## Not included
 
-Screen recording, text labels, ellipses, blur/pixelate, numbered steps, OCR, uploads, capture history, scrolling capture, and selecting or moving marks after drawing.
+Sound in recordings, text labels, blur/pixelate, numbered steps, OCR, uploads, capture history, scrolling capture, and selecting or moving marks after drawing.
 
 ## Build phases
 
@@ -141,5 +162,5 @@ Screen recording, text labels, ellipses, blur/pixelate, numbered steps, OCR, upl
 3. **Editor drawing:** pick-first colour and thickness, the drawing tools, Shift-snap, undo/redo, zoom, copy and save. *Done.*
 4. **Eraser and output:** eraser, crop, drag-out, the preview popup, pins. *Done.*
 5. **Settings and installer:** settings window, start with Windows, Velopack installer and auto-update, first GitHub release. *Done except the first release.*
-6. **Shakedown:** daily use by early users, fixing whatever gets in the way.
+6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, and screen recording without sound.
 7. **Wider release:** signing, GitHub Actions builds, README screenshots, winget.

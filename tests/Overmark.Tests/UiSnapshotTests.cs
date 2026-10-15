@@ -5,6 +5,7 @@ using Overmark.Capture;
 using Overmark.Editor;
 using Overmark.Pinning;
 using Overmark.Platform;
+using Overmark.Recording;
 using Overmark.Settings;
 
 namespace Overmark.Tests;
@@ -32,6 +33,16 @@ public class UiSnapshotTests
 
             var popup = new CapturePopup(capture, "Screenshot copied", "1280 × 720  ·  2026-10-15_10-30-00.png", @"C:\x.png", monitor, TimeSpan.FromSeconds(5), () => { }, () => { });
             Save((FrameworkElement)popup.Content, new Size(400, 400), "popup.png");
+
+            var videoPopup = new CapturePopup(capture, "Recording copied", "0:42  ·  1280 × 720  ·  2026-10-15_10-30-00.mp4", "x.mp4", monitor,
+                TimeSpan.FromSeconds(5), () => { }, pin: null, hint: "Click to play  ·  drag into another app, or paste it");
+            Save((FrameworkElement)videoPopup.Content, new Size(400, 400), "popup-video.png");
+
+            var bar = new RecordingBar(new ScreenRect(100, 100, 1280, 720), monitor, "Ctrl+Shift+PrtScn");
+            bar.Show(TimeSpan.FromSeconds(83), paused: false);
+            Save((FrameworkElement)bar.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "recording-bar.png");
+            bar.Show(TimeSpan.FromSeconds(83), paused: true);
+            Save((FrameworkElement)bar.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "recording-bar-paused.png");
 
             var editor = new EditorWindow(@"C:\x.png", capture, new EditorSettings(), _ => { }, _ => { });
             Save((FrameworkElement)editor.Content, new Size(editor.Width, 220), "editor-top.png");

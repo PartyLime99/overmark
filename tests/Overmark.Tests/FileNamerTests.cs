@@ -22,6 +22,14 @@ public class FileNamerTests
     }
 
     [Fact]
+    public void Videos_get_their_own_extension()
+    {
+        var taken = new HashSet<string> { @"C:\Shots\2026-10-15_09-05-07.mp4" };
+
+        Assert.Equal(@"C:\Shots\2026-10-15_09-05-07_2.mp4", FileNamer.NextPath(Folder, null, Time, taken.Contains, ".mp4"));
+    }
+
+    [Fact]
     public void Replaces_characters_that_files_cannot_have()
     {
         Assert.Equal(@"C:\Shots\2026_10_15.png", FileNamer.NextPath(Folder, "yyyy/MM/dd", Time, _ => false));

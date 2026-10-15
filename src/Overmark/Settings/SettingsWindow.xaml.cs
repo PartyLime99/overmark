@@ -28,6 +28,7 @@ internal partial class SettingsWindow : Window
     public SettingsWindow(AppSettings settings, IHotkeyRecorder hotkeys, Action<AppSettings> save, Action openSettingsFile)
     {
         InitializeComponent();
+        MaxHeight = SystemParameters.WorkArea.Height;
         _settings = settings;
         _hotkeys = hotkeys;
         _save = save;
@@ -36,6 +37,7 @@ internal partial class SettingsWindow : Window
             [HotkeyAction.RegionCapture] = RegionCaptureBox,
             [HotkeyAction.LastRegion] = LastRegionBox,
             [HotkeyAction.FullScreen] = FullScreenBox,
+            [HotkeyAction.Record] = RecordBox,
         };
 
         foreach (var (action, box) in _hotkeyBoxes)
@@ -46,6 +48,7 @@ internal partial class SettingsWindow : Window
         RegionCaptureClear.Click += (_, _) => ClearHotkey(HotkeyAction.RegionCapture);
         LastRegionClear.Click += (_, _) => ClearHotkey(HotkeyAction.LastRegion);
         FullScreenClear.Click += (_, _) => ClearHotkey(HotkeyAction.FullScreen);
+        RecordClear.Click += (_, _) => ClearHotkey(HotkeyAction.Record);
         _recordingTimeout.Tick += (_, _) => StopRecording();
         Deactivated += (_, _) => StopRecording();
         Closed += (_, _) => StopRecording();
@@ -53,6 +56,8 @@ internal partial class SettingsWindow : Window
         CaptureOnRelease.IsChecked = !settings.AdjustBeforeCapture;
         ShowCrosshairBox.IsChecked = settings.ShowCrosshair;
         ShowMagnifierBox.IsChecked = settings.ShowMagnifier;
+        (settings.RecordFrameRate switch { 15 => Fps15, 60 => Fps60, _ => Fps30 }).IsChecked = true;
+        RecordCursorBox.IsChecked = settings.RecordCursor;
         SaveFolderBox.Text = settings.SaveFolder ?? "";
         SaveFolderBox.TextChanged += (_, _) => ShowSaveFolderHint();
         BrowseButton.Click += (_, _) => BrowseForFolder();
@@ -173,6 +178,8 @@ internal partial class SettingsWindow : Window
         _settings.AdjustBeforeCapture = CaptureOnRelease.IsChecked != true;
         _settings.ShowCrosshair = ShowCrosshairBox.IsChecked == true;
         _settings.ShowMagnifier = ShowMagnifierBox.IsChecked == true;
+        _settings.RecordFrameRate = Fps15.IsChecked == true ? 15 : Fps60.IsChecked == true ? 60 : 30;
+        _settings.RecordCursor = RecordCursorBox.IsChecked == true;
         _settings.SaveFolder = SaveFolderBox.Text.Trim();
         _settings.FileNamePattern = string.IsNullOrWhiteSpace(PatternBox.Text) ? FileNamer.DefaultPattern : PatternBox.Text;
         _settings.PopupSeconds = PopupSlider.Value;

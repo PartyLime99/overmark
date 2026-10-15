@@ -3,6 +3,7 @@ using System.Windows.Media.Imaging;
 using Overmark.Hotkeys;
 using Overmark.Pinning;
 using Overmark.Platform;
+using Overmark.Recording;
 using Overmark.Settings;
 using Overmark.Tray;
 
@@ -15,6 +16,7 @@ internal sealed class CaptureController(
     Action<string> openEditor,
     Action openSettings,
     PinBoard pins,
+    RecordingController recordings,
     TrayIcon tray) : IDisposable
 {
     // One overlay window per monitor, kept between captures (creating them is the slow part of opening the overlay).
@@ -39,8 +41,18 @@ internal sealed class CaptureController(
                 case HotkeyAction.FullScreen:
                     session.CaptureFullScreen();
                     break;
+                case HotkeyAction.Record:
+                    session.SetRecordMode(!session.RecordMode);
+                    break;
             }
 
+            return;
+        }
+
+        // The record hotkey stops a recording that's running.
+        if (action == HotkeyAction.Record && recordings.IsRecording)
+        {
+            _ = recordings.StopAsync(keep: true);
             return;
         }
 
@@ -56,6 +68,9 @@ internal sealed class CaptureController(
                     break;
                 case HotkeyAction.FullScreen:
                     CaptureFullScreenNow();
+                    break;
+                case HotkeyAction.Record:
+                    OpenOverlay(record: true);
                     break;
             }
         }
@@ -86,7 +101,7 @@ internal sealed class CaptureController(
         _pool.Clear();
     }
 
-    private void OpenOverlay()
+    private void OpenOverlay(bool record = false)
     {
         var timer = Stopwatch.StartNew();
         var monitors = Displays.GetMonitors();
@@ -99,7 +114,7 @@ internal sealed class CaptureController(
 
         var session = new CaptureSession(
             desktop, monitors, windows, current.LastRegion?.ToScreenRect(), current.AdjustBeforeCapture, cursor, Pointer.MoveTo,
-            current.ShowCrosshair, current.ShowMagnifier);
+            current.ShowCrosshair, current.ShowMagnifier, record);
         session.Finished += outcome => OnSessionFinished(screenshot, outcome);
         _session = session;
 
@@ -168,6 +183,12 @@ internal sealed class CaptureController(
             rememberRegion(outcome.Region);
         }
 
+        if (outcome.Record)
+        {
+            recordings.Start(outcome.Region);
+            return;
+        }
+
         _ = DeliverAsync(screenshot.Crop(outcome.Region), outcome);
     }
 
@@ -208,9 +229,7 @@ internal sealed class CaptureController(
         try
         {
             var current = settings();
-            var folder = string.IsNullOrWhiteSpace(current.SaveFolder)
-                ? FileNamer.DefaultFolder
-                : Environment.ExpandEnvironmentVariables(current.SaveFolder);
+            var folder = FileNamer.FolderFor(current);
             var result = await CaptureOutput.DeliverAsync(image, folder, current.FileNamePattern);
 
             var size = $"{outcome.Region.Width} × {outcome.Region.Height}";

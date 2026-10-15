@@ -57,6 +57,13 @@ internal sealed class TrayIcon : IDisposable
         }
     }
 
+    /// <summary>While recording, the Record item stops the recording, and the icon's tooltip says so.</summary>
+    public void ShowRecording(bool recording)
+    {
+        _actionItems[HotkeyAction.Record].Text = recording ? "Stop recording" : HotkeyAction.Record.DisplayName();
+        _notifyIcon.Text = recording ? "Overmark (recording)" : "Overmark";
+    }
+
     /// <summary>Shows a notification. <paramref name="onClick"/> runs if the user clicks it.</summary>
     public void Notify(string title, string text, Action? onClick = null)
     {

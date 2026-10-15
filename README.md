@@ -1,12 +1,12 @@
 # Overmark
 
-A Windows screenshot tool: ShareX-style capture (crosshairs, magnifier, capture last region) with a simple editor where you pick the colour and thickness *before* you draw.
+A Windows screenshot tool: ShareX-style capture (crosshairs, magnifier, capture last region) with a simple editor where you pick the colour and thickness *before* you draw. It also records the screen to MP4 (no sound).
 
 Free and open source under the [MIT licence](LICENSE). The full plan is in [SPEC.md](SPEC.md).
 
 ## Status
 
-**Phase 4 of 7.** Capturing, the editor, the preview popup and pins work. A settings window and installer come in Phase 5.
+**Early use.** Capturing, the editor, pins, screen recording, settings and the installer with automatic updates all work. Next: signing and a wider release.
 
 ## Capturing
 
@@ -15,7 +15,7 @@ Press **PrtScn** and the screen freezes, with crosshairs and a magnifier. Then:
 - **Drag** to select a region, or **click** a window. Letting go captures it.
 - Before or during a drag, the **arrow keys** move the pointer one pixel at a time (Shift: 10).
 - **Esc** or right-click cancels.
-- The **toolbar** at the top has **Last region** (L), **Full screen** (F), **Settings** and **Cancel**.
+- The **toolbar** at the top has **Last region** (L), **Full screen** (F), **Record** (R), **Settings** and **Cancel**.
 
 Each capture is copied to the clipboard and saved as a PNG in `Pictures\Screenshots`. A preview pops up in the corner: **click** it to edit, **drag** it into Outlook, Teams or a folder, or **pin** it so it floats on top of everything.
 
@@ -24,6 +24,15 @@ Each capture is copied to the clipboard and saved as a PNG in `Pictures\Screensh
 | PrtScn | Region capture |
 | Shift+PrtScn | Capture the last region again |
 | Ctrl+PrtScn | Full screen (the monitor under the pointer) |
+| Ctrl+Shift+PrtScn | Record the screen, or stop recording |
+
+## Recording
+
+Press **Ctrl+Shift+PrtScn** (or **Record** on the capture toolbar), then pick the area just as for a screenshot: drag a region, click a window, or press L or F. Recording starts straight away.
+
+While recording, a thin red frame marks the area and a small bar beside it shows the time, with **Pause**, **Stop** and **Discard**. Neither appears in the video. Press Ctrl+Shift+PrtScn again (or **Stop recording** in the tray menu) to stop.
+
+The video is saved as an MP4 (no sound) next to your screenshots and copied to the clipboard as a file, so Ctrl+V pastes it into Teams, Outlook or a folder. A preview pops up: **click** it to play, or **drag** it somewhere. The frame rate (15, 30 or 60 a second) and whether the mouse pointer shows are in Settings.
 
 ## Editor
 
@@ -59,6 +68,7 @@ Open **Settings…** from the tray menu (or the gear on the capture toolbar):
 - **Capture as soon as I let go of the mouse** (on by default); turn it off to adjust the selection with handles and press Enter.
 - **Crosshair lines** and the **magnifier**, each of which can be turned off.
 - **Save folder** and **file name pattern**, with a live example.
+- **Recording:** frames a second, and whether the mouse pointer shows.
 - **How long the preview stays** in the corner (0 shows a plain notification instead).
 - **Start with Windows** and **check for updates automatically**.
 

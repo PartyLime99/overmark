@@ -52,6 +52,14 @@
             <Setter Property="Margin" Value="0,4,0,0" />
         </Style>
 
+        <Style TargetType="RadioButton">
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="#E6FFFFFF" />
+            <Setter Property="Margin" Value="0,0,18,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
         <Style x:Key="Action" TargetType="Button">
             <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="13" />
@@ -106,67 +114,84 @@
             </TextBlock>
         </DockPanel>
 
-        <StackPanel>
-            <TextBlock Style="{StaticResource Heading}" Text="Hotkeys" />
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="130" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition />
-                    <RowDefinition />
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="Region capture" />
-                <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Last region" />
-                <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Full screen" />
-                <Button x:Name="RegionCaptureBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
-                <Button x:Name="LastRegionBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
-                <Button x:Name="FullScreenBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
-                <Button x:Name="RegionCaptureClear" Grid.Row="0" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
-                <Button x:Name="LastRegionClear" Grid.Row="1" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
-                <Button x:Name="FullScreenClear" Grid.Row="2" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
-            </Grid>
-            <TextBlock Style="{StaticResource Hint}" Text="Click a box, then press the keys you want. Esc keeps the old one." />
-            <TextBlock x:Name="HotkeyProblems" Style="{StaticResource Hint}" Foreground="#FF8A80" Visibility="Collapsed" />
+        <!-- Scrolls only on a screen too short to show everything. -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Heading}" Text="Hotkeys" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="Region capture" />
+                    <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Last region" />
+                    <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Full screen" />
+                    <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Record screen" />
+                    <Button x:Name="RegionCaptureBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
+                    <Button x:Name="LastRegionBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
+                    <Button x:Name="FullScreenBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
+                    <Button x:Name="RecordBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
+                    <Button x:Name="RegionCaptureClear" Grid.Row="0" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
+                    <Button x:Name="LastRegionClear" Grid.Row="1" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
+                    <Button x:Name="FullScreenClear" Grid.Row="2" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
+                    <Button x:Name="RecordClear" Grid.Row="3" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
+                </Grid>
+                <TextBlock Style="{StaticResource Hint}" Text="Click a box, then press the keys you want. Esc keeps the old one." />
+                <TextBlock x:Name="HotkeyProblems" Style="{StaticResource Hint}" Foreground="#FF8A80" Visibility="Collapsed" />
 
-            <TextBlock Style="{StaticResource Heading}" Text="Capturing" />
-            <CheckBox x:Name="CaptureOnRelease" Content="Capture as soon as I let go of the mouse" />
-            <TextBlock Style="{StaticResource Hint}" Text="Turn this off to adjust the selection with handles first, then press Enter to capture." />
-            <CheckBox x:Name="ShowCrosshairBox" Content="Show crosshair lines across the screen" Margin="0,10,0,0" />
-            <CheckBox x:Name="ShowMagnifierBox" Content="Show the magnifier beside the pointer" />
+                <TextBlock Style="{StaticResource Heading}" Text="Capturing" />
+                <CheckBox x:Name="CaptureOnRelease" Content="Capture as soon as I let go of the mouse" />
+                <TextBlock Style="{StaticResource Hint}" Text="Turn this off to adjust the selection with handles first, then press Enter to capture." />
+                <CheckBox x:Name="ShowCrosshairBox" Content="Show crosshair lines across the screen" Margin="0,10,0,0" />
+                <CheckBox x:Name="ShowMagnifierBox" Content="Show the magnifier beside the pointer" />
 
-            <TextBlock Style="{StaticResource Heading}" Text="Saving" />
-            <TextBlock Style="{StaticResource Label}" Text="Folder" Margin="0,0,0,4" />
-            <DockPanel>
-                <Button x:Name="BrowseButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Browse…" Margin="8,0,0,0" />
-                <TextBox x:Name="SaveFolderBox" />
-            </DockPanel>
-            <TextBlock x:Name="SaveFolderHint" Style="{StaticResource Hint}" />
+                <TextBlock Style="{StaticResource Heading}" Text="Saving" />
+                <TextBlock Style="{StaticResource Label}" Text="Folder" Margin="0,0,0,4" />
+                <DockPanel>
+                    <Button x:Name="BrowseButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Browse…" Margin="8,0,0,0" />
+                    <TextBox x:Name="SaveFolderBox" />
+                </DockPanel>
+                <TextBlock x:Name="SaveFolderHint" Style="{StaticResource Hint}" />
 
-            <TextBlock Style="{StaticResource Label}" Text="File names" Margin="0,12,0,4" />
-            <TextBox x:Name="PatternBox" />
-            <TextBlock x:Name="PatternExample" Style="{StaticResource Hint}" Foreground="#CCFFFFFF" />
-            <TextBlock Style="{StaticResource Hint}"
-                       Text="yyyy year, MM month, dd day, HH hour, mm minutes, ss seconds. Put words in single quotes, e.g. 'Overmark' yyyy-MM-dd." />
+                <TextBlock Style="{StaticResource Label}" Text="File names" Margin="0,12,0,4" />
+                <TextBox x:Name="PatternBox" />
+                <TextBlock x:Name="PatternExample" Style="{StaticResource Hint}" Foreground="#CCFFFFFF" />
+                <TextBlock Style="{StaticResource Hint}"
+                           Text="yyyy year, MM month, dd day, HH hour, mm minutes, ss seconds. Put words in single quotes, e.g. 'Overmark' yyyy-MM-dd." />
 
-            <TextBlock Style="{StaticResource Heading}" Text="After a capture" />
-            <DockPanel>
-                <TextBlock x:Name="PopupText" DockPanel.Dock="Right" Style="{StaticResource Label}" MinWidth="150" Margin="12,0,0,0" />
-                <Slider x:Name="PopupSlider" Minimum="0" Maximum="15" SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True"
-                        VerticalAlignment="Center" />
-            </DockPanel>
-            <TextBlock Style="{StaticResource Hint}" Text="How long the preview stays in the corner. At 0, a plain Windows notification is shown instead." />
+                <TextBlock Style="{StaticResource Heading}" Text="Recording" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Label}" Text="Frames a second" Margin="0,0,16,0" />
+                    <RadioButton x:Name="Fps15" GroupName="FrameRate" Content="15" />
+                    <RadioButton x:Name="Fps30" GroupName="FrameRate" Content="30" />
+                    <RadioButton x:Name="Fps60" GroupName="FrameRate" Content="60" />
+                </StackPanel>
+                <CheckBox x:Name="RecordCursorBox" Content="Show the mouse pointer in recordings" Margin="0,8,0,0" />
+                <TextBlock Style="{StaticResource Hint}" Text="Recordings are saved as MP4 videos (no sound) next to your screenshots. 30 frames a second suits most uses; 60 is smoother but makes bigger files." />
 
-            <TextBlock Style="{StaticResource Heading}" Text="Windows" />
-            <CheckBox x:Name="StartWithWindowsBox" Content="Start Overmark when I sign in to Windows" />
-            <CheckBox x:Name="CheckForUpdatesBox" Content="Check for updates automatically" />
-            <DockPanel Margin="0,10,0,0">
-                <Button x:Name="WindowsSettingButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Open Windows setting" Margin="8,0,0,0" />
-                <TextBlock x:Name="PrintScreenStatus" Style="{StaticResource Label}" TextWrapping="Wrap" />
-            </DockPanel>
-        </StackPanel>
+                <TextBlock Style="{StaticResource Heading}" Text="After a capture" />
+                <DockPanel>
+                    <TextBlock x:Name="PopupText" DockPanel.Dock="Right" Style="{StaticResource Label}" MinWidth="150" Margin="12,0,0,0" />
+                    <Slider x:Name="PopupSlider" Minimum="0" Maximum="15" SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True"
+                            VerticalAlignment="Center" />
+                </DockPanel>
+                <TextBlock Style="{StaticResource Hint}" Text="How long the preview stays in the corner. At 0, a plain Windows notification is shown instead." />
+
+                <TextBlock Style="{StaticResource Heading}" Text="Windows" />
+                <CheckBox x:Name="StartWithWindowsBox" Content="Start Overmark when I sign in to Windows" />
+                <CheckBox x:Name="CheckForUpdatesBox" Content="Check for updates automatically" />
+                <DockPanel Margin="0,10,0,0">
+                    <Button x:Name="WindowsSettingButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Open Windows setting" Margin="8,0,0,0" />
+                    <TextBlock x:Name="PrintScreenStatus" Style="{StaticResource Label}" TextWrapping="Wrap" />
+                </DockPanel>
+            </StackPanel>
+        </ScrollViewer>
     </DockPanel>
 </Window>

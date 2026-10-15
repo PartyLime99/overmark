@@ -5,6 +5,7 @@ internal enum HotkeyAction
     RegionCapture,
     LastRegion,
     FullScreen,
+    Record,
 }
 
 internal static class HotkeyActionExtensions
@@ -14,6 +15,7 @@ internal static class HotkeyActionExtensions
         HotkeyAction.RegionCapture => "Region capture",
         HotkeyAction.LastRegion => "Last region",
         HotkeyAction.FullScreen => "Full screen",
+        HotkeyAction.Record => "Record screen",
         _ => action.ToString(),
     };
 }

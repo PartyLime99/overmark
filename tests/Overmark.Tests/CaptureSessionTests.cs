@@ -231,6 +231,28 @@ public class CaptureSessionTests
     }
 
     [Fact]
+    public void Record_mode_marks_the_outcome_as_a_recording()
+    {
+        var session = Start(adjust: false);
+
+        session.KeyPressed(Key.R, ModifierKeys.None);
+        Assert.True(session.RecordMode);
+        Drag(session, 10, 10, 409, 209);
+
+        Assert.Equal(new CaptureOutcome(new ScreenRect(10, 10, 400, 200), CaptureKind.Region, Record: true), _outcome);
+    }
+
+    [Fact]
+    public void Screenshots_are_not_recordings()
+    {
+        var session = Start(adjust: false);
+
+        Drag(session, 10, 10, 409, 209);
+
+        Assert.False(_outcome!.Record);
+    }
+
+    [Fact]
     public void Nothing_happens_after_finishing()
     {
         var session = Start();
