@@ -66,6 +66,7 @@ internal partial class EditorWindow : Window
             [ToolKind.Rectangle] = RectangleTool,
             [ToolKind.Ellipse] = EllipseTool,
             [ToolKind.Highlighter] = HighlighterTool,
+            [ToolKind.Text] = TextTool,
             [ToolKind.Eraser] = EraserTool,
             [ToolKind.Crop] = CropTool,
         };
@@ -78,6 +79,9 @@ internal partial class EditorWindow : Window
         ThicknessSlider.ValueChanged += (_, e) => SetThickness(e.NewValue);
         ArrowheadToggle.Checked += (_, _) => SetCurveArrowhead(true);
         ArrowheadToggle.Unchecked += (_, _) => SetCurveArrowhead(false);
+        TextBoxToggle.Checked += (_, _) => SetTextBoxed(true);
+        TextBoxToggle.Unchecked += (_, _) => SetTextBoxed(false);
+        TypingBox.TextChanged += (_, _) => _tools.SetText(TypingBox.Text);
         CustomColourButton.Click += (_, _) => PickCustomColour();
         UndoButton.Click += (_, _) => Undo();
         RedoButton.Click += (_, _) => _document.Redo();
@@ -103,6 +107,7 @@ internal partial class EditorWindow : Window
 
         _tools.Committed += _document.Add;
         _tools.CropApplied += _document.CropTo;
+        _tools.PreviewChanged += ShowTypingBox;
         _document.Changed += UpdateCommands;
         _document.Changed += ShowCrop;
         _statusTimer.Tick += (_, _) =>
@@ -198,9 +203,16 @@ internal partial class EditorWindow : Window
     {
         _tools.Tool = tool;
         ArrowheadToggle.Visibility = tool == ToolKind.Curve ? Visibility.Visible : Visibility.Collapsed;
+        TextBoxToggle.Visibility = tool == ToolKind.Text ? Visibility.Visible : Visibility.Collapsed;
+        ShowThickness();
 
         // The eraser shows its own circle instead of the crosshair.
-        DrawingLayer.Cursor = tool == ToolKind.Eraser ? Cursors.None : Cursors.Cross;
+        DrawingLayer.Cursor = tool switch
+        {
+            ToolKind.Eraser => Cursors.None,
+            ToolKind.Text => Cursors.IBeam,
+            _ => Cursors.Cross,
+        };
         if (tool != ToolKind.Eraser)
         {
             DrawingLayer.EraserAt = null;
@@ -224,15 +236,63 @@ internal partial class EditorWindow : Window
     private void SetThickness(double thickness)
     {
         _tools.Width = thickness;
-        ThicknessText.Text = $"{thickness:0} px";
+        ShowThickness();
         ThicknessPreview.Width = ThicknessPreview.Height = Math.Clamp(thickness, 3, 30);
         RememberChoices();
+    }
+
+    /// <summary>The number beside the slider: the line thickness, or for the text tool the text size it gives.</summary>
+    private void ShowThickness()
+    {
+        var size = _tools.Tool == ToolKind.Text ? Palette.StrokeWidth(ToolKind.Text, _tools.Width) : _tools.Width;
+        ThicknessText.Text = $"{size:0} px";
     }
 
     private void SetCurveArrowhead(bool on)
     {
         _tools.CurveArrowhead = on;
         RememberChoices();
+    }
+
+    private void SetTextBoxed(bool on)
+    {
+        _tools.TextBoxed = on;
+        RememberChoices();
+    }
+
+    /// <summary>
+    /// Puts the text box over text being typed, so it takes the keyboard and shows the caret, lined up so its
+    /// (invisible) letters sit exactly on the drawn ones. Hides it again when the text is finished or dropped.
+    /// </summary>
+    private void ShowTypingBox()
+    {
+        if (_tools.Typing is not { } typing)
+        {
+            if (TypingBox.Visibility == Visibility.Visible)
+            {
+                TypingBox.Visibility = Visibility.Collapsed;
+                TypingBox.Clear();
+                Focus();
+            }
+
+            return;
+        }
+
+        TypingBox.FontSize = typing.FontSize;
+        TypingBox.CaretBrush = new SolidColorBrush(typing.Style.Color);
+        var starting = TypingBox.Visibility != Visibility.Visible;
+        TypingBox.Visibility = Visibility.Visible;
+        TypingBox.UpdateLayout();
+
+        // Where the box draws its first letter, which isn't quite its top-left corner.
+        var first = TypingBox.GetRectFromCharacterIndex(0);
+        var inset = first.IsEmpty ? new Vector() : (Vector)first.TopLeft;
+        Canvas.SetLeft(TypingBox, typing.Position.X - inset.X);
+        Canvas.SetTop(TypingBox, typing.Position.Y - inset.Y);
+        if (starting)
+        {
+            TypingBox.Focus();
+        }
     }
 
     private void PickCustomColour()
@@ -287,6 +347,8 @@ internal partial class EditorWindow : Window
             SetThickness(ThicknessSlider.Value);
             ArrowheadToggle.IsChecked = settings.CurveArrowhead;
             _tools.CurveArrowhead = settings.CurveArrowhead;
+            TextBoxToggle.IsChecked = settings.TextBoxed;
+            _tools.TextBoxed = settings.TextBoxed;
 
             var tool = Enum.TryParse<ToolKind>(settings.Tool, true, out var saved) && saved is not (ToolKind.Eraser or ToolKind.Crop)
                 ? saved
@@ -312,6 +374,7 @@ internal partial class EditorWindow : Window
             Colour = Hex(_tools.Colour),
             StrokeWidth = _tools.Width,
             CurveArrowhead = _tools.CurveArrowhead,
+            TextBoxed = _tools.TextBoxed,
             CustomColour = _customColour is { } custom ? Hex(custom) : null,
         });
     }
@@ -379,6 +442,37 @@ internal partial class EditorWindow : Window
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         var step = IsShiftDown ? 5 : 1;
         e.Handled = true;
+        if (_tools.Typing is not null)
+        {
+            // While typing, keys go to the text box (Ctrl+C copies text, Ctrl+Z undoes typing, and so on), apart from these.
+            switch (key)
+            {
+                case Key.Enter when !IsShiftDown:
+                    _tools.Finish();
+                    break;
+                case Key.Escape:
+                    _tools.Cancel();
+                    break;
+                case Key.Tab:
+                    // Would move the keyboard away from the text box, with nowhere useful to go.
+                    break;
+                case Key.S when ctrl:
+                    Save();
+                    break;
+                case Key.D0 or Key.NumPad0 when ctrl:
+                    FitToWindow();
+                    break;
+                case Key.D1 or Key.NumPad1 when ctrl:
+                    SetZoom(1, null);
+                    break;
+                default:
+                    e.Handled = false;
+                    break;
+            }
+
+            return;
+        }
+
         switch (key)
         {
             case Key.LeftShift or Key.RightShift:
@@ -442,6 +536,9 @@ internal partial class EditorWindow : Window
                 break;
             case Key.H when !ctrl:
                 HighlighterTool.IsChecked = true;
+                break;
+            case Key.T when !ctrl:
+                TextTool.IsChecked = true;
                 break;
             case Key.E when !ctrl:
                 EraserTool.IsChecked = true;

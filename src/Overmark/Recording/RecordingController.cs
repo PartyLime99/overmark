@@ -133,6 +133,7 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
         var duration = $"{(int)length.TotalMinutes}:{length.Seconds:00}";
         Log.Info($"Recorded {duration} to {path}");
         var copied = TryCopyFile(path);
+        uint? clipboardVersion = copied ? NativeMethods.GetClipboardSequenceNumber() : null;
         var current = settings();
         var details = $"{duration}  ·  {_region.Width} × {_region.Height}  ·  {Path.GetFileName(path)}";
         if (current.PopupSeconds <= 0)
@@ -141,17 +142,18 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
             return;
         }
 
-        ShowPopup(recorder.FirstFrame ?? BlankFrame(), copied ? "Recording copied" : "Recording saved", details, path, TimeSpan.FromSeconds(current.PopupSeconds));
+        ShowPopup(recorder.FirstFrame ?? BlankFrame(), copied ? "Recording copied" : "Recording saved", details, path, clipboardVersion,
+            TimeSpan.FromSeconds(current.PopupSeconds));
     }
 
-    private void ShowPopup(BitmapSource preview, string heading, string details, string path, TimeSpan showFor)
+    private void ShowPopup(BitmapSource preview, string heading, string details, string path, uint? clipboardVersion, TimeSpan showFor)
     {
         _popup?.Close();
         var monitors = Displays.GetMonitors();
         var pointer = Pointer.Position;
         var monitor = monitors.FirstOrDefault(m => m.Bounds.Contains(pointer)) ?? monitors[0];
         var popup = new CapturePopup(preview, heading, details, path, monitor, showFor, () => Play(path), pin: null,
-            hint: "Click to play  ·  drag into another app, or paste it");
+            delete: () => Delete(path, clipboardVersion), hint: "Click to play  ·  drag into another app, or paste it");
         popup.Closed += (_, _) =>
         {
             if (_popup == popup)
@@ -196,6 +198,19 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
         {
             Log.Warn($"Couldn't open {path}: {ex.Message}");
         }
+    }
+
+    /// <summary>The preview's delete button: the video goes to the Recycle Bin and off the clipboard.</summary>
+    private void Delete(string path, uint? clipboardVersion)
+    {
+        if (CaptureOutput.TryDiscard(path, clipboardVersion, out var problem))
+        {
+            Log.Info($"Deleted {path}");
+            return;
+        }
+
+        Log.Warn($"Couldn't delete {path}: {problem}");
+        tray.Notify("Couldn't delete the recording", $"{Path.GetFileName(path)}: {problem}");
     }
 
     private static void TryDelete(string path)

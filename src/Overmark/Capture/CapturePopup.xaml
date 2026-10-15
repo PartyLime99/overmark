@@ -45,6 +45,27 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Turns red under the mouse, so it's clear this one throws the capture away. -->
+        <Style x:Key="DeleteButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="5" Padding="7">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- The margin leaves room for the shadow. -->
@@ -55,6 +76,9 @@
         <StackPanel Width="300">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="DeleteButton" Style="{StaticResource DeleteButton}" ToolTip="Delete: moves the file to the Recycle Bin and takes it off the clipboard">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;" />
+                    </Button>
                     <Button x:Name="PinButton" Style="{StaticResource IconButton}" ToolTip="Pin to the screen">
                         <TextBlock Style="{StaticResource Glyph}" Text="&#xE718;" />
                     </Button>

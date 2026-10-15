@@ -17,7 +17,7 @@ Press **PrtScn** and the screen freezes, with crosshairs and a magnifier. Then:
 - **Esc** or right-click cancels.
 - The **toolbar** at the top has **Last region** (L), **Full screen** (F), **Record** (R), **Settings** and **Cancel**.
 
-Each capture is copied to the clipboard and saved as a PNG in `Pictures\Screenshots`. A preview pops up in the corner: **click** it to edit, **drag** it into Outlook, Teams or a folder, or **pin** it so it floats on top of everything.
+Each capture is copied to the clipboard and saved as a PNG in `Pictures\Screenshots`. A preview pops up in the corner: **click** it to edit, **drag** it into Outlook, Teams or a folder, **pin** it so it floats on top of everything, or **delete** it if it was a mistake (it goes to the Recycle Bin, and off the clipboard).
 
 | Key | Action |
 |---|---|
@@ -32,7 +32,7 @@ Press **Ctrl+Shift+PrtScn** (or **Record** on the capture toolbar), then pick th
 
 While recording, a thin red frame marks the area and a small bar beside it shows the time, with **Pause**, **Stop** and **Discard**. Neither appears in the video. Press Ctrl+Shift+PrtScn again (or **Stop recording** in the tray menu) to stop.
 
-The video is saved as an MP4 (no sound) next to your screenshots and copied to the clipboard as a file, so Ctrl+V pastes it into Teams, Outlook or a folder. A preview pops up: **click** it to play, or **drag** it somewhere. The frame rate (15, 30 or 60 a second) and whether the mouse pointer shows are in Settings.
+The video is saved as an MP4 (no sound) next to your screenshots and copied to the clipboard as a file, so Ctrl+V pastes it into Teams, Outlook or a folder. A preview pops up: **click** it to play, **drag** it somewhere, or **delete** it. The frame rate (15, 30 or 60 a second) and whether the mouse pointer shows are in Settings.
 
 ## Editor
 
@@ -42,17 +42,19 @@ Pick the colour and thickness **first**; they apply to the next mark only.
 
 | Key | Tool or action |
 |---|---|
-| P / L / A / C / R / O / H | Freehand, Line, Arrow, Curve, Rectangle, Circle, Highlighter |
+| P / L / A / C / R / O / H / T | Freehand, Line, Arrow, Curve, Rectangle, Circle, Highlighter, Text |
 | E / X | Eraser (removes whole marks) / Crop (drag a box, then Enter) |
 | Shift (while drawing) | Straight angles for lines, arrows and curves; squares and circles; straight highlighter |
 | 1–8, 9 | The palette colours; your custom colour |
 | [ / ] | Thinner / thicker (Shift: by 5) |
-| Enter / Esc | Finish a curve or crop / drop it |
+| Enter / Esc | Finish a curve, crop or text / drop it |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
 | Ctrl+C / Ctrl+S | Copy / save over the capture file |
 | Ctrl+0 / Ctrl+1 / Ctrl+scroll | Fit / actual size / zoom |
 
 To draw a **curve**, drag a straight line, then drag the round handle in its middle to bend it. The arrowhead toggle next to the tools adds an arrowhead.
+
+To add **text**, pick the text tool (T), click where it should go and type. Enter finishes it, Shift+Enter starts a new line, and clicking somewhere else finishes it and starts another there. The thickness slider sets the size (the default gives 20 px text), and the box toggle next to the tools puts the text on a box so it stands out on a busy background. The colour, size and box can still be changed while you're typing.
 
 The **pin** button floats the image on top of everything. To drop a capture into an email, chat or folder, drag the preview that pops up after capturing.
 

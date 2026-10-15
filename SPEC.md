@@ -63,6 +63,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
   - Click it to open the editor (brought to the front).
   - Drag it into Outlook, Teams, Word, a folder, etc.
   - Pin it to the screen.
+  - **Delete** it, for a capture taken by mistake: the file goes to the Recycle Bin (so it can be put back), and the clipboard is emptied if it still holds the capture. The bin icon turns red under the mouse.
 
 ## Editor
 
@@ -71,7 +72,8 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 **Colour and thickness**
 - 8 preset colours plus a custom colour picker. Keys 1–8 pick the presets, 9 the custom colour.
 - Thickness from 1 to 30 px on a slider, with a dot showing the current colour and thickness. [ and ] change it by 1 (Shift: by 5). The highlighter draws four times as wide.
-- Picked **before** drawing and applied to the next mark only; marks already drawn never change.
+- Picked **before** drawing and applied to the next mark only; marks already drawn never change. Text that's still being typed isn't drawn yet, so it does take colour, size and box changes.
+- For the text tool, the thickness sets the text size: four times the thickness (minimum 10 px), so the default thickness of 5 gives 20 px text. The number beside the slider shows the text size while the text tool is selected.
 - The last-used tool, colour and thickness are remembered.
 
 **Tools**
@@ -85,6 +87,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 | Rectangle | R | Outline only. Shift makes a square |
 | Circle | O | An ellipse, outline only. Shift makes a perfect circle |
 | Highlighter | H | Wide translucent stroke; text underneath stays readable. Shift makes it straight |
+| Text | T | Click and type; the first line is centred on the click. Enter finishes, Shift+Enter starts a new line, Esc drops it, clicking elsewhere finishes it and starts the next. Segoe UI Semibold. A toggle puts it on a box (white, or near-black behind light colours) outlined in the text colour |
 | Eraser | E | Click or drag across marks; each mark touched is removed whole (empty rectangles only by their outline) |
 | Crop | X | Drag a box, then Enter |
 
@@ -120,7 +123,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Stop** (the button, the record hotkey, the tray item, or quitting Overmark) finishes the file. Then:
   - It's saved in the save folder, named like screenshots but `.mp4`.
   - It's copied to the clipboard as a file, so Ctrl+V pastes it into Teams, Outlook or Explorer.
-  - The preview pops up with the first frame, length, size and file name. Clicking it plays the video in the default player; dragging it drops the file. There's no pin button.
+  - The preview pops up with the first frame, length, size and file name. Clicking it plays the video in the default player; dragging it drops the file; the delete button sends it to the Recycle Bin. There's no pin button.
 - **Discard** stops and deletes the file.
 - One recording at a time. Screenshots still work while recording.
 
@@ -153,7 +156,7 @@ Settings are stored in `%AppData%\Overmark\settings.json`, which can also be edi
 
 ## Not included
 
-Sound in recordings, text labels, blur/pixelate, numbered steps, OCR, uploads, capture history, scrolling capture, and selecting or moving marks after drawing.
+Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, capture history, scrolling capture, and selecting or moving marks after drawing.
 
 ## Build phases
 
@@ -162,5 +165,5 @@ Sound in recordings, text labels, blur/pixelate, numbered steps, OCR, uploads, c
 3. **Editor drawing:** pick-first colour and thickness, the drawing tools, Shift-snap, undo/redo, zoom, copy and save. *Done.*
 4. **Eraser and output:** eraser, crop, drag-out, the preview popup, pins. *Done.*
 5. **Settings and installer:** settings window, start with Windows, Velopack installer and auto-update, first GitHub release. *Done except the first release.*
-6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, and screen recording without sound.
+6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, and deleting a capture from the preview.
 7. **Wider release:** signing, GitHub Actions builds, README screenshots, winget.

@@ -1,11 +1,15 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using Overmark.Platform;
 
 namespace Overmark.Capture;
 
-/// <summary>What happened to a capture. <see cref="Problem"/> describes whatever didn't work.</summary>
-internal sealed record DeliveryResult(bool Copied, string? SavedPath, string? Problem);
+/// <summary>
+/// What happened to a capture. <see cref="Problem"/> describes whatever didn't work. <see cref="ClipboardVersion"/> is
+/// the clipboard's sequence number just after the capture was copied (null if it wasn't).
+/// </summary>
+internal sealed record DeliveryResult(bool Copied, string? SavedPath, string? Problem, uint? ClipboardVersion = null);
 
 /// <summary>Puts a finished capture on the clipboard and saves it as a PNG.</summary>
 internal static class CaptureOutput
@@ -15,19 +19,42 @@ internal static class CaptureOutput
     {
         var png = await Task.Run(() => EncodePng(image));
         var copied = TryCopyToClipboard(image, png, out var problem);
+        uint? clipboardVersion = copied ? NativeMethods.GetClipboardSequenceNumber() : null;
         try
         {
             var path = await Task.Run(() => Save(png, folder, fileNamePattern));
-            return new DeliveryResult(copied, path, problem);
+            return new DeliveryResult(copied, path, problem, clipboardVersion);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            return new DeliveryResult(copied, null, ex.Message);
+            return new DeliveryResult(copied, null, ex.Message, clipboardVersion);
         }
     }
 
     /// <summary>Copies <paramref name="image"/> to the clipboard. UI thread only.</summary>
     public static bool TryCopy(BitmapSource image, out string? problem) => TryCopyToClipboard(image, EncodePng(image), out problem);
+
+    /// <summary>
+    /// Throws away a capture made by mistake: the file goes to the Recycle Bin, and the clipboard is emptied if it
+    /// still holds the capture (nothing else has been copied since <paramref name="clipboardVersion"/>). UI thread only.
+    /// </summary>
+    public static bool TryDiscard(string path, uint? clipboardVersion, out string? problem)
+    {
+        if (clipboardVersion is { } version && NativeMethods.GetClipboardSequenceNumber() == version)
+        {
+            try
+            {
+                Clipboard.Clear();
+            }
+            catch (ExternalException ex)
+            {
+                // Another app has the clipboard open; the file still goes.
+                Log.Warn($"Couldn't clear the clipboard: {ex.Message}");
+            }
+        }
+
+        return RecycleBin.TrySend(path, out problem);
+    }
 
     public static byte[] EncodePng(BitmapSource image)
     {

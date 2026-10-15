@@ -94,7 +94,7 @@ internal sealed class HotkeySettings
 /// <summary>The editor's choices, remembered between captures.</summary>
 internal sealed class EditorSettings
 {
-    /// <summary>Freehand, Line, Arrow, Curve, Rectangle or Highlighter.</summary>
+    /// <summary>Freehand, Line, Arrow, Curve, Rectangle, Ellipse, Highlighter or Text.</summary>
     public string? Tool { get; set; } = "Arrow";
 
     /// <summary>A colour like "#E53935".</summary>
@@ -104,6 +104,9 @@ internal sealed class EditorSettings
     public double StrokeWidth { get; set; } = 5;
 
     public bool CurveArrowhead { get; set; }
+
+    /// <summary>Whether text goes on a box of a contrasting colour.</summary>
+    public bool TextBoxed { get; set; }
 
     /// <summary>The colour last picked with the custom colour button, if any.</summary>
     public string? CustomColour { get; set; }

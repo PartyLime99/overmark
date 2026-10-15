@@ -9,8 +9,9 @@ using static Overmark.Platform.NativeMethods;
 namespace Overmark.Capture;
 
 /// <summary>
-/// The preview that pops up in the corner after a capture. Click it to edit, drag it into another app, or pin it.
-/// It never takes focus away from what the user is doing, and stays up while the mouse is over it.
+/// The preview that pops up in the corner after a capture. Click it to edit, drag it into another app, pin it, or
+/// delete it if it was a mistake. It never takes focus away from what the user is doing, and stays up while the mouse
+/// is over it.
 /// </summary>
 internal partial class CapturePopup : Window
 {
@@ -21,10 +22,11 @@ internal partial class CapturePopup : Window
     /// <param name="path">The saved file, or null if it couldn't be saved (then it can't be edited or dragged).</param>
     /// <param name="edit">What a click does: open the editor, or play a video.</param>
     /// <param name="pin">Pins the image; null hides the pin button (e.g. for a video).</param>
+    /// <param name="delete">Throws the capture away; null hides the delete button (e.g. when nothing was saved).</param>
     /// <param name="hint">The line under the details; null keeps the default for screenshots.</param>
     public CapturePopup(
         BitmapSource image, string heading, string details, string? path, MonitorInfo monitor, TimeSpan showFor,
-        Action? edit, Action? pin, string? hint = null)
+        Action? edit, Action? pin, Action? delete, string? hint = null)
     {
         InitializeComponent();
         if (hint is not null)
@@ -35,6 +37,11 @@ internal partial class CapturePopup : Window
         if (pin is null)
         {
             PinButton.Visibility = Visibility.Collapsed;
+        }
+
+        if (delete is null)
+        {
+            DeleteButton.Visibility = Visibility.Collapsed;
         }
 
         _monitor = monitor;
@@ -50,6 +57,11 @@ internal partial class CapturePopup : Window
         {
             pin?.Invoke();
             FadeOut();
+        };
+        DeleteButton.Click += (_, _) =>
+        {
+            FadeOut();
+            delete?.Invoke();
         };
         CloseButton.Click += (_, _) => FadeOut();
 

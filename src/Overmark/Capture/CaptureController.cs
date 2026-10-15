@@ -289,12 +289,13 @@ internal sealed class CaptureController(
         }
 
         Action? edit = path is null ? null : () => openEditor(path);
+        Action? delete = path is null ? null : () => Delete(path, result.ClipboardVersion);
         var monitors = Displays.GetMonitors();
         var pointer = Pointer.Position;
         var monitor = monitors.FirstOrDefault(m => m.Bounds.Contains(pointer)) ?? monitors[0];
         var pinAt = new PixelPoint(outcome.Region.Left, outcome.Region.Top);
 
-        var popup = new CapturePopup(image, heading, details, path, monitor, showFor, edit, () => pins.Open(image, pinAt, edit));
+        var popup = new CapturePopup(image, heading, details, path, monitor, showFor, edit, () => pins.Open(image, pinAt, edit), delete);
         popup.Closed += (_, _) =>
         {
             if (_popup == popup)
@@ -304,5 +305,18 @@ internal sealed class CaptureController(
         };
         _popup = popup;
         popup.Show();
+    }
+
+    /// <summary>The preview's delete button: a capture made by mistake goes to the Recycle Bin and off the clipboard.</summary>
+    private void Delete(string path, uint? clipboardVersion)
+    {
+        if (CaptureOutput.TryDiscard(path, clipboardVersion, out var problem))
+        {
+            Log.Info($"Deleted {path}");
+            return;
+        }
+
+        Log.Warn($"Couldn't delete {path}: {problem}");
+        tray.Notify("Couldn't delete the screenshot", $"{Path.GetFileName(path)}: {problem}");
     }
 }

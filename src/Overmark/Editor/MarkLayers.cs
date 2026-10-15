@@ -35,7 +35,7 @@ internal sealed class CommittedMarksLayer : FrameworkElement
 }
 
 /// <summary>
-/// Draws what's in progress (the mark being drawn, a curve's bend handle, the crop box, the eraser's circle) and
+/// Draws what's in progress (the mark being drawn, text being typed, a curve's bend handle, the crop box, the eraser's circle) and
 /// takes the mouse input for drawing. Coordinates are image pixels; <see cref="DipSize"/> keeps handles and text a
 /// constant size on screen at any zoom.
 /// </summary>
@@ -91,6 +91,19 @@ internal sealed class PreviewLayer : FrameworkElement
             dc.PushClip(new RectangleGeometry(area));
             preview.Draw(dc);
             dc.Pop();
+        }
+
+        if (_tools.Typing is { } typing)
+        {
+            // The text is drawn exactly as it will be kept; the editor's text box on top only shows the caret.
+            dc.PushClip(new RectangleGeometry(area));
+            typing.Draw(dc);
+            dc.Pop();
+
+            var frame = typing.Bounds;
+            frame.Inflate(4 * DipSize, 3 * DipSize);
+            dc.DrawRectangle(null, new Pen(Brushes.Black, DipSize), frame);
+            dc.DrawRectangle(null, new Pen(Brushes.White, DipSize) { DashStyle = new DashStyle([3, 3], 0) }, frame);
         }
 
         if (_tools.IsBending)

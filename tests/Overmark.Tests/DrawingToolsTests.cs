@@ -259,6 +259,108 @@ public class DrawingToolsTests
     }
 
     [Fact]
+    public void The_text_tool_types_where_it_is_clicked_and_enter_keeps_it()
+    {
+        _tools.Tool = ToolKind.Text;
+        _tools.Width = 5;
+
+        _tools.PointerDown(new Point(100, 50), false, Tolerance);
+        _tools.PointerUp(new Point(100, 50), false);
+        Assert.True(_tools.HasPending);
+        _tools.SetText("Hello");
+        Assert.Empty(_committed);
+
+        _tools.Finish();
+        var text = Assert.IsType<TextMark>(Assert.Single(_committed));
+        Assert.Equal("Hello", text.Text);
+        Assert.Equal(20, text.FontSize);
+        Assert.Equal(100, text.Position.X);
+        Assert.Equal(50, text.Position.Y + TextMark.LineHeight(20) / 2, 6); // first line centred on the click
+        Assert.Null(_tools.Typing);
+    }
+
+    [Fact]
+    public void Blank_text_is_not_kept_and_trailing_space_is_dropped()
+    {
+        _tools.Tool = ToolKind.Text;
+
+        _tools.PointerDown(new Point(10, 10), false, Tolerance);
+        _tools.SetText("  \r\n ");
+        _tools.Finish();
+        Assert.Empty(_committed);
+
+        _tools.PointerDown(new Point(10, 10), false, Tolerance);
+        _tools.SetText("Two\r\nlines \r\n");
+        _tools.Finish();
+        Assert.Equal("Two\r\nlines", Assert.IsType<TextMark>(Assert.Single(_committed)).Text);
+    }
+
+    [Fact]
+    public void Clicking_elsewhere_finishes_text_and_starts_the_next()
+    {
+        _tools.Tool = ToolKind.Text;
+        _tools.PointerDown(new Point(10, 10), false, Tolerance);
+        _tools.SetText("First");
+
+        _tools.PointerDown(new Point(200, 100), false, Tolerance);
+
+        Assert.Equal("First", Assert.IsType<TextMark>(Assert.Single(_committed)).Text);
+        Assert.Equal("", _tools.Typing?.Text);
+        Assert.Equal(200, _tools.Typing?.Position.X);
+    }
+
+    [Fact]
+    public void Colour_size_and_box_apply_to_text_still_being_typed()
+    {
+        _tools.Tool = ToolKind.Text;
+        _tools.PointerDown(new Point(10, 10), false, Tolerance);
+        _tools.SetText("Note");
+
+        _tools.Colour = Palette.Colours[4];
+        _tools.Width = 10;
+        _tools.TextBoxed = true;
+        _tools.Finish();
+
+        var text = Assert.IsType<TextMark>(Assert.Single(_committed));
+        Assert.Equal(new StrokeStyle(Palette.Colours[4], 40), text.Style);
+        Assert.True(text.Boxed);
+    }
+
+    [Fact]
+    public void Switching_tools_keeps_text_and_escape_drops_it()
+    {
+        _tools.Tool = ToolKind.Text;
+        _tools.PointerDown(new Point(10, 10), false, Tolerance);
+        _tools.SetText("Kept");
+        _tools.Tool = ToolKind.Arrow;
+        Assert.Single(_committed);
+
+        _tools.Tool = ToolKind.Text;
+        _tools.PointerDown(new Point(10, 10), false, Tolerance);
+        _tools.SetText("Dropped");
+        _tools.Cancel();
+        _tools.Finish();
+        Assert.Single(_committed);
+        Assert.Null(_tools.Typing);
+    }
+
+    [Fact]
+    public void Text_is_four_times_the_thickness_with_a_minimum()
+    {
+        Assert.Equal(20, Palette.StrokeWidth(ToolKind.Text, 5));
+        Assert.Equal(10, Palette.StrokeWidth(ToolKind.Text, 1));
+    }
+
+    [Fact]
+    public void Boxed_text_gets_a_contrasting_backdrop()
+    {
+        Assert.Equal(Colors.White, Palette.Backdrop(Palette.Colours[0])); // red
+        Assert.Equal(Colors.White, Palette.Backdrop(Palette.Colours[6])); // black
+        Assert.NotEqual(Colors.White, Palette.Backdrop(Palette.Colours[2])); // yellow
+        Assert.NotEqual(Colors.White, Palette.Backdrop(Palette.Colours[7])); // white
+    }
+
+    [Fact]
     public void The_arrowhead_toggle_applies_to_a_curve_being_bent()
     {
         _tools.Tool = ToolKind.Curve;

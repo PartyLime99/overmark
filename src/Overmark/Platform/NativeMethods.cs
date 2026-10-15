@@ -334,4 +334,8 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
+
+    /// <summary>Goes up by one every time anything changes the clipboard.</summary>
+    [DllImport("user32.dll")]
+    public static extern uint GetClipboardSequenceNumber();
 }

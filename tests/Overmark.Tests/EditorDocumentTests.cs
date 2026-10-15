@@ -120,6 +120,40 @@ public class EditorDocumentTests
     }
 
     [Fact]
+    public void Touching_anywhere_on_text_erases_it()
+    {
+        var text = new TextMark(new StrokeStyle(Palette.Colours[0], 20), new Point(100, 100), "Label", Boxed: false);
+        var area = text.TextArea;
+
+        Assert.True(text.IsTouchedBy(new Point(area.Left + area.Width / 2, area.Top + area.Height / 2), 1));
+        Assert.True(text.IsTouchedBy(new Point(area.Right + 4, area.Top), 5));
+        Assert.False(text.IsTouchedBy(new Point(area.Right + 20, area.Top), 5));
+
+        // The box around boxed text counts too.
+        var boxed = text with { Boxed = true };
+        Assert.True(boxed.Bounds.Contains(text.Bounds));
+        Assert.True(boxed.IsTouchedBy(new Point(boxed.Bounds.Left + 1, boxed.Bounds.Top + 1), 0));
+    }
+
+    [Fact]
+    public void Rendering_draws_text_in_its_colour()
+    {
+        var found = RunOnUiThread(() =>
+        {
+            var document = new EditorDocument(WhiteImage(120, 40));
+            document.Add(new TextMark(new StrokeStyle(Palette.Colours[4], 30), new Point(5, 0), "HHH", Boxed: false));
+            var rendered = document.Render();
+
+            var pixels = new byte[120 * 40 * 4];
+            rendered.CopyPixels(pixels, 120 * 4, 0);
+            return Enumerable.Range(0, 120 * 40).Any(i =>
+                Color.FromRgb(pixels[i * 4 + 2], pixels[i * 4 + 1], pixels[i * 4]) == Palette.Colours[4]);
+        });
+
+        Assert.True(found);
+    }
+
+    [Fact]
     public void Crop_is_whole_pixels_inside_the_image_and_undoable()
     {
         var document = new EditorDocument(WhiteImage(100, 80));

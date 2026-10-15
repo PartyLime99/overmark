@@ -11,6 +11,8 @@ namespace Overmark.Editor;
 /// Curves take two steps: drag out a straight line, then drag the handle in its middle to bend it. Enter,
 /// clicking elsewhere or switching tools finishes the curve; Esc throws it away.
 /// The crop tool works the same way: drag a box, then Enter applies it (<see cref="CropApplied"/>).
+/// The text tool starts typing where it's clicked (<see cref="Typing"/>); the editor's text box feeds in what's typed
+/// (<see cref="SetText"/>), and Enter or clicking elsewhere finishes it.
 /// The eraser makes no marks; the editor handles it.
 /// </remarks>
 internal sealed class DrawingTools
@@ -23,7 +25,11 @@ internal sealed class DrawingTools
 
     private readonly List<Point> _points = [];
     private ToolKind _tool = ToolKind.Arrow;
+    private Color _colour = Palette.Colours[0];
+    private double _width = Palette.DefaultThickness;
     private bool _curveArrowhead;
+    private bool _textBoxed;
+    private Point _textAnchor;
     private StrokeStyle _style;
     private Point _start;
     private Point _end;
@@ -42,7 +48,7 @@ internal sealed class DrawingTools
     /// <summary>Raised whenever <see cref="Preview"/>, the bend handle or the crop box changes.</summary>
     public event Action? PreviewChanged;
 
-    /// <summary>Switching tools finishes a curve that's being bent, and drops a crop box that wasn't applied.</summary>
+    /// <summary>Switching tools finishes a curve that's being bent or text being typed, and drops a crop box that wasn't applied.</summary>
     public ToolKind Tool
     {
         get => _tool;
@@ -54,15 +60,44 @@ internal sealed class DrawingTools
             }
 
             FinishCurve();
+            FinishText();
             Cancel();
             _tool = value;
         }
     }
 
-    public Color Colour { get; set; } = Palette.Colours[0];
+    /// <summary>The colour for the next mark. Text being typed changes colour straight away, as it isn't drawn yet.</summary>
+    public Color Colour
+    {
+        get => _colour;
+        set
+        {
+            _colour = value;
+            RestyleText();
+        }
+    }
 
-    /// <summary>The thickness slider's value, in image pixels.</summary>
-    public double Width { get; set; } = Palette.DefaultThickness;
+    /// <summary>The thickness slider's value, in image pixels. Like the colour, it applies to text being typed too.</summary>
+    public double Width
+    {
+        get => _width;
+        set
+        {
+            _width = value;
+            RestyleText();
+        }
+    }
+
+    /// <summary>Whether text goes on a box of a contrasting colour.</summary>
+    public bool TextBoxed
+    {
+        get => _textBoxed;
+        set
+        {
+            _textBoxed = value;
+            RestyleText();
+        }
+    }
 
     public bool CurveArrowhead
     {
@@ -88,8 +123,11 @@ internal sealed class DrawingTools
     /// <summary>The crop box being dragged or waiting for Enter, in image pixels.</summary>
     public Rect? CropBox { get; private set; }
 
-    /// <summary>True if something is part-done: a mark being dragged, a curve waiting to be bent, or a crop box.</summary>
-    public bool HasPending => _drawing || _bending || CropBox is not null;
+    /// <summary>The text being typed (possibly nothing yet), or null when nothing is being typed.</summary>
+    public TextMark? Typing { get; private set; }
+
+    /// <summary>True if something is part-done: a mark being dragged, a curve waiting to be bent, a crop box, or text being typed.</summary>
+    public bool HasPending => _drawing || _bending || CropBox is not null || Typing is not null;
 
     /// <param name="handleTolerance">How close (in image pixels) a press must be to grab a curve's bend handle.</param>
     public void PointerDown(Point point, bool shift, double handleTolerance)
@@ -106,13 +144,22 @@ internal sealed class DrawingTools
             FinishCurve();
         }
 
+        // Likewise for text: clicking away from it finishes it, and with the text tool starts the next text there.
+        FinishText();
+        if (_tool == ToolKind.Text)
+        {
+            _textAnchor = point;
+            ShowTyping("");
+            return;
+        }
+
         if (_tool == ToolKind.Eraser)
         {
             return;
         }
 
         _drawing = true;
-        _style = new StrokeStyle(Colour, Palette.StrokeWidth(_tool, Width));
+        _style = new StrokeStyle(_colour, Palette.StrokeWidth(_tool, _width));
         _start = _end = point;
         _points.Clear();
         _points.Add(point);
@@ -193,10 +240,20 @@ internal sealed class DrawingTools
         }
     }
 
-    /// <summary>Enter: finishes a curve waiting to be bent, or applies a crop box.</summary>
+    /// <summary>The editor's text box changed: shows the new text in place.</summary>
+    public void SetText(string text)
+    {
+        if (Typing is not null)
+        {
+            ShowTyping(text);
+        }
+    }
+
+    /// <summary>Enter: finishes a curve waiting to be bent or text being typed, or applies a crop box.</summary>
     public void Finish()
     {
         FinishCurve();
+        FinishText();
         if (!_drawing && CropBox is { } box)
         {
             CropBox = null;
@@ -205,7 +262,7 @@ internal sealed class DrawingTools
         }
     }
 
-    /// <summary>Throws away the mark or crop box in progress (Esc).</summary>
+    /// <summary>Throws away the mark, crop box or text in progress (Esc).</summary>
     public void Cancel()
     {
         if (!HasPending && Preview is null)
@@ -216,6 +273,7 @@ internal sealed class DrawingTools
         _drawing = _bending = _draggingHandle = false;
         Preview = null;
         CropBox = null;
+        Typing = null;
         PreviewChanged?.Invoke();
     }
 
@@ -224,6 +282,41 @@ internal sealed class DrawingTools
         if (_bending && Preview is { } curve)
         {
             Commit(curve);
+        }
+    }
+
+    /// <summary>Keeps the text being typed, unless it's blank. Trailing spaces and empty lines are dropped.</summary>
+    private void FinishText()
+    {
+        if (Typing is not { } typing)
+        {
+            return;
+        }
+
+        Typing = null;
+        var text = typing.Text.TrimEnd();
+        if (text.Length > 0)
+        {
+            Committed?.Invoke(typing with { Text = text });
+        }
+
+        PreviewChanged?.Invoke();
+    }
+
+    /// <summary>The first line of text is centred on the point that was clicked, whatever the font size.</summary>
+    private void ShowTyping(string text)
+    {
+        var size = Palette.StrokeWidth(ToolKind.Text, _width);
+        var position = new Point(_textAnchor.X, _textAnchor.Y - TextMark.LineHeight(size) / 2);
+        Typing = new TextMark(new StrokeStyle(_colour, size), position, text, _textBoxed);
+        PreviewChanged?.Invoke();
+    }
+
+    private void RestyleText()
+    {
+        if (Typing is { } typing)
+        {
+            ShowTyping(typing.Text);
         }
     }
 

@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Overmark.Capture;
@@ -31,11 +33,11 @@ public class UiSnapshotTests
             var capture = SampleCapture(1280, 720);
             var monitor = new MonitorInfo("DISPLAY1", new ScreenRect(0, 0, 2560, 1440), new ScreenRect(0, 0, 2560, 1380), true, 120);
 
-            var popup = new CapturePopup(capture, "Screenshot copied", "1280 × 720  ·  2026-10-15_10-30-00.png", @"C:\x.png", monitor, TimeSpan.FromSeconds(5), () => { }, () => { });
+            var popup = new CapturePopup(capture, "Screenshot copied", "1280 × 720  ·  2026-10-15_10-30-00.png", @"C:\x.png", monitor, TimeSpan.FromSeconds(5), () => { }, () => { }, () => { });
             Save((FrameworkElement)popup.Content, new Size(400, 400), "popup.png");
 
             var videoPopup = new CapturePopup(capture, "Recording copied", "0:42  ·  1280 × 720  ·  2026-10-15_10-30-00.mp4", "x.mp4", monitor,
-                TimeSpan.FromSeconds(5), () => { }, pin: null, hint: "Click to play  ·  drag into another app, or paste it");
+                TimeSpan.FromSeconds(5), () => { }, pin: null, delete: () => { }, hint: "Click to play  ·  drag into another app, or paste it");
             Save((FrameworkElement)videoPopup.Content, new Size(400, 400), "popup-video.png");
 
             var bar = new RecordingBar(new ScreenRect(100, 100, 1280, 720), monitor, "Ctrl+Shift+PrtScn");
@@ -48,6 +50,9 @@ public class UiSnapshotTests
             Save((FrameworkElement)editor.Content, new Size(editor.Width, 220), "editor-top.png");
             editor.Close();
 
+            SaveTyping();
+            SaveTextMarks();
+
             var pin = new PinWindow(SampleCapture(420, 240), null, null);
             Save((FrameworkElement)pin.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "pin.png");
 
@@ -57,6 +62,50 @@ public class UiSnapshotTests
             var settings = new SettingsWindow(new AppSettings(), new NoRecorder(), _ => { }, () => { });
             Save((FrameworkElement)settings.Content, new Size(settings.Width, double.PositiveInfinity), "settings.png");
         });
+    }
+
+    /// <summary>
+    /// The editor with one finished text and one being typed. The text box's own letters are made faintly green, so
+    /// the snapshot shows whether they sit exactly on the drawn text (they're invisible in the app).
+    /// </summary>
+    private static void SaveTyping()
+    {
+        var editor = new EditorWindow(@"C:\x.png", SampleCapture(640, 300), new EditorSettings { Tool = "Text", TextBoxed = true }, _ => { }, _ => { });
+        var content = (FrameworkElement)editor.Content;
+        var size = new Size(900, 480);
+        content.Measure(size);
+        content.Arrange(new Rect(size));
+
+        var tools = (DrawingTools)typeof(EditorWindow).GetField("_tools", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(editor)!;
+        var box = (TextBox)editor.FindName("TypingBox");
+        tools.PointerDown(new Point(60, 120), false, 8);
+        box.Text = "Boxed note";
+        tools.Finish();
+
+        tools.TextBoxed = false;
+        tools.PointerDown(new Point(60, 200), false, 8);
+        box.Text = "Typing gjy";
+        box.Foreground = new SolidColorBrush(Color.FromArgb(0x90, 0x00, 0xFF, 0x00));
+        tools.Width = tools.Width; // places the box again now that layout has run
+        Save(content, size, "editor-typing.png");
+        editor.Close();
+    }
+
+    private static void SaveTextMarks()
+    {
+        var document = new EditorDocument(SampleCapture(520, 260));
+        StrokeStyle Style(int colour, double size) => new(Palette.Colours[colour], size);
+        document.Add(new TextMark(Style(0, 20), new Point(20, 80), "Red, plain", false));
+        document.Add(new TextMark(Style(0, 20), new Point(200, 80), "Red, boxed", true));
+        document.Add(new TextMark(Style(2, 20), new Point(20, 130), "Yellow, boxed", true));
+        document.Add(new TextMark(Style(7, 20), new Point(200, 130), "White, boxed", true));
+        document.Add(new TextMark(Style(6, 12), new Point(370, 85), "Black 12 px", false));
+        document.Add(new TextMark(Style(4, 28), new Point(20, 180), "Two lines\r\nof blue", true));
+        var rendered = document.Render();
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(rendered));
+        using var file = File.Create(Path.Combine(Folder!, "text-marks.png"));
+        encoder.Save(file);
     }
 
     private sealed class NoRecorder : Overmark.Hotkeys.IHotkeyRecorder

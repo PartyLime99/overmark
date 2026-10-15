@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 
@@ -15,7 +16,7 @@ internal abstract record Mark(StrokeStyle Style)
     public abstract void Draw(DrawingContext dc);
 
     /// <summary>True if a circle of <paramref name="radius"/> at <paramref name="point"/> touches the drawn stroke.</summary>
-    public bool IsTouchedBy(Point point, double radius)
+    public virtual bool IsTouchedBy(Point point, double radius)
     {
         var reach = new Pen(Brushes.Black, Style.Width + 2 * radius)
         {
@@ -192,4 +193,76 @@ internal sealed record RectangleMark(StrokeStyle Style, Rect Bounds) : Mark(Styl
 
     // Only the outline counts: erasing inside an empty rectangle leaves it alone.
     protected override Geometry Centreline() => new RectangleGeometry(Bounds);
+}
+
+/// <summary>
+/// Typed text, one or more lines. <see cref="Position"/> is the top-left of the first line, and the style's width is
+/// the font size. <see cref="Boxed"/> puts it on a box of a contrasting colour, outlined in the text's colour, so it
+/// stays readable on a busy background.
+/// </summary>
+internal sealed record TextMark(StrokeStyle Style, Point Position, string Text, bool Boxed) : Mark(Style)
+{
+    public static Typeface Typeface { get; } = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+
+    public double FontSize => Style.Width;
+
+    /// <summary>Where the text is: at least one line high, and a little wide even when nothing has been typed yet.</summary>
+    public Rect TextArea
+    {
+        get
+        {
+            var text = Format(Brushes.Black);
+            return new Rect(Position, new Size(Math.Max(text.WidthIncludingTrailingWhitespace, FontSize * 0.3), Math.Max(text.Height, LineHeight(FontSize))));
+        }
+    }
+
+    /// <summary>Everything that's drawn, the box included.</summary>
+    public Rect Bounds
+    {
+        get
+        {
+            var area = TextArea;
+            if (Boxed)
+            {
+                area.Inflate(FontSize * 0.35, FontSize * 0.1);
+            }
+
+            return area;
+        }
+    }
+
+    /// <summary>The height of a line of text at <paramref name="fontSize"/>.</summary>
+    public static double LineHeight(double fontSize) => Typeface.FontFamily.LineSpacing * fontSize;
+
+    public override void Draw(DrawingContext dc)
+    {
+        if (Boxed)
+        {
+            var backdrop = Palette.Backdrop(Style.Color);
+            var fill = new SolidColorBrush(Color.FromArgb(0xE6, backdrop.R, backdrop.G, backdrop.B));
+            fill.Freeze();
+            var outline = new Pen(Fill(), Math.Max(1, FontSize / 12));
+            outline.Freeze();
+            dc.DrawRoundedRectangle(fill, outline, Bounds, FontSize * 0.2, FontSize * 0.2);
+        }
+
+        if (Text.Length > 0)
+        {
+            dc.DrawText(Format(Fill()), Position);
+        }
+    }
+
+    // Touching anywhere on the text (or its box) erases it, not just the letters' strokes.
+    public override bool IsTouchedBy(Point point, double radius)
+    {
+        var area = Bounds;
+        area.Inflate(radius, radius);
+        return area.Contains(point);
+    }
+
+    protected override Geometry Centreline() => new RectangleGeometry(Bounds);
+
+    // Image pixels are the unit everywhere, on screen (under the zoom) and when saving, so one pixel per DIP.
+    private FormattedText Format(Brush brush) =>
+        new(Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface, FontSize, brush, pixelsPerDip: 1);
 }

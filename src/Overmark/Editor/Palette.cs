@@ -11,6 +11,7 @@ internal enum ToolKind
     Rectangle,
     Ellipse,
     Highlighter,
+    Text,
     Eraser,
     Crop,
 }
@@ -41,8 +42,17 @@ internal static class Palette
 
     /// <summary>
     /// The stroke width, in image pixels, that <paramref name="tool"/> draws with at the slider's thickness.
-    /// The highlighter is a broad marker, so it draws four times as wide.
+    /// The highlighter is a broad marker, so it draws four times as wide. For text it's the font size, also four
+    /// times the thickness, so the default thickness of 5 gives 20 px text.
     /// </summary>
-    public static double StrokeWidth(ToolKind tool, double thickness) =>
-        tool == ToolKind.Highlighter ? Math.Max(8, thickness * 4) : thickness;
+    public static double StrokeWidth(ToolKind tool, double thickness) => tool switch
+    {
+        ToolKind.Highlighter => Math.Max(8, thickness * 4),
+        ToolKind.Text => Math.Max(10, thickness * 4),
+        _ => thickness,
+    };
+
+    /// <summary>What goes behind boxed text: white behind dark colours, near-black behind light ones (yellow, white).</summary>
+    public static Color Backdrop(Color colour) =>
+        0.299 * colour.R + 0.587 * colour.G + 0.114 * colour.B > 160 ? Color.FromRgb(0x20, 0x20, 0x20) : Colors.White;
 }

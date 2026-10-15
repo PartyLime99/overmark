@@ -163,6 +163,9 @@
                     <RadioButton x:Name="HighlighterTool" Style="{StaticResource Tool}" ToolTip="Highlighter (H). Hold Shift for a straight line.">
                         <Path Style="{StaticResource Icon}" Data="M2,9 H16" StrokeThickness="7" Opacity="0.6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
                     </RadioButton>
+                    <RadioButton x:Name="TextTool" Style="{StaticResource Tool}" ToolTip="Text (T). Click where it goes and type; Enter finishes, Shift+Enter starts a new line. The thickness sets the size.">
+                        <Path Style="{StaticResource Icon}" Data="M4,4.5 H14 M9,4.5 V15 M7,15 H11" />
+                    </RadioButton>
                     <RadioButton x:Name="EraserTool" Style="{StaticResource Tool}" ToolTip="Eraser (E). Click or drag across marks to remove them.">
                         <TextBlock Style="{StaticResource Glyph}" Text="&#xE75C;" />
                     </RadioButton>
@@ -171,6 +174,9 @@
                     </RadioButton>
                     <ToggleButton x:Name="ArrowheadToggle" Style="{StaticResource Toggle}" ToolTip="Arrowhead on curves" Visibility="Collapsed">
                         <Path Style="{StaticResource Icon}" Data="M3,15 Q4,5 13,4 M10,1.5 L14,4 L10,6.5" />
+                    </ToggleButton>
+                    <ToggleButton x:Name="TextBoxToggle" Style="{StaticResource Toggle}" ToolTip="Box behind text, so it stands out on a busy background" Visibility="Collapsed">
+                        <Path Style="{StaticResource Icon}" Data="M2,3.5 H16 V14.5 H2 Z M6,7 H12 M9,7 V11.5" />
                     </ToggleButton>
 
                     <Rectangle Style="{StaticResource Divider}" />
@@ -219,6 +225,14 @@
                         <Image x:Name="Picture" Stretch="Fill" />
                         <editor:CommittedMarksLayer x:Name="CommittedLayer" IsHitTestVisible="False" />
                         <editor:PreviewLayer x:Name="DrawingLayer" Cursor="Cross" />
+                        <!-- Takes the typing for the text tool. Its own text is invisible: the preview layer draws the
+                             text as it will be kept, and this only adds the caret and selection. -->
+                        <Canvas>
+                            <TextBox x:Name="TypingBox" Visibility="Collapsed" MinWidth="1"
+                                     Background="Transparent" Foreground="Transparent" BorderThickness="0" Padding="0"
+                                     FontFamily="Segoe UI" FontWeight="SemiBold" AcceptsReturn="True" TextWrapping="NoWrap"
+                                     FocusVisualStyle="{x:Null}" SpellCheck.IsEnabled="False" />
+                        </Canvas>
                     </Grid>
                 </Grid>
             </Border>
