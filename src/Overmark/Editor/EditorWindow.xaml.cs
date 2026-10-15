@@ -25,6 +25,7 @@ internal partial class EditorWindow : Window
     private readonly string _path;
     private readonly EditorDocument _document;
     private readonly DrawingTools _tools = new();
+    private readonly MoveTool _move;
     private readonly Action<EditorSettings> _rememberSettings;
     private readonly Action<BitmapSource> _pin;
     private readonly Dictionary<ToolKind, RadioButton> _toolButtons;
@@ -45,6 +46,7 @@ internal partial class EditorWindow : Window
         _rememberSettings = rememberSettings;
         _pin = pin;
         _document = new EditorDocument(image);
+        _move = new MoveTool(_document);
 
         Picture.Source = image;
         foreach (var layer in new FrameworkElement[] { Layers, Picture, CommittedLayer, DrawingLayer })
@@ -54,11 +56,12 @@ internal partial class EditorWindow : Window
         }
 
         CommittedLayer.Attach(_document);
-        DrawingLayer.Attach(_tools);
+        DrawingLayer.Attach(_tools, _move);
         ShowCrop();
 
         _toolButtons = new()
         {
+            [ToolKind.Move] = MoveButton,
             [ToolKind.Freehand] = FreehandTool,
             [ToolKind.Line] = LineTool,
             [ToolKind.Arrow] = ArrowTool,
@@ -67,6 +70,7 @@ internal partial class EditorWindow : Window
             [ToolKind.Ellipse] = EllipseTool,
             [ToolKind.Highlighter] = HighlighterTool,
             [ToolKind.Text] = TextTool,
+            [ToolKind.Dimension] = DimensionTool,
             [ToolKind.Eraser] = EraserTool,
             [ToolKind.Crop] = CropTool,
         };
@@ -206,11 +210,12 @@ internal partial class EditorWindow : Window
         TextBoxToggle.Visibility = tool == ToolKind.Text ? Visibility.Visible : Visibility.Collapsed;
         ShowThickness();
 
-        // The eraser shows its own circle instead of the crosshair.
+        // The eraser shows its own circle instead of the crosshair; the move tool's pointer shows what it would grab.
         DrawingLayer.Cursor = tool switch
         {
             ToolKind.Eraser => Cursors.None,
             ToolKind.Text => Cursors.IBeam,
+            ToolKind.Move => Cursors.Arrow,
             _ => Cursors.Cross,
         };
         if (tool != ToolKind.Eraser)
@@ -218,8 +223,13 @@ internal partial class EditorWindow : Window
             DrawingLayer.EraserAt = null;
         }
 
-        // The eraser and crop are one-off jobs, so the next capture opens with the last drawing tool.
-        if (tool is not (ToolKind.Eraser or ToolKind.Crop))
+        if (tool != ToolKind.Move)
+        {
+            _move.ClearSelection();
+        }
+
+        // Moving, erasing and cropping are one-off jobs, so the next capture opens with the last drawing tool.
+        if (tool is not (ToolKind.Move or ToolKind.Eraser or ToolKind.Crop))
         {
             _lastDrawingTool = tool;
             RememberChoices();
@@ -279,20 +289,23 @@ internal partial class EditorWindow : Window
         }
 
         TypingBox.FontSize = typing.FontSize;
-        TypingBox.CaretBrush = new SolidColorBrush(typing.Style.Color);
-        var starting = TypingBox.Visibility != Visibility.Visible;
-        TypingBox.Visibility = Visibility.Visible;
+        TypingBox.CaretBrush = new SolidColorBrush(typing.Colour);
+        if (TypingBox.Visibility != Visibility.Visible)
+        {
+            // A dimension starts with its measured length, selected so typing replaces it.
+            TypingBox.Visibility = Visibility.Visible;
+            TypingBox.Text = typing.Text;
+            TypingBox.SelectAll();
+            TypingBox.Focus();
+        }
+
         TypingBox.UpdateLayout();
 
         // Where the box draws its first letter, which isn't quite its top-left corner.
         var first = TypingBox.GetRectFromCharacterIndex(0);
         var inset = first.IsEmpty ? new Vector() : (Vector)first.TopLeft;
-        Canvas.SetLeft(TypingBox, typing.Position.X - inset.X);
-        Canvas.SetTop(TypingBox, typing.Position.Y - inset.Y);
-        if (starting)
-        {
-            TypingBox.Focus();
-        }
+        Canvas.SetLeft(TypingBox, typing.Origin.X - inset.X);
+        Canvas.SetTop(TypingBox, typing.Origin.Y - inset.Y);
     }
 
     private void PickCustomColour()
@@ -350,7 +363,7 @@ internal partial class EditorWindow : Window
             TextBoxToggle.IsChecked = settings.TextBoxed;
             _tools.TextBoxed = settings.TextBoxed;
 
-            var tool = Enum.TryParse<ToolKind>(settings.Tool, true, out var saved) && saved is not (ToolKind.Eraser or ToolKind.Crop)
+            var tool = Enum.TryParse<ToolKind>(settings.Tool, true, out var saved) && saved is not (ToolKind.Move or ToolKind.Eraser or ToolKind.Crop)
                 ? saved
                 : ToolKind.Arrow;
             _toolButtons[tool].IsChecked = true;
@@ -383,14 +396,18 @@ internal partial class EditorWindow : Window
     {
         DrawingLayer.CaptureMouse();
         var point = e.GetPosition(DrawingLayer);
-        if (_tools.Tool == ToolKind.Eraser)
+        switch (_tools.Tool)
         {
-            _erasingFrom = point;
-            _document.EraseAt(point, DrawingLayer.EraserRadius);
-        }
-        else
-        {
-            _tools.PointerDown(point, IsShiftDown, DrawingLayer.HandleRadius * 1.5);
+            case ToolKind.Eraser:
+                _erasingFrom = point;
+                _document.EraseAt(point, DrawingLayer.EraserRadius);
+                break;
+            case ToolKind.Move:
+                _move.PointerDown(point);
+                break;
+            default:
+                _tools.PointerDown(point, IsShiftDown, DrawingLayer.HandleRadius * 1.5);
+                break;
         }
 
         e.Handled = true;
@@ -399,6 +416,25 @@ internal partial class EditorWindow : Window
     private void OnPointerMove(object sender, MouseEventArgs e)
     {
         var point = e.GetPosition(DrawingLayer);
+        if (_tools.Tool == ToolKind.Move)
+        {
+            if (DrawingLayer.IsMouseCaptured)
+            {
+                _move.PointerMove(point, IsShiftDown);
+            }
+            else
+            {
+                DrawingLayer.Cursor = _move.GripAt(point) switch
+                {
+                    MoveGrip.TextAngle => Cursors.Hand,
+                    null => Cursors.Arrow,
+                    _ => Cursors.SizeAll,
+                };
+            }
+
+            return;
+        }
+
         if (_tools.Tool != ToolKind.Eraser)
         {
             _tools.PointerMove(point, IsShiftDown);
@@ -426,6 +462,10 @@ internal partial class EditorWindow : Window
         {
             _erasingFrom = null;
             _document.FinishErasing();
+        }
+        else if (_tools.Tool == ToolKind.Move)
+        {
+            _move.PointerUp();
         }
         else
         {
@@ -471,6 +511,37 @@ internal partial class EditorWindow : Window
             }
 
             return;
+        }
+
+        if (_move.Selected is not null && !ctrl)
+        {
+            // The move tool's selection: arrow keys nudge it, Delete removes it, Esc lets go of it.
+            var nudge = IsShiftDown ? 10 : 1;
+            Vector? offset = key switch
+            {
+                Key.Left => new Vector(-nudge, 0),
+                Key.Right => new Vector(nudge, 0),
+                Key.Up => new Vector(0, -nudge),
+                Key.Down => new Vector(0, nudge),
+                _ => null,
+            };
+            if (offset is { } by)
+            {
+                _move.Nudge(by);
+                return;
+            }
+
+            if (key is Key.Delete or Key.Back)
+            {
+                _move.DeleteSelected();
+                return;
+            }
+
+            if (key == Key.Escape)
+            {
+                _move.ClearSelection();
+                return;
+            }
         }
 
         switch (key)
@@ -539,6 +610,12 @@ internal partial class EditorWindow : Window
                 break;
             case Key.T when !ctrl:
                 TextTool.IsChecked = true;
+                break;
+            case Key.D when !ctrl:
+                DimensionTool.IsChecked = true;
+                break;
+            case Key.V when !ctrl:
+                MoveButton.IsChecked = true;
                 break;
             case Key.E when !ctrl:
                 EraserTool.IsChecked = true;
@@ -703,6 +780,7 @@ internal partial class EditorWindow : Window
         SurfaceScale.ScaleY = scale;
         RenderOptions.SetBitmapScalingMode(Picture, _zoom >= 1 ? BitmapScalingMode.NearestNeighbor : BitmapScalingMode.HighQuality);
         DrawingLayer.DipSize = 1 / scale;
+        _move.DipSize = 1 / scale;
         DrawingLayer.InvalidateVisual();
         ZoomText.Text = $"{Math.Round(_zoom * 100)}%";
     }

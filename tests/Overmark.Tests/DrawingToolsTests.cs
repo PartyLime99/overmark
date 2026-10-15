@@ -306,7 +306,7 @@ public class DrawingToolsTests
 
         Assert.Equal("First", Assert.IsType<TextMark>(Assert.Single(_committed)).Text);
         Assert.Equal("", _tools.Typing?.Text);
-        Assert.Equal(200, _tools.Typing?.Position.X);
+        Assert.Equal(200, _tools.Typing?.Origin.X);
     }
 
     [Fact]
@@ -342,6 +342,95 @@ public class DrawingToolsTests
         _tools.Finish();
         Assert.Single(_committed);
         Assert.Null(_tools.Typing);
+    }
+
+    private void Click(double x, double y)
+    {
+        _tools.PointerDown(new Point(x, y), false, Tolerance);
+        _tools.PointerUp(new Point(x, y), false);
+    }
+
+    [Fact]
+    public void Three_clicks_place_a_dimension_then_its_text_is_typed()
+    {
+        _tools.Tool = ToolKind.Dimension;
+        _tools.Width = 4;
+
+        Click(100, 100);
+        Click(300, 100);
+        Assert.Equal([new Point(100, 100), new Point(300, 100)], _tools.DimensionPoints);
+        _tools.PointerMove(new Point(200, 60), false);
+        Assert.Equal(DimensionKind.Horizontal, Assert.IsType<DimensionMark>(_tools.Preview).Kind);
+        Assert.StartsWith("Horizontal", _tools.DimensionHint?.Text);
+
+        Click(200, 60);
+        Assert.Equal("200 px", _tools.Typing?.Text); // starts with the measured length
+        Assert.Empty(_tools.DimensionPoints);
+        Assert.Empty(_committed);
+
+        _tools.SetText("50.0 mm");
+        _tools.Finish();
+        var dimension = Assert.IsType<DimensionMark>(Assert.Single(_committed));
+        Assert.Equal("50.0 mm", dimension.Text);
+        Assert.Equal((new Point(100, 100), new Point(300, 100), new Point(200, 60)), (dimension.A, dimension.B, dimension.Through));
+        Assert.Equal(new StrokeStyle(Palette.Colours[0], 4), dimension.Style);
+        Assert.Null(_tools.Typing);
+        Assert.False(_tools.HasPending);
+    }
+
+    [Fact]
+    public void Dragging_from_the_first_point_picks_the_second()
+    {
+        _tools.Tool = ToolKind.Dimension;
+
+        Drag(10, 10, 10, 150);
+
+        Assert.Equal([new Point(10, 10), new Point(10, 150)], _tools.DimensionPoints);
+    }
+
+    [Fact]
+    public void Clicking_away_from_dimension_text_finishes_it_without_starting_another()
+    {
+        _tools.Tool = ToolKind.Dimension;
+        Click(0, 0);
+        Click(100, 0);
+        Click(50, 30);
+        _tools.SetText("");
+
+        Click(400, 400);
+
+        Assert.Equal("", Assert.IsType<DimensionMark>(Assert.Single(_committed)).Text); // kept, with no text
+        Assert.Empty(_tools.DimensionPoints);
+        Assert.False(_tools.HasPending);
+    }
+
+    [Fact]
+    public void Escape_drops_a_dimension_at_any_stage()
+    {
+        _tools.Tool = ToolKind.Dimension;
+        Click(0, 0);
+        _tools.Cancel();
+        Assert.Empty(_tools.DimensionPoints);
+
+        Click(0, 0);
+        Click(100, 0);
+        Click(50, 30);
+        _tools.Cancel();
+        _tools.Finish();
+
+        Assert.Empty(_committed);
+        Assert.Null(_tools.Preview);
+    }
+
+    [Fact]
+    public void The_move_tool_draws_nothing()
+    {
+        _tools.Tool = ToolKind.Move;
+
+        Drag(0, 0, 100, 100);
+
+        Assert.Empty(_committed);
+        Assert.Null(_tools.Preview);
     }
 
     [Fact]

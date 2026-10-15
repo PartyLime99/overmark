@@ -4,6 +4,12 @@ using System.Windows.Media;
 namespace Overmark.Editor;
 
 /// <summary>
+/// Text being typed, for the editor's text box: what's there so far, where its first letter goes, its size and
+/// colour, and the frame shown round it. All in image pixels.
+/// </summary>
+internal sealed record TypingState(string Text, Point Origin, double FontSize, Color Colour, Rect Frame);
+
+/// <summary>
 /// Turns pointer input into marks for the current tool. Colour and thickness are taken when a mark starts, so
 /// changing them only affects the next mark. All points are image pixels. No UI, so it can be unit tested.
 /// </summary>
@@ -13,7 +19,10 @@ namespace Overmark.Editor;
 /// The crop tool works the same way: drag a box, then Enter applies it (<see cref="CropApplied"/>).
 /// The text tool starts typing where it's clicked (<see cref="Typing"/>); the editor's text box feeds in what's typed
 /// (<see cref="SetText"/>), and Enter or clicking elsewhere finishes it.
-/// The eraser makes no marks; the editor handles it.
+/// The dimension tool takes three clicks: the two points to measure between, then where the dimension line goes
+/// (which also picks horizontal, vertical or aligned). Then its text is typed like the text tool's, starting with the
+/// measured length in pixels.
+/// The eraser and move tool make no marks; the editor handles them.
 /// </remarks>
 internal sealed class DrawingTools
 {
@@ -24,12 +33,18 @@ internal sealed class DrawingTools
     private const double MinimumCrop = 4;
 
     private readonly List<Point> _points = [];
+    private readonly List<Point> _dimensionPoints = [];
     private ToolKind _tool = ToolKind.Arrow;
     private Color _colour = Palette.Colours[0];
     private double _width = Palette.DefaultThickness;
     private bool _curveArrowhead;
     private bool _textBoxed;
     private Point _textAnchor;
+    private TextMark? _text;
+    private DimensionMark? _dimension;
+    private Point _pointer;
+    private bool _pressingDimension;
+    private double _dragThreshold;
     private StrokeStyle _style;
     private Point _start;
     private Point _end;
@@ -45,10 +60,13 @@ internal sealed class DrawingTools
     /// <summary>Raised when the user confirms a crop box.</summary>
     public event Action<Rect>? CropApplied;
 
-    /// <summary>Raised whenever <see cref="Preview"/>, the bend handle or the crop box changes.</summary>
+    /// <summary>Raised whenever <see cref="Preview"/>, the bend handle, the crop box, typing or a dimension's points change.</summary>
     public event Action? PreviewChanged;
 
-    /// <summary>Switching tools finishes a curve that's being bent or text being typed, and drops a crop box that wasn't applied.</summary>
+    /// <summary>
+    /// Switching tools finishes a curve that's being bent or text being typed, and drops a crop box that wasn't
+    /// applied or a dimension that wasn't placed.
+    /// </summary>
     public ToolKind Tool
     {
         get => _tool;
@@ -73,7 +91,7 @@ internal sealed class DrawingTools
         set
         {
             _colour = value;
-            RestyleText();
+            Restyle();
         }
     }
 
@@ -84,7 +102,7 @@ internal sealed class DrawingTools
         set
         {
             _width = value;
-            RestyleText();
+            Restyle();
         }
     }
 
@@ -95,7 +113,7 @@ internal sealed class DrawingTools
         set
         {
             _textBoxed = value;
-            RestyleText();
+            Restyle();
         }
     }
 
@@ -124,14 +142,30 @@ internal sealed class DrawingTools
     public Rect? CropBox { get; private set; }
 
     /// <summary>The text being typed (possibly nothing yet), or null when nothing is being typed.</summary>
-    public TextMark? Typing { get; private set; }
+    public TypingState? Typing { get; private set; }
 
-    /// <summary>True if something is part-done: a mark being dragged, a curve waiting to be bent, a crop box, or text being typed.</summary>
-    public bool HasPending => _drawing || _bending || CropBox is not null || Typing is not null;
+    /// <summary>The points picked so far for a dimension that hasn't been placed yet (none, one or two).</summary>
+    public IReadOnlyList<Point> DimensionPoints => _dimensionPoints;
 
-    /// <param name="handleTolerance">How close (in image pixels) a press must be to grab a curve's bend handle.</param>
+    /// <summary>After a dimension's first point, where the pointer is: a guide line runs to it from the first point.</summary>
+    public Point? DimensionGuide => _dimensionPoints.Count == 1 ? _pointer : null;
+
+    /// <summary>While a dimension is being placed: what it will measure, shown beside the pointer.</summary>
+    public (string Text, Point At)? DimensionHint =>
+        _dimensionPoints.Count == 2 && Preview is DimensionMark dimension
+            ? ($"{dimension.Kind}  ·  {Math.Round(dimension.Layout.Measured)} px  ·  click to place", _pointer)
+            : null;
+
+    /// <summary>True if something is part-done: a mark being dragged, a curve waiting to be bent, a crop box, text being typed, or a dimension.</summary>
+    public bool HasPending => _drawing || _bending || CropBox is not null || Typing is not null || _dimensionPoints.Count > 0;
+
+    /// <param name="handleTolerance">
+    /// How close (in image pixels) a press must be to grab a curve's bend handle; also how far a press has to be
+    /// dragged to count as a drag rather than a click.
+    /// </param>
     public void PointerDown(Point point, bool shift, double handleTolerance)
     {
+        _dragThreshold = handleTolerance;
         if (_bending)
         {
             if ((point - _through).Length <= handleTolerance)
@@ -145,17 +179,20 @@ internal sealed class DrawingTools
         }
 
         // Likewise for text: clicking away from it finishes it, and with the text tool starts the next text there.
+        // A click that finishes a dimension's text does only that.
+        var wasDimension = _dimension is not null;
         FinishText();
-        if (_tool == ToolKind.Text)
+        switch (_tool)
         {
-            _textAnchor = point;
-            ShowTyping("");
-            return;
-        }
-
-        if (_tool == ToolKind.Eraser)
-        {
-            return;
+            case ToolKind.Text:
+                _textAnchor = point;
+                ShowTyping("");
+                return;
+            case ToolKind.Dimension when !wasDimension:
+                PickDimensionPoint(point);
+                return;
+            case ToolKind.Dimension or ToolKind.Eraser or ToolKind.Move:
+                return;
         }
 
         _drawing = true;
@@ -172,6 +209,13 @@ internal sealed class DrawingTools
         {
             _through = point;
             ShowBendingCurve();
+            return;
+        }
+
+        if (_dimensionPoints.Count > 0)
+        {
+            _pointer = point;
+            ShowPlacingDimension();
             return;
         }
 
@@ -194,6 +238,20 @@ internal sealed class DrawingTools
         if (_draggingHandle)
         {
             _draggingHandle = false;
+            return;
+        }
+
+        // Dragging from the first point to the second picks both in one go.
+        if (_pressingDimension)
+        {
+            _pressingDimension = false;
+            if (_dimensionPoints.Count == 1 && (point - _dimensionPoints[0]).Length > _dragThreshold)
+            {
+                _pointer = point;
+                _dimensionPoints.Add(point);
+                ShowPlacingDimension();
+            }
+
             return;
         }
 
@@ -243,7 +301,11 @@ internal sealed class DrawingTools
     /// <summary>The editor's text box changed: shows the new text in place.</summary>
     public void SetText(string text)
     {
-        if (Typing is not null)
+        if (_dimension is { } dimension)
+        {
+            ShowDimensionTyping(dimension with { Text = text });
+        }
+        else if (_text is not null)
         {
             ShowTyping(text);
         }
@@ -262,7 +324,7 @@ internal sealed class DrawingTools
         }
     }
 
-    /// <summary>Throws away the mark, crop box or text in progress (Esc).</summary>
+    /// <summary>Throws away the mark, crop box, text or dimension in progress (Esc).</summary>
     public void Cancel()
     {
         if (!HasPending && Preview is null)
@@ -270,10 +332,13 @@ internal sealed class DrawingTools
             return;
         }
 
-        _drawing = _bending = _draggingHandle = false;
+        _drawing = _bending = _draggingHandle = _pressingDimension = false;
         Preview = null;
         CropBox = null;
         Typing = null;
+        _text = null;
+        _dimension = null;
+        _dimensionPoints.Clear();
         PreviewChanged?.Invoke();
     }
 
@@ -285,19 +350,30 @@ internal sealed class DrawingTools
         }
     }
 
-    /// <summary>Keeps the text being typed, unless it's blank. Trailing spaces and empty lines are dropped.</summary>
+    /// <summary>
+    /// Keeps the text being typed, unless it's blank. Trailing spaces and empty lines are dropped. A dimension is
+    /// kept even without text.
+    /// </summary>
     private void FinishText()
     {
-        if (Typing is not { } typing)
+        if (Typing is null)
         {
             return;
         }
 
-        Typing = null;
-        var text = typing.Text.TrimEnd();
-        if (text.Length > 0)
+        Mark? finished = (_text, _dimension) switch
         {
-            Committed?.Invoke(typing with { Text = text });
+            (_, { } dimension) => dimension with { Text = dimension.Text.TrimEnd() },
+            ({ } text, _) when text.Text.TrimEnd() is { Length: > 0 } trimmed => text with { Text = trimmed },
+            _ => null,
+        };
+        Typing = null;
+        Preview = null;
+        _text = null;
+        _dimension = null;
+        if (finished is not null)
+        {
+            Committed?.Invoke(finished);
         }
 
         PreviewChanged?.Invoke();
@@ -308,15 +384,76 @@ internal sealed class DrawingTools
     {
         var size = Palette.StrokeWidth(ToolKind.Text, _width);
         var position = new Point(_textAnchor.X, _textAnchor.Y - TextMark.LineHeight(size) / 2);
-        Typing = new TextMark(new StrokeStyle(_colour, size), position, text, _textBoxed);
+        _text = new TextMark(new StrokeStyle(_colour, size), position, text, _textBoxed);
+        Preview = _text;
+        Typing = new TypingState(text, position, size, _colour, _text.Bounds);
         PreviewChanged?.Invoke();
     }
 
-    private void RestyleText()
+    /// <summary>Picks a dimension's first point, or its second, which must be somewhere else.</summary>
+    private void PickDimensionPoint(Point point)
     {
-        if (Typing is { } typing)
+        _pointer = point;
+        switch (_dimensionPoints.Count)
         {
-            ShowTyping(typing.Text);
+            case 0:
+                _dimensionPoints.Add(point);
+                _pressingDimension = true;
+                break;
+            case 1 when (point - _dimensionPoints[0]).Length >= MinimumSize:
+                _dimensionPoints.Add(point);
+                break;
+            case 2:
+                // The third click places the dimension line; then its text is typed, starting with the measured length.
+                var placed = PlacingDimension(point);
+                _dimensionPoints.Clear();
+                ShowDimensionTyping(placed with { Text = $"{Math.Round(placed.Layout.Measured)} px" });
+                return;
+        }
+
+        ShowPlacingDimension();
+    }
+
+    private DimensionMark PlacingDimension(Point through)
+    {
+        var (a, b) = (_dimensionPoints[0], _dimensionPoints[1]);
+        return new DimensionMark(new StrokeStyle(_colour, _width), a, b, through, DimensionMark.KindFor(a, b, through), "");
+    }
+
+    private void ShowPlacingDimension()
+    {
+        Preview = _dimensionPoints.Count == 2 ? PlacingDimension(_pointer) : null;
+        PreviewChanged?.Invoke();
+    }
+
+    /// <summary>The text box goes exactly over where the dimension draws its text.</summary>
+    private void ShowDimensionTyping(DimensionMark dimension)
+    {
+        _dimension = dimension;
+        Preview = dimension;
+        var layout = dimension.Layout;
+        var formatted = TextMark.Format(dimension.Text, dimension.FontSize, Brushes.Black);
+        var height = Math.Max(formatted.Height, TextMark.LineHeight(dimension.FontSize));
+        var origin = layout.TextCentre - new Vector(formatted.WidthIncludingTrailingWhitespace / 2, height / 2);
+        var corners = layout.TextCorners(0);
+        Typing = new TypingState(dimension.Text, origin, dimension.FontSize, dimension.Style.Color, new Rect(corners[0], corners[2]));
+        PreviewChanged?.Invoke();
+    }
+
+    /// <summary>A change of colour, thickness or box applies to text and dimensions that aren't finished yet.</summary>
+    private void Restyle()
+    {
+        if (_text is not null)
+        {
+            ShowTyping(_text.Text);
+        }
+        else if (_dimension is { } dimension)
+        {
+            ShowDimensionTyping(dimension with { Style = new StrokeStyle(_colour, _width) });
+        }
+        else if (_dimensionPoints.Count > 0)
+        {
+            ShowPlacingDimension();
         }
     }
 

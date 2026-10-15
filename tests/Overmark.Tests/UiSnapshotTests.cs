@@ -52,6 +52,7 @@ public class UiSnapshotTests
 
             SaveTyping();
             SaveTextMarks();
+            SaveDimensions();
 
             var pin = new PinWindow(SampleCapture(420, 240), null, null);
             Save((FrameworkElement)pin.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "pin.png");
@@ -106,6 +107,64 @@ public class UiSnapshotTests
         encoder.Frames.Add(BitmapFrame.Create(rendered));
         using var file = File.Create(Path.Combine(Folder!, "text-marks.png"));
         encoder.Save(file);
+    }
+
+    /// <summary>
+    /// Dimensions in their different arrangements, then the editor with one selected by the move tool (showing the
+    /// handle that turns its text) and another being placed (showing the hint beside the pointer).
+    /// </summary>
+    private static void SaveDimensions()
+    {
+        StrokeStyle style = new(Palette.Colours[0], 4);
+        Mark[] marks =
+        [
+            new DimensionMark(style, new Point(60, 140), new Point(260, 140), new Point(160, 110), DimensionKind.Horizontal, "200"),
+            new DimensionMark(style, new Point(60, 220), new Point(150, 220), new Point(100, 250), DimensionKind.Horizontal, "90 mm (3.54 in) REF"),
+            new DimensionMark(style, new Point(330, 120), new Point(330, 300), new Point(300, 200), DimensionKind.Vertical, "180"),
+            new DimensionMark(style, new Point(420, 300), new Point(560, 180), new Point(560, 300), DimensionKind.Aligned, "184", TextAngle: -40.6),
+            new DimensionMark(style, new Point(420, 100), new Point(520, 100), new Point(470, 70), DimensionKind.Horizontal, "Ø36 thru", new Point(640, 40)),
+            new DimensionMark(style, new Point(600, 260), new Point(640, 260), new Point(620, 330), DimensionKind.Horizontal, "40", new Point(690, 330)),
+            new DimensionMark(new StrokeStyle(Palette.Colours[4], 2), new Point(60, 320), new Point(200, 380), new Point(110, 400), DimensionKind.Aligned, "152"),
+        ];
+
+        var document = new EditorDocument(SampleCapture(760, 420));
+        foreach (var mark in marks)
+        {
+            document.Add(mark);
+        }
+
+        var rendered = document.Render();
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(rendered));
+        using (var file = File.Create(Path.Combine(Folder!, "dimensions.png")))
+        {
+            encoder.Save(file);
+        }
+
+        var editor = new EditorWindow(@"C:\x.png", SampleCapture(760, 420), new EditorSettings { StrokeWidth = 4 }, _ => { }, _ => { });
+        var content = (FrameworkElement)editor.Content;
+        var size = new Size(1000, 560);
+        content.Measure(size);
+        content.Arrange(new Rect(size));
+        T Field<T>(string name) => (T)typeof(EditorWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(editor)!;
+        var editorDocument = Field<EditorDocument>("_document");
+        editorDocument.Add(marks[3]);
+        editorDocument.Add(marks[0]);
+
+        ((System.Windows.Controls.Primitives.ToggleButton)editor.FindName("MoveButton")).IsChecked = true;
+        var move = Field<MoveTool>("_move");
+        move.PointerDown(((DimensionMark)marks[3]).Layout.TextCentre); // the aligned dimension's text
+        move.PointerUp();
+
+        var tools = Field<DrawingTools>("_tools");
+        tools.Tool = ToolKind.Dimension;
+        tools.PointerDown(new Point(450, 330), false, 8);
+        tools.PointerUp(new Point(450, 330), false);
+        tools.PointerDown(new Point(650, 330), false, 8);
+        tools.PointerUp(new Point(650, 330), false);
+        tools.PointerMove(new Point(560, 380), false);
+        Save(content, size, "editor-dimensions.png");
+        editor.Close();
     }
 
     private sealed class NoRecorder : Overmark.Hotkeys.IHotkeyRecorder

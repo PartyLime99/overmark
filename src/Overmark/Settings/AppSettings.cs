@@ -94,7 +94,7 @@ internal sealed class HotkeySettings
 /// <summary>The editor's choices, remembered between captures.</summary>
 internal sealed class EditorSettings
 {
-    /// <summary>Freehand, Line, Arrow, Curve, Rectangle, Ellipse, Highlighter or Text.</summary>
+    /// <summary>Freehand, Line, Arrow, Curve, Rectangle, Ellipse, Highlighter, Text or Dimension.</summary>
     public string? Tool { get; set; } = "Arrow";
 
     /// <summary>A colour like "#E53935".</summary>

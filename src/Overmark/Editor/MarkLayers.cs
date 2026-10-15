@@ -35,9 +35,10 @@ internal sealed class CommittedMarksLayer : FrameworkElement
 }
 
 /// <summary>
-/// Draws what's in progress (the mark being drawn, text being typed, a curve's bend handle, the crop box, the eraser's circle) and
-/// takes the mouse input for drawing. Coordinates are image pixels; <see cref="DipSize"/> keeps handles and text a
-/// constant size on screen at any zoom.
+/// Draws what's in progress (the mark being drawn, a frame round text being typed, a curve's bend handle, a
+/// dimension's picked points, the crop box, the eraser's circle, the move tool's selection) and takes the mouse
+/// input for drawing. Coordinates are image pixels; <see cref="DipSize"/> keeps handles and text a constant size on
+/// screen at any zoom.
 /// </summary>
 internal sealed class PreviewLayer : FrameworkElement
 {
@@ -46,6 +47,7 @@ internal sealed class PreviewLayer : FrameworkElement
     private static readonly Brush LabelBrush = Frozen(new SolidColorBrush(Color.FromArgb(0xE0, 0x20, 0x20, 0x20)));
 
     private DrawingTools? _tools;
+    private MoveTool? _move;
     private Point? _eraserAt;
 
     /// <summary>How many image pixels one on-screen DIP covers at the current zoom.</summary>
@@ -68,10 +70,12 @@ internal sealed class PreviewLayer : FrameworkElement
         }
     }
 
-    public void Attach(DrawingTools tools)
+    public void Attach(DrawingTools tools, MoveTool move)
     {
         _tools = tools;
+        _move = move;
         tools.PreviewChanged += InvalidateVisual;
+        move.Changed += InvalidateVisual;
         InvalidateVisual();
     }
 
@@ -81,9 +85,14 @@ internal sealed class PreviewLayer : FrameworkElement
 
         // Transparent fill so the whole image takes mouse input.
         dc.DrawRectangle(Brushes.Transparent, null, area);
-        if (_tools is null)
+        if (_tools is null || _move is null)
         {
             return;
+        }
+
+        if (_move.SelectedMark is { } selected)
+        {
+            DrawSelection(dc, selected, _move.RotateHandle);
         }
 
         if (_tools.Preview is { } preview)
@@ -95,20 +104,17 @@ internal sealed class PreviewLayer : FrameworkElement
 
         if (_tools.Typing is { } typing)
         {
-            // The text is drawn exactly as it will be kept; the editor's text box on top only shows the caret.
-            dc.PushClip(new RectangleGeometry(area));
-            typing.Draw(dc);
-            dc.Pop();
-
-            var frame = typing.Bounds;
+            // The text is drawn by the preview, exactly as it will be kept; the editor's text box on top only adds the caret.
+            var frame = typing.Frame;
             frame.Inflate(4 * DipSize, 3 * DipSize);
-            dc.DrawRectangle(null, new Pen(Brushes.Black, DipSize), frame);
-            dc.DrawRectangle(null, new Pen(Brushes.White, DipSize) { DashStyle = new DashStyle([3, 3], 0) }, frame);
+            DrawDashed(dc, new RectangleGeometry(frame));
         }
+
+        DrawDimensionPicking(dc, area);
 
         if (_tools.IsBending)
         {
-            dc.DrawEllipse(Brushes.White, new Pen(AccentBrush, 2 * DipSize), _tools.BendHandle, HandleRadius, HandleRadius);
+            DrawHandle(dc, _tools.BendHandle);
         }
 
         if (_tools.CropBox is { } box)
@@ -123,6 +129,72 @@ internal sealed class PreviewLayer : FrameworkElement
         }
     }
 
+    /// <summary>A dashed outline round the selected mark; for a dimension, round its text too, with the handle that turns it.</summary>
+    private void DrawSelection(DrawingContext dc, Mark selected, Point? handle)
+    {
+        var outline = selected.Extent;
+        outline.Inflate(4 * DipSize, 4 * DipSize);
+        DrawDashed(dc, new RectangleGeometry(outline));
+
+        if (selected is not DimensionMark dimension || handle is not { } at)
+        {
+            return;
+        }
+
+        var layout = dimension.Layout;
+        var corners = layout.TextCorners(3 * DipSize);
+        var text = new StreamGeometry();
+        using (var context = text.Open())
+        {
+            context.BeginFigure(corners[0], isFilled: false, isClosed: true);
+            context.PolyLineTo(corners[1..], isStroked: true, isSmoothJoin: false);
+        }
+
+        DrawDashed(dc, text);
+        var top = layout.TextCentre - layout.TextY * (layout.TextSize.Height / 2 + 3 * DipSize);
+        DrawDashed(dc, new LineGeometry(top, at));
+        DrawHandle(dc, at);
+    }
+
+    /// <summary>The points picked for a dimension so far, a guide line to the pointer, and what it will measure.</summary>
+    private void DrawDimensionPicking(DrawingContext dc, Rect area)
+    {
+        var points = _tools!.DimensionPoints;
+        if (_tools.DimensionGuide is { } guide && points.Count == 1)
+        {
+            DrawDashed(dc, new LineGeometry(points[0], guide));
+        }
+
+        foreach (var point in points)
+        {
+            dc.DrawEllipse(Brushes.White, new Pen(AccentBrush, 1.5 * DipSize), point, 3.5 * DipSize, 3.5 * DipSize);
+        }
+
+        if (_tools.DimensionHint is { } hint)
+        {
+            // Beside the pointer, or above it near the bottom of the image.
+            var text = LabelText(hint.Text);
+            var label = LabelAround(text, hint.At + new Vector(16 * DipSize, 16 * DipSize));
+            if (label.Bottom > area.Bottom)
+            {
+                label.Y = hint.At.Y - label.Height - 16 * DipSize;
+            }
+
+            label.X = Math.Max(area.Left, Math.Min(label.X, area.Right - label.Width));
+            DrawLabel(dc, text, label);
+        }
+    }
+
+    private void DrawHandle(DrawingContext dc, Point at) =>
+        dc.DrawEllipse(Brushes.White, new Pen(AccentBrush, 2 * DipSize), at, HandleRadius, HandleRadius);
+
+    /// <summary>Black and white dashes, which show up on any background.</summary>
+    private void DrawDashed(DrawingContext dc, Geometry shape)
+    {
+        dc.DrawGeometry(null, new Pen(Brushes.Black, DipSize), shape);
+        dc.DrawGeometry(null, new Pen(Brushes.White, DipSize) { DashStyle = new DashStyle([3, 3], 0) }, shape);
+    }
+
     private void DrawCropBox(DrawingContext dc, Rect area, Rect box)
     {
         var outside = new GeometryGroup { FillRule = FillRule.EvenOdd };
@@ -132,23 +204,38 @@ internal sealed class PreviewLayer : FrameworkElement
         dc.DrawRectangle(null, new Pen(Brushes.Black, 3 * DipSize), box);
         dc.DrawRectangle(null, new Pen(Brushes.White, DipSize) { DashStyle = new DashStyle([4, 4], 0) }, box);
 
-        var hint = new FormattedText(
-            "Enter to crop  ·  Esc to cancel",
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"),
-            12 * DipSize,
-            Brushes.White,
-            VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        var hint = LabelText("Enter to crop  ·  Esc to cancel");
         var padding = 6 * DipSize;
-        var label = new Rect(box.Left, box.Bottom + padding, hint.Width + 2 * padding, hint.Height + padding);
+        var label = LabelAround(hint, new Point(box.Left, box.Bottom + padding));
         if (label.Bottom > area.Bottom)
         {
             label.Y = box.Bottom - label.Height - padding;
         }
 
+        DrawLabel(dc, hint, label);
+    }
+
+    private FormattedText LabelText(string text) => new(
+        text,
+        CultureInfo.CurrentCulture,
+        FlowDirection.LeftToRight,
+        new Typeface("Segoe UI"),
+        12 * DipSize,
+        Brushes.White,
+        VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+    /// <summary>The box for a label with its top-left at <paramref name="at"/>.</summary>
+    private Rect LabelAround(FormattedText text, Point at)
+    {
+        var padding = 6 * DipSize;
+        return new Rect(at.X, at.Y, text.Width + 2 * padding, text.Height + padding);
+    }
+
+    private void DrawLabel(DrawingContext dc, FormattedText text, Rect label)
+    {
+        var padding = 6 * DipSize;
         dc.DrawRoundedRectangle(LabelBrush, null, label, 4 * DipSize, 4 * DipSize);
-        dc.DrawText(hint, new Point(label.X + padding, label.Y + padding / 2));
+        dc.DrawText(text, new Point(label.X + padding, label.Y + padding / 2));
     }
 
     private static T Frozen<T>(T freezable)

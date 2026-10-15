@@ -65,13 +65,14 @@ internal static class MarkGeometry
     /// <summary>
     /// A filled arrowhead with its point at <paramref name="tip"/>, facing along <paramref name="direction"/>.
     /// A stroke ending <c>0.8 × length</c> back from the tip is hidden under it, so the tip stays sharp.
+    /// <paramref name="spread"/> is half its width as a fraction of its length.
     /// </summary>
-    public static Geometry ArrowHead(Point tip, Vector direction, double length)
+    public static Geometry ArrowHead(Point tip, Vector direction, double length, double spread = 0.45)
     {
         direction.Normalize();
         var normal = new Vector(-direction.Y, direction.X);
         var back = tip - direction * length;
-        var halfWidth = length * 0.45;
+        var halfWidth = length * spread;
 
         var head = new StreamGeometry();
         using (var context = head.Open())

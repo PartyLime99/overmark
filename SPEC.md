@@ -80,6 +80,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 | Tool | Key | Behaviour |
 |---|---|---|
+| Move | V | Click a mark to select it (a dashed outline), drag to move it; the arrow keys nudge it 1 px (Shift: 10), Delete removes it, Esc lets go. Rectangles and circles are grabbed by their outline. For a dimension: drag its text to move just the text, the round handle above the text to turn it, its dimension line to move it in or out (the measured points stay put), or an extension line to move the whole dimension. Only this tool moves marks: with any other tool, pressing on a mark draws as usual |
 | Freehand | P | Drag to draw; lightly smoothed. A click makes a dot |
 | Line | L | Drag from start to end. Shift snaps to 0°, 45° or 90° |
 | Arrow | A | Like Line, with an arrowhead that scales with thickness |
@@ -89,10 +90,20 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 | Highlighter | H | Wide translucent stroke; text underneath stays readable. Shift makes it straight |
 | Text | T | Click and type; the first line is centred on the click. Enter finishes, Shift+Enter starts a new line, Esc drops it, clicking elsewhere finishes it and starts the next. Segoe UI Semibold. A toggle puts it on a box (white, or near-black behind light colours) outlined in the text colour |
 | Eraser | E | Click or drag across marks; each mark touched is removed whole (empty rectangles only by their outline) |
+| Dimension | D | Like SolidWorks' smart dimension; see below |
 | Crop | X | Drag a box, then Enter |
 
-- **Draw-only:** marks can't be selected, moved or restyled after drawing; the eraser and undo fix mistakes.
-- **Undo/redo:** Ctrl+Z / Ctrl+Y, covering drawing, erasing (one step per eraser drag) and cropping.
+- **Moving, not restyling:** marks can be moved (the Move tool) but not recoloured, resized or edited after drawing; the eraser and undo fix mistakes.
+- **Undo/redo:** Ctrl+Z / Ctrl+Y, covering drawing, erasing (one step per eraser drag), moving (one step per drag or nudge), deleting and cropping.
+
+**Dimensions**
+
+- Click the two points to measure between (or drag from one to the other), then move the pointer to place the dimension line and click. Where the pointer is picks what it measures: above or below the points, the horizontal distance; to the left or right, the vertical distance; anywhere else, the true (aligned) distance. A label beside the pointer shows which, and the length in pixels.
+- The third click opens a text box on the dimension, holding the measured length (e.g. `214 px`) selected, so typing replaces it. Enter (or clicking elsewhere) finishes it; if the text is deleted the dimension is kept without text. Esc drops the whole dimension at any stage.
+- Drawn in the current colour: extension lines from just off each point to a little past the dimension line, and a dimension line with slim arrowheads. The lines are half the thickness slider's value (at least 1 px) and the text is four times it, like the text tool.
+- The text sits in a gap in the middle of the dimension line. If it's too long to fit between the arrowheads, it moves just outside the line instead. When the extension lines are too close together for the arrows, the arrows go outside, pointing in.
+- With the Move tool, the text can be dragged anywhere. Near the dimension line, or the line carried on past the arrows, it snaps onto it and the line breaks round it (and reaches out to it if it's beyond the arrows). Anywhere else it stays where it's dropped, with a thin leader line back to the nearest point of the dimension line.
+- The text can be turned with its handle. It snaps to level, upright, along the dimension line and across it (within 8°); Shift turns it freely. It never ends up upside down.
 - **Zoom:** fits the window to start with; Ctrl+scroll zooms around the pointer; Ctrl+0 fits, Ctrl+1 is actual size.
 - **Saving:** only Save or Ctrl+S writes to disk, overwriting the capture file with the annotated version. Closing with unsaved changes asks first. The window title starts with `*` while there are unsaved changes.
 - **Copy** (Ctrl+C) and **Pin** use the current image, crop and marks included. Pinning minimises the editor. (A Drag button was tried and removed; dragging into other apps is done from the preview popup.)
@@ -156,7 +167,7 @@ Settings are stored in `%AppData%\Overmark\settings.json`, which can also be edi
 
 ## Not included
 
-Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, capture history, scrolling capture, and selecting or moving marks after drawing.
+Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, capture history, scrolling capture, and editing marks after drawing other than moving them.
 
 ## Build phases
 
@@ -165,5 +176,5 @@ Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, capture histor
 3. **Editor drawing:** pick-first colour and thickness, the drawing tools, Shift-snap, undo/redo, zoom, copy and save. *Done.*
 4. **Eraser and output:** eraser, crop, drag-out, the preview popup, pins. *Done.*
 5. **Settings and installer:** settings window, start with Windows, Velopack installer and auto-update, first GitHub release. *Done except the first release.*
-6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, and deleting a capture from the preview.
+6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, deleting a capture from the preview, dimensions, and the Move tool.
 7. **Wider release:** signing, GitHub Actions builds, README screenshots, winget.

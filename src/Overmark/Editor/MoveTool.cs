@@ -1,0 +1,239 @@
+using System.Windows;
+
+namespace Overmark.Editor;
+
+/// <summary>What the move tool has hold of.</summary>
+internal enum MoveGrip
+{
+    /// <summary>The whole mark (for a dimension, by an extension line).</summary>
+    Whole,
+
+    /// <summary>A dimension's text, which moves on its own.</summary>
+    DimensionText,
+
+    /// <summary>A dimension's line, which moves in or out while the measured points stay put.</summary>
+    DimensionLine,
+
+    /// <summary>The round handle that turns a dimension's text.</summary>
+    TextAngle,
+}
+
+/// <summary>
+/// The move tool: click a mark to select it and drag to move it; the arrow keys nudge it and Delete removes it.
+/// For a dimension, dragging its text moves just the text (snapping onto the dimension line when it's close), the
+/// round handle above the text turns it, dragging the dimension line moves it in or out, and dragging an extension
+/// line moves the whole dimension. Each drag or nudge is one undo step. No UI, so it can be unit tested.
+/// </summary>
+internal sealed class MoveTool
+{
+    private readonly EditorDocument _document;
+    private (MoveGrip Grip, Point From, Mark Original)? _drag;
+    private bool _moving;
+    private int _markCount;
+
+    public MoveTool(EditorDocument document)
+    {
+        _document = document;
+        _markCount = document.Marks.Count;
+        document.Changed += KeepSelection;
+    }
+
+    /// <summary>Raised when the selection changes, or the selected mark moves.</summary>
+    public event Action? Changed;
+
+    /// <summary>How many image pixels one on-screen DIP covers, so the reach of a click and the handle's place stay the same on screen.</summary>
+    public double DipSize { get; set; } = 1;
+
+    /// <summary>The index of the selected mark in the document, if any.</summary>
+    public int? Selected { get; private set; }
+
+    public Mark? SelectedMark { get; private set; }
+
+    /// <summary>Where the round handle for turning a selected dimension's text is, or null.</summary>
+    public Point? RotateHandle =>
+        SelectedMark is DimensionMark { Text.Length: > 0 } dimension ? HandleFor(dimension.Layout) : null;
+
+    /// <summary>The handle's radius, in image pixels.</summary>
+    public double HandleRadius => 6 * DipSize;
+
+    private double Reach => 5 * DipSize;
+
+    /// <summary>What a press at <paramref name="point"/> would take hold of, for the pointer's shape; null if nothing.</summary>
+    public MoveGrip? GripAt(Point point) => Find(point)?.Grip;
+
+    /// <summary>Selects whatever is under the pointer (or nothing) and gets ready to drag it.</summary>
+    public void PointerDown(Point point)
+    {
+        var found = Find(point);
+        Select(found?.Index);
+        _drag = found is { } hit ? (hit.Grip, point, _document.Marks[hit.Index]) : null;
+        _moving = false;
+    }
+
+    public void PointerMove(Point point, bool shift)
+    {
+        if (_drag is not { } drag || Selected is not { } index)
+        {
+            return;
+        }
+
+        // A click that wobbles a little doesn't move anything.
+        var offset = point - drag.From;
+        if (!_moving && offset.Length < 2 * DipSize && drag.Grip != MoveGrip.TextAngle)
+        {
+            return;
+        }
+
+        _moving = true;
+        var moved = (drag.Grip, drag.Original) switch
+        {
+            (MoveGrip.DimensionText, DimensionMark dimension) => MoveText(dimension, offset),
+            (MoveGrip.DimensionLine, DimensionMark dimension) => MoveLine(dimension, offset),
+            (MoveGrip.TextAngle, DimensionMark dimension) => Turn(dimension, point, shift),
+            _ => drag.Original.MovedBy(offset),
+        };
+        Change(index, moved);
+    }
+
+    public void PointerUp()
+    {
+        if (_drag is null)
+        {
+            return;
+        }
+
+        _drag = null;
+        _document.FinishChanging();
+    }
+
+    /// <summary>Moves the selected mark a little (the arrow keys).</summary>
+    public void Nudge(Vector offset)
+    {
+        if (Selected is { } index && SelectedMark is { } mark)
+        {
+            Change(index, mark.MovedBy(offset));
+            _document.FinishChanging();
+        }
+    }
+
+    public void DeleteSelected()
+    {
+        if (Selected is { } index)
+        {
+            Select(null);
+            _document.Remove(index);
+        }
+    }
+
+    public void ClearSelection()
+    {
+        if (Selected is not null)
+        {
+            Select(null);
+        }
+    }
+
+    /// <summary>Text dragged near the dimension line snaps onto it; anywhere else it stays where it's put.</summary>
+    private DimensionMark MoveText(DimensionMark dimension, Vector offset)
+    {
+        var layout = dimension.Layout;
+        return dimension with { TextAt = layout.SnapText(layout.TextCentre + offset, 8 * DipSize) };
+    }
+
+    /// <summary>The dimension line moves in or out; text that's been placed goes with it.</summary>
+    private static DimensionMark MoveLine(DimensionMark dimension, Vector offset)
+    {
+        var moved = dimension with { Through = dimension.Through + offset };
+        return moved.TextAt is { } at ? moved with { TextAt = at + (moved.Layout.Middle - dimension.Layout.Middle) } : moved;
+    }
+
+    /// <summary>The text turns to face the pointer, snapping to level, upright and the line's angle unless Shift is held.</summary>
+    private static DimensionMark Turn(DimensionMark dimension, Point pointer, bool shift)
+    {
+        var layout = dimension.Layout;
+        var towards = pointer - layout.TextCentre;
+        var angle = DimensionMark.Upright(Math.Atan2(towards.Y, towards.X) * 180 / Math.PI + 90);
+        if (!shift)
+        {
+            angle = DimensionMark.SnapAngle(angle, layout.LineAngle);
+        }
+
+        return dimension with { TextAngle = Math.Round(angle, 1) };
+    }
+
+    private Point HandleFor(DimensionLayout layout) => layout.TextCentre - layout.TextY * (layout.TextSize.Height / 2 + 18 * DipSize);
+
+    /// <summary>The top-most mark under <paramref name="point"/>, and which part of it; the selected text's handle comes first.</summary>
+    private (int Index, MoveGrip Grip)? Find(Point point)
+    {
+        if (Selected is { } selected && RotateHandle is { } handle && (point - handle).Length <= HandleRadius * 1.5)
+        {
+            return (selected, MoveGrip.TextAngle);
+        }
+
+        var marks = _document.Marks;
+        for (var i = marks.Count - 1; i >= 0; i--)
+        {
+            if (marks[i] is DimensionMark dimension)
+            {
+                MoveGrip? grip = dimension.Layout.PartAt(point, Reach) switch
+                {
+                    DimensionPart.Text => MoveGrip.DimensionText,
+                    DimensionPart.Line => MoveGrip.DimensionLine,
+                    DimensionPart.Extension => MoveGrip.Whole,
+                    _ => null,
+                };
+                if (grip is { } found)
+                {
+                    return (i, found);
+                }
+            }
+            else if (marks[i].IsTouchedBy(point, Reach))
+            {
+                return (i, MoveGrip.Whole);
+            }
+        }
+
+        return null;
+    }
+
+    private void Change(int index, Mark moved)
+    {
+        SelectedMark = moved;
+        _document.Change(index, moved);
+    }
+
+    private void Select(int? index)
+    {
+        Selected = index;
+        SelectedMark = index is { } i ? _document.Marks[i] : null;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Undo, redo, the eraser or a new mark can change the marks under the selection. If the count is the same, the
+    /// mark in the same place is still selected (e.g. after undoing a move); otherwise the selection follows the mark
+    /// if it's still there.
+    /// </summary>
+    private void KeepSelection()
+    {
+        var marks = _document.Marks;
+        var sameCount = marks.Count == _markCount;
+        _markCount = marks.Count;
+        if (Selected is { } index && !(index < marks.Count && ReferenceEquals(marks[index], SelectedMark)))
+        {
+            if (sameCount)
+            {
+                SelectedMark = marks[index];
+            }
+            else
+            {
+                var found = marks.ToList().FindIndex(mark => ReferenceEquals(mark, SelectedMark));
+                Selected = found >= 0 ? found : null;
+                SelectedMark = found >= 0 ? marks[found] : null;
+            }
+        }
+
+        Changed?.Invoke();
+    }
+}

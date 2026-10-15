@@ -4,6 +4,7 @@ namespace Overmark.Editor;
 
 internal enum ToolKind
 {
+    Move,
     Freehand,
     Line,
     Arrow,
@@ -12,6 +13,7 @@ internal enum ToolKind
     Ellipse,
     Highlighter,
     Text,
+    Dimension,
     Eraser,
     Crop,
 }

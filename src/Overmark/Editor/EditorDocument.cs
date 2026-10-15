@@ -17,6 +17,9 @@ internal sealed class EditorDocument
     // Marks erased so far in the current eraser drag; they undo together.
     private EraseMarks? _erasing;
 
+    // The mark being moved by the current drag, which undoes in one step.
+    private ReplaceMark? _changing;
+
     public EditorDocument(BitmapSource image)
     {
         Image = image;
@@ -32,7 +35,7 @@ internal sealed class EditorDocument
     /// <summary>The part of the image that's kept, in image pixels. Marks outside it stay but aren't shown or saved.</summary>
     public Int32Rect Crop { get; private set; }
 
-    public bool CanUndo => _undo.Count > 0 || _erasing is not null;
+    public bool CanUndo => _undo.Count > 0 || _erasing is not null || _changing is not null;
 
     public bool CanRedo => _redo.Count > 0;
 
@@ -74,6 +77,50 @@ internal sealed class EditorDocument
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Swaps the mark at <paramref name="index"/> for a changed (moved) copy. Changes to the same mark until
+    /// <see cref="FinishChanging"/> make one undo step, so a whole drag undoes at once.
+    /// </summary>
+    public void Change(int index, Mark changed)
+    {
+        FinishErasing();
+        if (_changing?.Index != index)
+        {
+            FinishChanging();
+            _changing = new ReplaceMark(index, _marks[index]);
+        }
+
+        _marks[index] = changed;
+        _changing.After = changed;
+        Changed?.Invoke();
+    }
+
+    /// <summary>Ends a drag, making the change one undo step (none if the mark ended up where it started).</summary>
+    public void FinishChanging()
+    {
+        if (_changing is not { } edit)
+        {
+            return;
+        }
+
+        _changing = null;
+        if (edit.After != edit.Before)
+        {
+            _undo.Push(edit);
+            _redo.Clear();
+        }
+
+        Changed?.Invoke();
+    }
+
+    /// <summary>Removes one mark (the move tool's Delete key).</summary>
+    public void Remove(int index)
+    {
+        var edit = new EraseMarks();
+        edit.Removed.Add((index, _marks[index]));
+        Do(edit);
+    }
+
     /// <summary>Crops to <paramref name="area"/> (image pixels), widened to whole pixels and kept inside the current crop.</summary>
     public void CropTo(Rect area)
     {
@@ -96,6 +143,7 @@ internal sealed class EditorDocument
     public void Undo()
     {
         FinishErasing();
+        FinishChanging();
         if (_undo.TryPop(out var edit))
         {
             edit.Revert(this);
@@ -150,6 +198,7 @@ internal sealed class EditorDocument
     private void Do(Edit edit)
     {
         FinishErasing();
+        FinishChanging();
         edit.Apply(this);
         _undo.Push(edit);
         _redo.Clear();
@@ -191,6 +240,20 @@ internal sealed class EditorDocument
                 document._marks.Insert(Removed[i].Index, Removed[i].Mark);
             }
         }
+    }
+
+    /// <summary>A mark swapped for a changed copy in the same place, e.g. when it's moved.</summary>
+    private sealed class ReplaceMark(int index, Mark before) : Edit
+    {
+        public int Index { get; } = index;
+
+        public Mark Before { get; } = before;
+
+        public Mark After { get; set; } = before;
+
+        public override void Apply(EditorDocument document) => document._marks[Index] = After;
+
+        public override void Revert(EditorDocument document) => document._marks[Index] = Before;
     }
 
     private sealed class CropImage(Int32Rect before, Int32Rect after) : Edit

@@ -9,11 +9,17 @@ internal readonly record struct StrokeStyle(Color Color, double Width);
 
 /// <summary>
 /// Something drawn on a capture. Marks stay separate objects until the image is saved, so each one can be
-/// undone (and, later, erased) on its own. Coordinates are image pixels.
+/// undone, erased or moved on its own. Coordinates are image pixels.
 /// </summary>
 internal abstract record Mark(StrokeStyle Style)
 {
+    /// <summary>Roughly the area the mark covers, for the move tool's selection outline.</summary>
+    public virtual Rect Extent => Inflated(Centreline().Bounds, Style.Width / 2);
+
     public abstract void Draw(DrawingContext dc);
+
+    /// <summary>The same mark, shifted by <paramref name="offset"/>.</summary>
+    public abstract Mark MovedBy(Vector offset);
 
     /// <summary>True if a circle of <paramref name="radius"/> at <paramref name="point"/> touches the drawn stroke.</summary>
     public virtual bool IsTouchedBy(Point point, double radius)
@@ -48,11 +54,19 @@ internal abstract record Mark(StrokeStyle Style)
         pen.Freeze();
         return pen;
     }
+
+    protected static Rect Inflated(Rect area, double by)
+    {
+        area.Inflate(by, by);
+        return area;
+    }
 }
 
 internal sealed record FreehandMark(StrokeStyle Style, IReadOnlyList<Point> Points) : Mark(Style)
 {
     public override void Draw(DrawingContext dc) => DrawStroke(dc, Points, Style, Fill(), RoundPen());
+
+    public override Mark MovedBy(Vector offset) => this with { Points = [.. Points.Select(p => p + offset)] };
 
     protected override Geometry Centreline() => StrokeCentreline(Points);
 
@@ -79,6 +93,8 @@ internal sealed record HighlighterMark(StrokeStyle Style, IReadOnlyList<Point> P
     public override void Draw(DrawingContext dc) =>
         FreehandMark.DrawStroke(dc, Points, Style, Fill(Palette.HighlighterAlpha), RoundPen(Palette.HighlighterAlpha));
 
+    public override Mark MovedBy(Vector offset) => this with { Points = [.. Points.Select(p => p + offset)] };
+
     protected override Geometry Centreline() => FreehandMark.StrokeCentreline(Points);
 }
 
@@ -86,11 +102,17 @@ internal sealed record LineMark(StrokeStyle Style, Point Start, Point End) : Mar
 {
     public override void Draw(DrawingContext dc) => dc.DrawLine(RoundPen(), Start, End);
 
+    public override Mark MovedBy(Vector offset) => this with { Start = Start + offset, End = End + offset };
+
     protected override Geometry Centreline() => new LineGeometry(Start, End);
 }
 
 internal sealed record ArrowMark(StrokeStyle Style, Point Start, Point End) : Mark(Style)
 {
+    public override Rect Extent => Inflated(Centreline().Bounds, Math.Max(Style.Width / 2, MarkGeometry.HeadLength(Style.Width) * 0.45));
+
+    public override Mark MovedBy(Vector offset) => this with { Start = Start + offset, End = End + offset };
+
     public override void Draw(DrawingContext dc)
     {
         var direction = End - Start;
@@ -109,6 +131,11 @@ internal sealed record ArrowMark(StrokeStyle Style, Point Start, Point End) : Ma
 /// </summary>
 internal sealed record CurveMark(StrokeStyle Style, Point Start, Point Through, Point End, bool Arrowhead) : Mark(Style)
 {
+    public override Rect Extent =>
+        Inflated(Centreline().Bounds, Arrowhead ? Math.Max(Style.Width / 2, MarkGeometry.HeadLength(Style.Width) * 0.45) : Style.Width / 2);
+
+    public override Mark MovedBy(Vector offset) => this with { Start = Start + offset, Through = Through + offset, End = End + offset };
+
     public override void Draw(DrawingContext dc)
     {
         var control = MarkGeometry.ControlPoint(Start, Through, End);
@@ -178,6 +205,8 @@ internal sealed record EllipseMark(StrokeStyle Style, Rect Bounds) : Mark(Style)
         dc.DrawGeometry(null, pen, Centreline());
     }
 
+    public override Mark MovedBy(Vector offset) => this with { Bounds = Rect.Offset(Bounds, offset) };
+
     // Only the outline counts, as with rectangles.
     protected override Geometry Centreline() => new EllipseGeometry(Bounds);
 }
@@ -191,7 +220,9 @@ internal sealed record RectangleMark(StrokeStyle Style, Rect Bounds) : Mark(Styl
         dc.DrawRectangle(null, pen, Bounds);
     }
 
-    // Only the outline counts: erasing inside an empty rectangle leaves it alone.
+    public override Mark MovedBy(Vector offset) => this with { Bounds = Rect.Offset(Bounds, offset) };
+
+    // Only the outline counts: erasing (or grabbing to move) inside an empty rectangle leaves it alone.
     protected override Geometry Centreline() => new RectangleGeometry(Bounds);
 }
 
@@ -231,8 +262,19 @@ internal sealed record TextMark(StrokeStyle Style, Point Position, string Text, 
         }
     }
 
+    public override Rect Extent => Bounds;
+
     /// <summary>The height of a line of text at <paramref name="fontSize"/>.</summary>
     public static double LineHeight(double fontSize) => Typeface.FontFamily.LineSpacing * fontSize;
+
+    /// <summary>
+    /// <paramref name="text"/> laid out as marks draw it. Image pixels are the unit everywhere, on screen (under the
+    /// zoom) and when saving, so it's one pixel per DIP.
+    /// </summary>
+    public static FormattedText Format(string text, double fontSize, Brush brush) =>
+        new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface, fontSize, brush, pixelsPerDip: 1);
+
+    public override Mark MovedBy(Vector offset) => this with { Position = Position + offset };
 
     public override void Draw(DrawingContext dc)
     {
@@ -262,7 +304,5 @@ internal sealed record TextMark(StrokeStyle Style, Point Position, string Text, 
 
     protected override Geometry Centreline() => new RectangleGeometry(Bounds);
 
-    // Image pixels are the unit everywhere, on screen (under the zoom) and when saving, so one pixel per DIP.
-    private FormattedText Format(Brush brush) =>
-        new(Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface, FontSize, brush, pixelsPerDip: 1);
+    private FormattedText Format(Brush brush) => Format(Text, FontSize, brush);
 }

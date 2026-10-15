@@ -120,6 +120,53 @@ public class EditorDocumentTests
     }
 
     [Fact]
+    public void Changing_a_mark_repeatedly_is_one_undo_step()
+    {
+        var document = new EditorDocument(WhiteImage(4, 4));
+        document.Add(Line(1));
+        document.Add(Line(2));
+
+        document.Change(0, Line(5));
+        document.Change(0, Line(9));
+        document.FinishChanging();
+        Assert.Equal([Line(9), Line(2)], document.Marks);
+
+        document.Undo();
+        Assert.Equal([Line(1), Line(2)], document.Marks);
+        document.Redo();
+        Assert.Equal([Line(9), Line(2)], document.Marks);
+    }
+
+    [Fact]
+    public void A_change_back_to_the_start_is_not_an_undo_step()
+    {
+        var document = new EditorDocument(WhiteImage(4, 4));
+        document.Add(Line(1));
+        document.MarkSaved();
+
+        document.Change(0, Line(5));
+        document.Change(0, Line(1));
+        document.FinishChanging();
+
+        Assert.False(document.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void Removing_a_mark_can_be_undone_in_place()
+    {
+        var document = new EditorDocument(WhiteImage(4, 4));
+        document.Add(Line(1));
+        document.Add(Line(2));
+        document.Add(Line(3));
+
+        document.Remove(1);
+        Assert.Equal([Line(1), Line(3)], document.Marks);
+
+        document.Undo();
+        Assert.Equal([Line(1), Line(2), Line(3)], document.Marks);
+    }
+
+    [Fact]
     public void Touching_anywhere_on_text_erases_it()
     {
         var text = new TextMark(new StrokeStyle(Palette.Colours[0], 20), new Point(100, 100), "Label", Boxed: false);
