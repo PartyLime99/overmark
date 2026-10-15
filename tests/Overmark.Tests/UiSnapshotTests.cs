@@ -89,7 +89,8 @@ public class UiSnapshotTests
         box.Foreground = new SolidColorBrush(Color.FromArgb(0x90, 0x00, 0xFF, 0x00));
         tools.Width = tools.Width; // places the box again now that layout has run
         Save(content, size, "editor-typing.png");
-        editor.Close();
+
+        // Not closed: with marks on it, closing would ask (in a real dialog, on screen) whether to save them.
     }
 
     private static void SaveTextMarks()
@@ -164,7 +165,8 @@ public class UiSnapshotTests
         tools.PointerUp(new Point(650, 330), false);
         tools.PointerMove(new Point(560, 380), false);
         Save(content, size, "editor-dimensions.png");
-        editor.Close();
+
+        // Not closed, for the same reason as in SaveTyping.
     }
 
     private sealed class NoRecorder : Overmark.Hotkeys.IHotkeyRecorder
@@ -199,6 +201,13 @@ public class UiSnapshotTests
 
     private static void Save(FrameworkElement element, Size available, string name)
     {
+        // Laid out at 125% scaling, like a typical laptop or 1440p monitor, so layout rounding to whole screen pixels
+        // shows up as it would on screen.
+        if (VisualTreeHelper.GetParent(element) is null)
+        {
+            VisualTreeHelper.SetRootDpi(element, new DpiScale(1.25, 1.25));
+        }
+
         element.Measure(available);
         element.Arrange(new Rect(element.DesiredSize));
         element.UpdateLayout();

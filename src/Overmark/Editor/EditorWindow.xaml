@@ -28,16 +28,19 @@
             </ControlTemplate.Triggers>
         </ControlTemplate>
 
+        <!-- The ring and the colour are two circles in one cell, so they share a centre. Rounding to whole screen
+             pixels (e.g. at 125% scaling) would nudge them apart, so it's off here; circles are smooth-edged anyway. -->
         <ControlTemplate x:Key="SwatchTemplate" TargetType="RadioButton">
-            <Border x:Name="Ring" Width="26" Height="26" CornerRadius="13" BorderThickness="2" BorderBrush="Transparent" Padding="2" Background="Transparent">
-                <Ellipse Fill="{TemplateBinding Background}" Stroke="#66FFFFFF" StrokeThickness="1" />
-            </Border>
+            <Grid Width="26" Height="26" Background="Transparent" UseLayoutRounding="False">
+                <Ellipse x:Name="Ring" Stroke="Transparent" StrokeThickness="2" />
+                <Ellipse Margin="4" Fill="{TemplateBinding Background}" Stroke="#66FFFFFF" StrokeThickness="1" />
+            </Grid>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Ring" Property="BorderBrush" Value="#66FFFFFF" />
+                    <Setter TargetName="Ring" Property="Stroke" Value="#66FFFFFF" />
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter TargetName="Ring" Property="BorderBrush" Value="White" />
+                    <Setter TargetName="Ring" Property="Stroke" Value="White" />
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -87,6 +90,27 @@
             </Setter>
         </Style>
 
+        <!-- Turns red under the mouse, so it's clear this one throws the capture away. -->
+        <Style x:Key="DeleteAction" TargetType="Button" BasedOn="{StaticResource Action}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="Icon" TargetType="Path">
             <Setter Property="Stroke" Value="White" />
             <Setter Property="StrokeThickness" Value="1.6" />
@@ -124,6 +148,9 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="StatusText" Style="{StaticResource Caption}" Foreground="#CCFFFFFF" Margin="0,0,10,0" />
+                    <Button x:Name="DeleteButton" Style="{StaticResource DeleteAction}" ToolTip="Delete this capture: asks first, then moves the file to the Recycle Bin and closes the editor">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;" />
+                    </Button>
                     <Button x:Name="PinButton" Style="{StaticResource Action}" ToolTip="Pin to the screen: keep it on top of everything">
                         <TextBlock Style="{StaticResource Glyph}" Text="&#xE718;" />
                     </Button>

@@ -37,6 +37,7 @@ internal partial class EditorWindow : Window
     private double _zoom = 1;
     private bool _fitToWindow = true;
     private bool _applyingSettings;
+    private bool _deleted;
     private Point? _erasingFrom;
 
     public EditorWindow(string path, BitmapSource image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin)
@@ -94,6 +95,7 @@ internal partial class EditorWindow : Window
         CopyButton.Click += (_, _) => Copy();
         SaveButton.Click += (_, _) => Save();
         PinButton.Click += (_, _) => Pin();
+        DeleteButton.Click += (_, _) => DeleteCapture();
 
         DrawingLayer.MouseLeftButtonDown += OnPointerDown;
         DrawingLayer.MouseMove += OnPointerMove;
@@ -712,8 +714,40 @@ internal partial class EditorWindow : Window
         }
     }
 
+    /// <summary>
+    /// Throws the capture away, after asking: the file goes to the Recycle Bin (so it can be put back) and the editor
+    /// closes, without asking about unsaved changes.
+    /// </summary>
+    private void DeleteCapture()
+    {
+        var name = Path.GetFileName(_path);
+        var answer = MessageBox.Show(
+            this, $"Delete {name}?\n\nIt goes to the Recycle Bin, so you can put it back from there.", "Overmark",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+        if (answer != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        if (!RecycleBin.TrySend(_path, out var problem))
+        {
+            Log.Warn($"Couldn't delete {_path}: {problem}");
+            MessageBox.Show(this, $"Couldn't delete {name}:\n\n{problem}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        Log.Info($"Deleted {_path} from the editor");
+        _deleted = true;
+        Close();
+    }
+
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (_deleted)
+        {
+            return;
+        }
+
         _tools.Finish();
         if (!_document.HasUnsavedChanges)
         {

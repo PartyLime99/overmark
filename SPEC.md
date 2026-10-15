@@ -67,7 +67,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 ## Editor
 
-**Toolbar:** tools · colour swatches · thickness slider · undo/redo · zoom · Pin · Copy · Save
+**Toolbar:** tools · colour swatches · thickness slider · undo/redo · zoom · Delete · Pin · Copy · Save
 
 **Colour and thickness**
 - 8 preset colours plus a custom colour picker. Keys 1–8 pick the presets, 9 the custom colour.
@@ -107,6 +107,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Zoom:** fits the window to start with; Ctrl+scroll zooms around the pointer; Ctrl+0 fits, Ctrl+1 is actual size.
 - **Saving:** only Save or Ctrl+S writes to disk, overwriting the capture file with the annotated version. Closing with unsaved changes asks first. The window title starts with `*` while there are unsaved changes.
 - **Copy** (Ctrl+C) and **Pin** use the current image, crop and marks included. Pinning minimises the editor. (A Drag button was tried and removed; dragging into other apps is done from the preview popup.)
+- **Delete** (the bin button, red under the mouse) asks first (*No* is the default), then moves the capture file to the Recycle Bin and closes the editor without asking about unsaved changes. It has no keyboard shortcut, as Delete removes the selected mark with the Move tool.
 - **Flatten:** marks are merged into the image when it's copied, saved or pinned. There are no project files.
 - **Opening:** click the preview, use *Edit last capture* in the tray menu, or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it).
 

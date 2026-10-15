@@ -62,7 +62,7 @@ To add a **dimension** (like SolidWorks' smart dimension), pick the dimension to
 
 To **move** marks, pick the move tool (V). Click a mark to select it and drag it; the arrow keys nudge it and Delete removes it. For a dimension, drag its text to put it anywhere (near the line it snaps on; elsewhere it gets a leader line), drag the round handle above the text to turn it (Shift turns it freely), drag the dimension line to move it in or out, or drag an extension line to move the whole thing. Other tools never move marks, so you can draw on top of them.
 
-The **pin** button floats the image on top of everything. To drop a capture into an email, chat or folder, drag the preview that pops up after capturing.
+The **pin** button floats the image on top of everything. To drop a capture into an email, chat or folder, drag the preview that pops up after capturing. The **bin** button deletes the capture: after you confirm, the file goes to the Recycle Bin and the editor closes.
 
 ## Pins
 
