@@ -370,8 +370,20 @@ internal partial class EditorWindow : Window
             Background = new SolidColorBrush(colour),
             ToolTip = toolTip,
         };
-        swatch.Checked += (_, _) => SelectColour(((SolidColorBrush)swatch.Background).Color);
+        swatch.Checked += (_, _) => SelectColour(SwatchColour(swatch));
+
+        // Checked doesn't fire for the pen's own colour, but clicking it should still recolour a selected mark.
+        swatch.Click += (_, _) => _move.Recolour(SwatchColour(swatch));
         return swatch;
+    }
+
+    private static Color SwatchColour(RadioButton swatch) => ((SolidColorBrush)swatch.Background).Color;
+
+    /// <summary>A swatch picked by its number key, which (like a click) recolours a selected mark.</summary>
+    private void PickSwatch(RadioButton swatch)
+    {
+        swatch.IsChecked = true;
+        _move.Recolour(SwatchColour(swatch));
     }
 
     private void SelectTool(ToolKind tool)
@@ -410,6 +422,7 @@ internal partial class EditorWindow : Window
         }
     }
 
+    /// <summary>Loads the pen with <paramref name="colour"/>, and gives it to the move tool's selected mark, if any.</summary>
     private void SelectColour(Color colour)
     {
         _tools.Colour = colour;
@@ -418,6 +431,7 @@ internal partial class EditorWindow : Window
         Resources["PenBrush"] = brush;
         ShowPen();
         RememberChoices();
+        _move.Recolour(colour);
     }
 
     private void SetThickness(double thickness)
@@ -825,13 +839,13 @@ internal partial class EditorWindow : Window
                 CropTool.IsChecked = true;
                 break;
             case >= Key.D1 and <= Key.D8 when !ctrl:
-                _swatches[key - Key.D1].IsChecked = true;
+                PickSwatch(_swatches[key - Key.D1]);
                 break;
             case >= Key.NumPad1 and <= Key.NumPad8 when !ctrl:
-                _swatches[key - Key.NumPad1].IsChecked = true;
+                PickSwatch(_swatches[key - Key.NumPad1]);
                 break;
             case Key.D9 or Key.NumPad9 when !ctrl && _customColour is not null:
-                _customSwatch.IsChecked = true;
+                PickSwatch(_customSwatch);
                 break;
             default:
                 e.Handled = false;

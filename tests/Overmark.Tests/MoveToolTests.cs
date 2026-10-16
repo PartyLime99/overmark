@@ -145,6 +145,30 @@ public class MoveToolTests
     }
 
     [Fact]
+    public void Picking_a_colour_recolours_the_selection_and_undo_puts_it_back()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _document.Add(line);
+        _document.MarkSaved();
+
+        _move.Recolour(Palette.Colours[1]); // nothing selected yet
+        Assert.Equal(line, _document.Marks[0]);
+
+        _move.PointerDown(new Point(50, 10));
+        _move.PointerUp();
+        _move.Recolour(Red.Color); // already that colour: not an edit
+        Assert.False(_document.HasUnsavedChanges);
+
+        _move.Recolour(Palette.Colours[1]);
+        Assert.Equal(line with { Style = Red with { Color = Palette.Colours[1] } }, _document.Marks[0]);
+        Assert.Equal(_document.Marks[0], _move.SelectedMark);
+
+        _document.Undo();
+        Assert.Equal(line, _document.Marks[0]);
+        Assert.Equal(0, _move.Selected);
+    }
+
+    [Fact]
     public void Nudging_and_deleting_the_selection_can_be_undone()
     {
         var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));

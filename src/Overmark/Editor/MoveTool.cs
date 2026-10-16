@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Media;
 
 namespace Overmark.Editor;
 
@@ -22,7 +23,8 @@ internal enum MoveGrip
 /// The move tool: click a mark to select it and drag to move it; the arrow keys nudge it and Delete removes it.
 /// For a dimension, dragging its text moves just the text (snapping onto the dimension line when it's close), the
 /// round handle above the text turns it, dragging the dimension line moves it in or out, and dragging an extension
-/// line moves the whole dimension. Each drag or nudge is one undo step. No UI, so it can be unit tested.
+/// line moves the whole dimension. Picking a colour recolours the selection. Each drag, nudge or recolour is one undo
+/// step. No UI, so it can be unit tested.
 /// </summary>
 internal sealed class MoveTool
 {
@@ -112,6 +114,16 @@ internal sealed class MoveTool
         if (Selected is { } index && SelectedMark is { } mark)
         {
             Change(index, mark.MovedBy(offset));
+            _document.FinishChanging();
+        }
+    }
+
+    /// <summary>Gives the selected mark a new colour (picking a colour while a mark is selected), as one undo step.</summary>
+    public void Recolour(Color colour)
+    {
+        if (Selected is { } index && SelectedMark is { } mark && mark.Style.Color != colour)
+        {
+            Change(index, mark with { Style = mark.Style with { Color = colour } });
             _document.FinishChanging();
         }
     }
