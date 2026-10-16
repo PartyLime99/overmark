@@ -56,4 +56,23 @@ public class SelectionMathTests
         Assert.Equal(new ScreenRect(100, 100, 1, 1), SelectionMath.ResizeBy(Selection, -500, -500, Desktop));
         Assert.Equal(new ScreenRect(100, 100, 900, 700), SelectionMath.ResizeBy(Selection, 5000, 5000, Desktop));
     }
+
+    [Theory]
+    [InlineData(599, 449)]
+    [InlineData(401, 351)]
+    [InlineData(401, 449)]
+    public void From_centre_mirrors_the_corner_around_the_centre_pixel(int x, int y)
+    {
+        var result = SelectionMath.FromCentre(new PixelPoint(500, 400), new PixelPoint(x, y), Desktop);
+
+        Assert.Equal(new ScreenRect(401, 351, 199, 99), result); // 99 pixels either side of column 500 and 49 of row 400
+    }
+
+    [Fact]
+    public void From_centre_stops_the_far_side_at_the_desktop_edge()
+    {
+        var result = SelectionMath.FromCentre(new PixelPoint(50, 780), new PixelPoint(150, 700), Desktop);
+
+        Assert.Equal(new ScreenRect(0, 700, 151, 100), result);
+    }
 }

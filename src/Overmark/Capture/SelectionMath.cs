@@ -82,6 +82,18 @@ internal static class SelectionMath
         return ScreenRect.FromEdges(left, top, right, bottom);
     }
 
+    /// <summary>
+    /// The selection with <paramref name="centre"/> as its middle pixel and <paramref name="corner"/> as one corner.
+    /// The opposite corner stops at the edge of <paramref name="bounds"/>, so near an edge it's no longer centred.
+    /// </summary>
+    public static ScreenRect FromCentre(PixelPoint centre, PixelPoint corner, ScreenRect bounds)
+    {
+        var opposite = new PixelPoint(
+            Math.Clamp(2 * centre.X - corner.X, bounds.Left, bounds.Right - 1),
+            Math.Clamp(2 * centre.Y - corner.Y, bounds.Top, bounds.Bottom - 1));
+        return ScreenRect.FromCorners(opposite, corner);
+    }
+
     public static ScreenRect MoveBy(ScreenRect selection, int dx, int dy, ScreenRect bounds) => selection with
     {
         Left = Math.Clamp(selection.Left + dx, bounds.Left, bounds.Right - selection.Width),

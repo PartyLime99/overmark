@@ -26,6 +26,12 @@ internal sealed class AppSettings
     /// <summary>Whether the capture overlay shows the magnifier beside the pointer.</summary>
     public bool ShowMagnifier { get; set; } = true;
 
+    /// <summary>
+    /// False (default): a dragged selection goes from corner to corner.
+    /// True: the press is the selection's centre and the drag pulls out a corner, growing it evenly both ways.
+    /// </summary>
+    public bool DrawFromCentre { get; set; }
+
     /// <summary>How many seconds the preview popup stays up after a capture. 0 shows a plain notification instead.</summary>
     public double PopupSeconds { get; set; } = 5;
 

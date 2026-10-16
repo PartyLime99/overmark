@@ -115,7 +115,7 @@ internal sealed class CaptureController(
 
         var session = new CaptureSession(
             desktop, monitors, windows, current.LastRegion?.ToScreenRect(), current.AdjustBeforeCapture, cursor, Pointer.MoveTo,
-            current.ShowCrosshair, current.ShowMagnifier, record);
+            current.ShowCrosshair, current.ShowMagnifier, record, current.DrawFromCentre);
         session.Finished += outcome => OnSessionFinished(screenshot, outcome);
         _session = session;
 

@@ -351,6 +351,16 @@
                         </StackPanel>
                         <CheckBox x:Name="CaptureOnRelease" Content="Capture as soon as I let go of the mouse" Margin="0" />
                         <TextBlock Style="{StaticResource Hint}" Text="Turn this off to adjust the selection with handles first, then press Enter to capture." Margin="28,3,0,0" />
+                        <DockPanel Margin="0,14,0,0">
+                            <TextBlock Style="{StaticResource Label}" Text="Drag a selection from its" Margin="0,0,16,0" />
+                            <Border Background="#F0F2F5" CornerRadius="11" Padding="3" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="DrawFromCorner" GroupName="DrawFrom" Style="{StaticResource Segment}" Content="Corner" FontFamily="Segoe UI" Width="68" />
+                                    <RadioButton x:Name="DrawFromCentre" GroupName="DrawFrom" Style="{StaticResource Segment}" Content="Centre" FontFamily="Segoe UI" Width="68" />
+                                </StackPanel>
+                            </Border>
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="Centre: press on the middle of what you want, then drag out to a corner." Margin="0,6,0,0" />
                         <CheckBox x:Name="ShowCrosshairBox" Content="Show crosshair lines across the screen" Margin="0,12,0,0" />
                         <CheckBox x:Name="ShowMagnifierBox" Content="Show the magnifier beside the pointer" />
                     </StackPanel>

@@ -15,10 +15,11 @@ public class CaptureSessionTests
     private CaptureOutcome? _outcome;
     private bool _finished;
 
-    private CaptureSession Start(bool adjust = true, ScreenRect? lastRegion = null, PixelPoint? cursor = null)
+    private CaptureSession Start(bool adjust = true, ScreenRect? lastRegion = null, PixelPoint? cursor = null, bool fromCentre = false)
     {
         var session = new CaptureSession(
-            Desktop, [LeftMonitor, RightMonitor], [Notepad], lastRegion, adjust, cursor ?? new PixelPoint(50, 50), _cursorMoves.Add);
+            Desktop, [LeftMonitor, RightMonitor], [Notepad], lastRegion, adjust, cursor ?? new PixelPoint(50, 50), _cursorMoves.Add,
+            fromCentre: fromCentre);
         session.Finished += outcome =>
         {
             _finished = true;
@@ -67,6 +68,36 @@ public class CaptureSessionTests
         Drag(session, 2500, 100, 2599, 199);
 
         Assert.Equal(new ScreenRect(2500, 100, 100, 100), _outcome?.Region);
+    }
+
+    [Fact]
+    public void From_centre_the_press_is_the_middle_of_the_region()
+    {
+        var session = Start(adjust: false, fromCentre: true);
+
+        Drag(session, 1000, 600, 1199, 699);
+
+        Assert.Equal(new ScreenRect(801, 501, 399, 199), _outcome?.Region);
+    }
+
+    [Fact]
+    public void The_centre_is_shown_only_while_dragging_from_it()
+    {
+        var corner = Start();
+        corner.PointerPressed(new PixelPoint(1000, 600), 1, 6);
+        corner.PointerMoved(new PixelPoint(1100, 650));
+        Assert.Null(corner.DragCentre);
+
+        var session = Start(fromCentre: true);
+        session.PointerPressed(new PixelPoint(1000, 600), 1, 6);
+        Assert.Null(session.DragCentre); // not a drag yet
+        session.PointerMoved(new PixelPoint(1100, 650));
+        Assert.Equal(new PixelPoint(1000, 600), session.DragCentre);
+        Assert.Equal(new ScreenRect(900, 550, 201, 101), session.Selection);
+
+        session.PointerReleased(new PixelPoint(1100, 650));
+        Assert.Equal(SessionMode.Adjusting, session.Mode);
+        Assert.Null(session.DragCentre);
     }
 
     [Fact]

@@ -44,7 +44,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - Freezes every monitor as soon as the key is pressed. Typically visible about 125 ms after the key press (the first capture after starting is slower).
 - Thin white crosshair lines (with a faint dark edge, so they show on any background) through the pointer, the full width and height of the screen (can be turned off).
 - **Magnifier:** a white card beside the pointer: a round lens of zoomed pixels on a grid, with the centre pixel outlined, and under it the pointer's position (e.g. `3444, 800`) and the colour of the pixel under it, as hex with a swatch (e.g. `E3E6EA`). It flips sides near screen edges (can be turned off).
-- Drag to select a region, with a live size readout in a dark pill above it (`W × H at X, Y`). The selection has a white outline and thick white corner marks, all just outside it so they never cover captured pixels; the rest of the screen is dimmed.
+- Drag to select a region, from corner to corner or (a setting) out from the centre, with a live size readout in a dark pill above it (`W × H at X, Y`). The selection has a white outline and thick white corner marks, all just outside it so they never cover captured pixels; the rest of the screen is dimmed.
 - **Window snap:** the window under the pointer is highlighted, and a click (without dragging) selects exactly that window.
 - **Capture on release** (default): letting go of the mouse, or clicking a window, captures straight away.
 - **Fine adjustment:** the arrow keys move the pointer 1 px (Shift: 10 px), before and during a drag. With *capture on release* turned off, releasing the mouse shows handles instead: drag the edges or corners, nudge with the arrow keys (Ctrl+arrows resize), then Enter or double-click captures.
@@ -158,6 +158,7 @@ The settings window (tray menu → *Settings…*, or **Settings** on the capture
 
 - **Hotkeys:** click a box and press the keys. While recording, Overmark's keyboard hook hands key presses to the window, so PrtScn can be recorded even though Overmark owns it. Recording stops as soon as the box loses focus, or after 10 seconds.
 - **Capture on release**, or adjust the selection first.
+- **Drag a selection from its Corner** (default) **or Centre:** with Centre, the press is the middle of the selection and the drag pulls out a corner, so it grows evenly both ways (a small cross marks the centre while dragging). Near a screen edge the far side stops at the edge. Handles afterwards still move one edge at a time.
 - **Crosshair lines** and **magnifier** on or off.
 - **Save folder** (default `Pictures\Screenshots`) and **file name pattern** (a .NET date/time format, default `yyyy-MM-dd_HH-mm-ss`), with a live example.
 - **Recording:** frames a second (15, 30 or 60) and whether to show the mouse pointer.
@@ -190,5 +191,5 @@ Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, a history brow
 3. **Editor drawing:** pick-first colour and thickness, the drawing tools, Shift-snap, undo/redo, zoom, copy and save. *Done.*
 4. **Eraser and output:** eraser, crop, drag-out, the preview popup, pins. *Done.*
 5. **Settings and installer:** settings window, start with Windows, Velopack installer and auto-update, first GitHub release. *Done except the first release.*
-6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, deleting a capture from the preview, dimensions, the Move tool, and a lighter redesign of the editor (own title bar, one dock for drawing, the loaded pen), the capture toolbar, the magnifier, the preview, the recording bar, Settings and pins.
+6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, centre-out selection, screen recording without sound, the text tool, deleting a capture from the preview, dimensions, the Move tool, and a lighter redesign of the editor (own title bar, one dock for drawing, the loaded pen), the capture toolbar, the magnifier, the preview, the recording bar, Settings and pins.
 7. **Wider release:** signing, GitHub Actions builds, README screenshots, winget.

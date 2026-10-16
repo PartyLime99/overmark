@@ -54,6 +54,7 @@ internal partial class SettingsWindow : Window
         Closed += (_, _) => StopRecording();
 
         CaptureOnRelease.IsChecked = !settings.AdjustBeforeCapture;
+        (settings.DrawFromCentre ? DrawFromCentre : DrawFromCorner).IsChecked = true;
         ShowCrosshairBox.IsChecked = settings.ShowCrosshair;
         ShowMagnifierBox.IsChecked = settings.ShowMagnifier;
         (settings.RecordFrameRate switch { 15 => Fps15, 60 => Fps60, _ => Fps30 }).IsChecked = true;
@@ -176,6 +177,7 @@ internal partial class SettingsWindow : Window
     {
         StopRecording();
         _settings.AdjustBeforeCapture = CaptureOnRelease.IsChecked != true;
+        _settings.DrawFromCentre = DrawFromCentre.IsChecked == true;
         _settings.ShowCrosshair = ShowCrosshairBox.IsChecked == true;
         _settings.ShowMagnifier = ShowMagnifierBox.IsChecked == true;
         _settings.RecordFrameRate = Fps15.IsChecked == true ? 15 : Fps60.IsChecked == true ? 60 : 30;
