@@ -260,6 +260,52 @@ public class EditorDocumentTests
         Assert.Equal(Colors.White, background);
     }
 
+    [Fact]
+    public void Removing_the_white_background_renders_see_through_and_undoes_in_one_step()
+    {
+        RunOnUiThread(() =>
+        {
+            // A black square on white. A capture's fourth byte is unused (here 0), which mustn't count as see-through.
+            var pixels = new byte[10 * 10 * 4];
+            for (var y = 0; y < 10; y++)
+            {
+                for (var x = 0; x < 10; x++)
+                {
+                    var p = (y * 10 + x) * 4;
+                    var shade = x is >= 3 and < 7 && y is >= 3 and < 7 ? (byte)0 : (byte)255;
+                    (pixels[p], pixels[p + 1], pixels[p + 2], pixels[p + 3]) = (shade, shade, shade, 0);
+                }
+            }
+
+            var image = BitmapSource.Create(10, 10, 96, 96, PixelFormats.Bgr32, null, pixels, 40);
+            image.Freeze();
+            var document = new EditorDocument(image);
+            Assert.False(document.IsSeeThrough);
+
+            Assert.True(document.RemoveWhiteBackground());
+            Assert.True(document.IsSeeThrough);
+            Assert.True(document.HasUnsavedChanges);
+
+            var rendered = document.Render();
+            Assert.Equal(PixelFormats.Bgra32, rendered.Format);
+            var bgra = new byte[10 * 10 * 4];
+            rendered.CopyPixels(bgra, 40, 0);
+            Assert.Equal(0, bgra[3]); // the corner
+            Assert.Equal(new byte[] { 0, 0, 0, 255 }, bgra[220..224]); // (5, 5), inside the square
+
+            document.Undo();
+            Assert.Same(image, document.Image);
+            Assert.False(document.IsSeeThrough);
+            Assert.False(document.CanUndo);
+            Assert.Equal(PixelFormats.Bgr32, document.Render().Format);
+
+            document.Redo();
+            Assert.True(document.IsSeeThrough);
+            Assert.False(document.RemoveWhiteBackground()); // nothing more to remove, and no extra undo step
+            return true;
+        });
+    }
+
     // WPF rendering needs a single-threaded-apartment thread; test runner threads aren't.
     private static T RunOnUiThread<T>(Func<T> work)
     {

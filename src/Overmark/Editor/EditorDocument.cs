@@ -23,6 +23,7 @@ internal sealed class EditorDocument
     public EditorDocument(BitmapSource image)
     {
         Image = image;
+        IsSeeThrough = Transparency.IsSeeThrough(image);
         Crop = new Int32Rect(0, 0, image.PixelWidth, image.PixelHeight);
     }
 
@@ -43,7 +44,10 @@ internal sealed class EditorDocument
 
     public event Action? Changed;
 
-    public BitmapSource Image { get; }
+    public BitmapSource Image { get; private set; }
+
+    /// <summary>Whether some of <see cref="Image"/> is see-through, e.g. after <see cref="RemoveWhiteBackground"/>.</summary>
+    public bool IsSeeThrough { get; private set; }
 
     public IReadOnlyList<Mark> Marks => _marks;
 
@@ -155,6 +159,21 @@ internal sealed class EditorDocument
         }
     }
 
+    /// <summary>
+    /// Makes the white background of the kept part see-through (see <see cref="Transparency"/>), as one undo step.
+    /// Marks stay as they are. Returns false if there was no white touching the edges to remove.
+    /// </summary>
+    public bool RemoveWhiteBackground()
+    {
+        if (Transparency.RemoveWhite(Image, Crop) is not { } cleared)
+        {
+            return false;
+        }
+
+        Do(new ReplaceImage((Image, IsSeeThrough), (cleared, true)));
+        return true;
+    }
+
     public void Undo()
     {
         FinishErasing();
@@ -204,10 +223,10 @@ internal sealed class EditorDocument
         var target = new RenderTargetBitmap(crop.Width, crop.Height, 96, 96, PixelFormats.Pbgra32);
         target.Render(visual);
 
-        // Screenshots have no transparency, so drop the alpha channel.
-        var opaque = new FormatConvertedBitmap(target, PixelFormats.Bgr32, null, 0);
-        opaque.Freeze();
-        return opaque;
+        // Screenshots have no transparency, so drop the alpha channel, unless the background has been made see-through.
+        var result = new FormatConvertedBitmap(target, IsSeeThrough ? PixelFormats.Bgra32 : PixelFormats.Bgr32, null, 0);
+        result.Freeze();
+        return result;
     }
 
     private void Do(Edit edit)
@@ -283,6 +302,14 @@ internal sealed class EditorDocument
         public override void Apply(EditorDocument document) => document._marks[Index] = After;
 
         public override void Revert(EditorDocument document) => document._marks[Index] = Before;
+    }
+
+    /// <summary>The picture swapped for a changed copy, e.g. with its background made see-through.</summary>
+    private sealed class ReplaceImage((BitmapSource Image, bool SeeThrough) before, (BitmapSource Image, bool SeeThrough) after) : Edit
+    {
+        public override void Apply(EditorDocument document) => (document.Image, document.IsSeeThrough) = after;
+
+        public override void Revert(EditorDocument document) => (document.Image, document.IsSeeThrough) = before;
     }
 
     private sealed class CropImage(Int32Rect before, Int32Rect after) : Edit

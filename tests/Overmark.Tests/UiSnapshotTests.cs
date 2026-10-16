@@ -55,6 +55,7 @@ public class UiSnapshotTests
             SaveDimensions();
             SaveOverlay();
             SaveTodayPane();
+            SaveSeeThrough();
 
             var pin = new PinWindow(SampleCapture(420, 240), null, null);
             Save((FrameworkElement)pin.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "pin.png");
@@ -206,6 +207,53 @@ public class UiSnapshotTests
     /// The editor with the list of today's captures: three screenshots (the second one open) and a recording.
     /// Thumbnails load in the background, so the dispatcher is run for a moment before the snapshot.
     /// </summary>
+    /// <summary>
+    /// The editor after removing the white background of a CAD-style picture (or of see-through-source.png, if it's in
+    /// the snapshot folder), and that picture saved as see-through.png.
+    /// </summary>
+    private static void SaveSeeThrough()
+    {
+        var source = Path.Combine(Folder!, "see-through-source.png");
+        BitmapSource picture;
+        if (File.Exists(source))
+        {
+            var loaded = new BitmapImage();
+            loaded.BeginInit();
+            loaded.CacheOption = BitmapCacheOption.OnLoad;
+            loaded.UriSource = new Uri(source);
+            loaded.EndInit();
+            loaded.Freeze();
+            picture = loaded;
+        }
+        else
+        {
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, 640, 360));
+                var panel = Geometry.Parse("M0,200 L640,110 L640,360 L0,360 Z");
+                dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(0x7E, 0x82, 0x96)), new Pen(Brushes.Black, 1), panel);
+                var rail = Geometry.Parse("M0,170 L560,90 L600,110 L640,104 L640,128 L0,220 Z");
+                dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(0x3C, 0x3C, 0x3C)), new Pen(Brushes.Black, 1), rail);
+                dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x2A)), new Pen(Brushes.Black, 1), new Point(300, 130), 34, 24);
+                dc.DrawEllipse(Brushes.White, null, new Point(300, 126), 22, 14); // white inside the picture, which stays
+            }
+
+            var drawn = new RenderTargetBitmap(640, 360, 96, 96, PixelFormats.Pbgra32);
+            drawn.Render(visual);
+            drawn.Freeze();
+            picture = drawn;
+        }
+
+        var editor = new EditorWindow(@"C:\x.png", picture, new EditorSettings { StrokeWidth = 4 }, _ => { }, _ => { });
+        var document = (EditorDocument)typeof(EditorWindow).GetField("_document", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(editor)!;
+        document.RemoveWhiteBackground();
+        Save((FrameworkElement)editor.Content, new Size(1180, 760), "editor-see-through.png");
+        File.WriteAllBytes(Path.Combine(Folder!, "see-through.png"), CaptureOutput.EncodePng(document.Render()));
+
+        // Not closed: with the background removed, closing would ask (in a real dialog, on screen) whether to save.
+    }
+
     private static void SaveTodayPane()
     {
         var folder = Path.Combine(Path.GetTempPath(), "OvermarkSnapshots", Guid.NewGuid().ToString("N"));

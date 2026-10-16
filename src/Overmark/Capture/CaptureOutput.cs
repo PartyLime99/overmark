@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Overmark.Platform;
 
@@ -67,9 +68,10 @@ internal static class CaptureOutput
 
     private static bool TryCopyToClipboard(BitmapSource image, byte[] png, out string? problem)
     {
-        // The plain bitmap works everywhere; apps that understand PNG (Office, Teams, browsers) prefer it.
+        // The plain bitmap works everywhere; apps that understand PNG (Office, Teams, browsers) prefer it. Apps that take
+        // the plain bitmap mostly ignore transparency (see-through parts come out black), so it gets a white background.
         var data = new DataObject();
-        data.SetImage(image);
+        data.SetImage(OnWhite(image));
         data.SetData("PNG", new MemoryStream(png), autoConvert: false);
 
         for (var attempt = 1; ; attempt++)
@@ -91,6 +93,33 @@ internal static class CaptureOutput
                 return false;
             }
         }
+    }
+
+    /// <summary>A see-through image on a white background; an image without transparency as it is.</summary>
+    private static BitmapSource OnWhite(BitmapSource image)
+    {
+        if (image.Format != PixelFormats.Bgra32 && image.Format != PixelFormats.Pbgra32)
+        {
+            return image;
+        }
+
+        var stride = image.PixelWidth * 4;
+        var pixels = new byte[stride * image.PixelHeight];
+        new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0).CopyPixels(pixels, stride, 0);
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            var alpha = pixels[i + 3];
+            for (var c = 0; c < 3; c++)
+            {
+                pixels[i + c] = (byte)((pixels[i + c] * alpha + 255 * (255 - alpha) + 127) / 255);
+            }
+
+            pixels[i + 3] = 255;
+        }
+
+        var opaque = BitmapSource.Create(image.PixelWidth, image.PixelHeight, image.DpiX, image.DpiY, PixelFormats.Bgr32, null, pixels, stride);
+        opaque.Freeze();
+        return opaque;
     }
 
     private static string Save(byte[] png, string folder, string? fileNamePattern)

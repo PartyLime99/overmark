@@ -95,7 +95,6 @@ internal partial class EditorWindow : Window
         _document = document ?? new EditorDocument(image);
         _move = new MoveTool(_document);
 
-        Picture.Source = image;
         foreach (var layer in new FrameworkElement[] { Layers, Picture, CommittedLayer, DrawingLayer })
         {
             layer.Width = image.PixelWidth;
@@ -105,6 +104,7 @@ internal partial class EditorWindow : Window
         CommittedLayer.Attach(_document);
         DrawingLayer.Attach(_tools, _move);
         ShowCrop();
+        ShowPicture();
 
         _toolButtons = new()
         {
@@ -145,6 +145,7 @@ internal partial class EditorWindow : Window
         CustomColourButton.Click += (_, _) => PickCustomColour();
         UndoButton.Click += (_, _) => Undo();
         RedoButton.Click += (_, _) => _document.Redo();
+        RemoveWhiteButton.Click += (_, _) => RemoveWhiteBackground();
         FitButton.Click += (_, _) => FitToWindow();
         ActualSizeButton.Click += (_, _) => SetZoom(1, null);
         CopyButton.Click += (_, _) => Copy();
@@ -186,6 +187,7 @@ internal partial class EditorWindow : Window
         _tools.PreviewChanged += ShowTypingBox;
         _document.Changed += UpdateCommands;
         _document.Changed += ShowCrop;
+        _document.Changed += ShowPicture;
         _statusTimer.Tick += (_, _) =>
         {
             _statusTimer.Stop();
@@ -882,6 +884,9 @@ internal partial class EditorWindow : Window
             case Key.X when !ctrl:
                 CropTool.IsChecked = true;
                 break;
+            case Key.B when !ctrl:
+                RemoveWhiteBackground();
+                break;
             case >= Key.D1 and <= Key.D8 when !ctrl:
                 PickSwatch(_swatches[key - Key.D1]);
                 break;
@@ -935,6 +940,20 @@ internal partial class EditorWindow : Window
         {
             FitToWindow();
         }
+    }
+
+    /// <summary>Shows the picture as it is now, over a checkerboard where it's see-through.</summary>
+    private void ShowPicture()
+    {
+        Picture.Source = _document.Image;
+        Checkerboard.Visibility = _document.IsSeeThrough ? Visibility.Visible : Visibility.Collapsed;
+        Surface.Background = _document.IsSeeThrough ? Brushes.Transparent : Brushes.White;
+    }
+
+    private void RemoveWhiteBackground()
+    {
+        _tools.Finish();
+        ShowStatus(_document.RemoveWhiteBackground() ? "White background removed (Ctrl+Z brings it back)" : "No white background touching the edges");
     }
 
     private void Copy()

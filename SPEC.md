@@ -105,9 +105,10 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 | Eraser | E | Click or drag across marks; each mark touched is removed whole (empty rectangles only by their outline) |
 | Dimension | D | Like SolidWorks' smart dimension; see below. Shift snaps the second point to 0°, 45° or 90° from the first |
 | Crop | X | Drag a box, then Enter |
+| Remove white background | B | A button, not a tool. Pure white (#FFFFFF) connected to the edges of the cropped picture becomes see-through; white enclosed by the picture stays. Solid pixels touching the removed white are softened (white blended out as alpha) so anti-aliased edges leave no white fringe. Marks are untouched. The editor shows a checkerboard behind see-through parts; save, copy (PNG; the plain clipboard bitmap is flattened onto white) and pin keep the transparency |
 
 - **Moving, not restyling:** marks can be moved (the Move tool) but not recoloured, resized or edited after drawing; the eraser and undo fix mistakes.
-- **Undo/redo:** Ctrl+Z / Ctrl+Y, covering drawing, erasing (one step per eraser drag), moving (one step per drag or nudge), deleting and cropping.
+- **Undo/redo:** Ctrl+Z / Ctrl+Y, covering drawing, erasing (one step per eraser drag), moving (one step per drag or nudge), deleting, cropping and removing the white background.
 
 **Dimensions**
 
