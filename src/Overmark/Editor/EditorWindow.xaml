@@ -77,11 +77,12 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <!-- A tool in the dock: dark when selected, with a dot in the pen's colour. -->
+        <!-- A tool in the dock: dark when selected, with a dot in the pen's colour. Icon colours are set on the button
+             itself: content written inline takes its colour from the button, not from the ContentPresenter. -->
         <ControlTemplate x:Key="DockToolTemplate" TargetType="ToggleButton">
             <Grid Background="Transparent">
                 <Border x:Name="Chrome" CornerRadius="12" Background="Transparent" />
-                <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <Ellipse x:Name="Dot" Width="6" Height="6" Fill="{DynamicResource PenBrush}" Stroke="#80FFFFFF" StrokeThickness="1"
                          HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" Visibility="Collapsed" />
                 <Path x:Name="Caret" Data="M5,0 L5,5 L0,5 Z" Fill="#3A414B" Opacity="0.55" HorizontalAlignment="Right" VerticalAlignment="Bottom"
@@ -90,11 +91,11 @@
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
-                    <Setter TargetName="Content" Property="TextElement.Foreground" Value="#16191D" />
+                    <Setter Property="Foreground" Value="#16191D" />
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
-                    <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                    <Setter Property="Foreground" Value="White" />
                     <Setter TargetName="Caret" Property="Fill" Value="White" />
                     <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
                 </Trigger>
@@ -103,6 +104,7 @@
 
         <Style x:Key="DockTool" TargetType="RadioButton">
             <Setter Property="Template" Value="{StaticResource DockToolTemplate}" />
+            <Setter Property="Foreground" Value="#3A414B" />
             <Setter Property="GroupName" Value="Tools" />
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Width" Value="38" />
@@ -114,6 +116,7 @@
         <!-- A dock button standing for several tools (Line/Arrow/Curve, Rectangle/Circle); the corner mark says so. -->
         <Style x:Key="GroupTool" TargetType="ToggleButton">
             <Setter Property="Template" Value="{StaticResource DockToolTemplate}" />
+            <Setter Property="Foreground" Value="#3A414B" />
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Width" Value="38" />
             <Setter Property="Height" Value="44" />
@@ -127,16 +130,17 @@
             <Setter Property="Height" Value="44" />
             <Setter Property="Margin" Value="1,0" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="Foreground" Value="#3A414B" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Chrome" CornerRadius="12" Background="Transparent">
-                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
-                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="#16191D" />
+                                <Setter Property="Foreground" Value="#16191D" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
@@ -155,11 +159,12 @@
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Height" Value="38" />
             <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Foreground" Value="#16191D" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="Chrome" CornerRadius="10" Background="Transparent" Padding="10,0">
-                            <ContentPresenter x:Name="Content" VerticalAlignment="Center" TextElement.Foreground="#16191D" />
+                            <ContentPresenter VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -167,7 +172,7 @@
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
-                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                                <Setter Property="Foreground" Value="White" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -334,16 +339,17 @@
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource BarButton}">
             <Setter Property="Width" Value="34" />
             <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="#4A525C" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Chrome" CornerRadius="10" Background="Transparent">
-                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#4A525C" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
-                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                                <Setter Property="Foreground" Value="White" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
@@ -358,11 +364,12 @@
             <Setter Property="Focusable" Value="False" />
             <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
             <Setter Property="Width" Value="46" />
+            <Setter Property="Foreground" Value="#3A414B" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Chrome" Background="Transparent">
-                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -382,12 +389,12 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Chrome" Background="Transparent">
-                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
-                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                                <Setter Property="Foreground" Value="White" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
@@ -442,7 +449,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
                         <Border x:Name="Chrome" CornerRadius="13" Background="White" BorderBrush="#DADFE5" BorderThickness="1" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter x:Name="Content" VerticalAlignment="Center" />
+                            <ContentPresenter VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -451,7 +458,7 @@
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="#16191D" />
-                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                                <Setter Property="Foreground" Value="White" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

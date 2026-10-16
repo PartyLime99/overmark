@@ -154,21 +154,22 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Width" Value="48" />
             <Setter Property="Height" Value="28" />
+            <Setter Property="Foreground" Value="#3A414B" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="Chrome" CornerRadius="8" Background="Transparent">
-                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
-                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="#16191D" />
+                                <Setter Property="Foreground" Value="#16191D" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
-                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                                <Setter Property="Foreground" Value="White" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

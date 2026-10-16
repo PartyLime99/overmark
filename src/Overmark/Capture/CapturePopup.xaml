@@ -95,11 +95,12 @@
 
         <Style x:Key="CloseButtonStyle" TargetType="Button">
             <Setter Property="Focusable" Value="False" />
+            <Setter Property="Foreground" Value="#4A525C" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Chrome" Width="28" Height="28" CornerRadius="9" Background="#EBFFFFFF">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#4A525C" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
