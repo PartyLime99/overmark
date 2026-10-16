@@ -465,6 +465,84 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- The title bar's switch for the list of today's captures. -->
+        <Style x:Key="BarToggle" TargetType="ToggleButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Foreground" Value="#5A626D" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#EEF0F3" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Foreground" Value="#16191D" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A capture in the list of today's captures: thumbnail, kind and time. The open one has a dark ring. -->
+        <Style x:Key="RecentItem" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" Padding="4">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                            <Trigger Property="Tag" Value="open">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#16191D" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#F4F6F8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PaneButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="#F0F2F5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid x:Name="Root">
@@ -504,7 +582,10 @@
                     </Button>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,8,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,8,0">
+                    <ToggleButton x:Name="RecentToggle" Style="{StaticResource BarToggle}" IsChecked="True" Margin="0,0,8,0" ToolTip="Show or hide today's captures">
+                        <Path Style="{StaticResource SmallIcon}" Data="M2.5,3.5 H15.5 V14.5 H2.5 Z M7,3.5 V14.5" />
+                    </ToggleButton>
                     <Image Source="pack://application:,,,/Overmark;component/Assets/Overmark.ico" Width="18" Height="18" VerticalAlignment="Center" />
                     <TextBlock x:Name="FileNameText" FontSize="13" FontWeight="SemiBold" Margin="10,0,0,0" MaxWidth="420" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     <Border x:Name="UnsavedPill" Background="#FFF1CC" CornerRadius="9" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
@@ -515,7 +596,27 @@
             </DockPanel>
         </Border>
 
-        <Grid Grid.Row="1" Background="{StaticResource DotBrush}">
+        <DockPanel Grid.Row="1">
+        <!-- Today's captures, newest first; clicking one opens it in place of this one. -->
+        <Border x:Name="RecentPane" DockPanel.Dock="Left" Width="176" Background="White" BorderBrush="#DADFE5" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="14,12,12,8">
+                    <TextBlock x:Name="RecentCount" DockPanel.Dock="Right" FontSize="11" Foreground="#5A626D" VerticalAlignment="Center" />
+                    <TextBlock Text="Today" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
+                </DockPanel>
+                <Button x:Name="OpenFolderButton" DockPanel.Dock="Bottom" Style="{StaticResource PaneButton}" Margin="12,8,12,12" ToolTip="Show this capture in File Explorer">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource SmallIcon}" Width="15" Height="15" Data="M2,5 V14.5 H16 V6.5 H8.5 L7,4.5 H2 Z" />
+                        <TextBlock Text="Open folder" Margin="7,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <StackPanel x:Name="RecentList" Margin="8,0,8,4" />
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Grid Background="{StaticResource DotBrush}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
@@ -710,5 +811,6 @@
                 </Border>
             </Popup>
         </Grid>
+        </DockPanel>
     </Grid>
 </Window>

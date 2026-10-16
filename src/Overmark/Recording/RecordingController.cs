@@ -17,7 +17,7 @@ namespace Overmark.Recording;
 /// Runs one screen recording at a time: the red frame and control bar while it records, then saving, copying the
 /// file to the clipboard (so Ctrl+V drops it into a chat or email) and showing the preview.
 /// </summary>
-internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotkey?> stopHotkey, TrayIcon tray)
+internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotkey?> stopHotkey, CaptureHistory history, TrayIcon tray)
 {
     private ScreenRecorder? _recorder;
     private RecordingFrame? _frame;
@@ -132,6 +132,7 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
 
         var duration = $"{(int)length.TotalMinutes}:{length.Seconds:00}";
         Log.Info($"Recorded {duration} to {path}");
+        history.Add(new CaptureRecord(path, CaptureKind.Region, DateTime.Now, _region.Width, _region.Height, length.TotalSeconds));
         var copied = TryCopyFile(path);
         uint? clipboardVersion = copied ? NativeMethods.GetClipboardSequenceNumber() : null;
         var current = settings();
@@ -188,7 +189,8 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
         return false;
     }
 
-    private static void Play(string path)
+    /// <summary>Opens a recording in the default video player.</summary>
+    public static void Play(string path)
     {
         try
         {

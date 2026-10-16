@@ -54,6 +54,7 @@ public class UiSnapshotTests
             SaveTextMarks();
             SaveDimensions();
             SaveOverlay();
+            SaveTodayPane();
 
             var pin = new PinWindow(SampleCapture(420, 240), null, null);
             Save((FrameworkElement)pin.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "pin.png");
@@ -195,6 +196,61 @@ public class UiSnapshotTests
             ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("RecordButton")).IsChecked = record;
             ((OverlayCanvas)window.FindName("Overlay")).Attach(session, image, monitor);
             Save((FrameworkElement)window.Content, new Size(1600, 900), record ? "overlay-video.png" : "overlay.png");
+        }
+    }
+
+    /// <summary>
+    /// The editor with the list of today's captures: three screenshots (the second one open) and a recording.
+    /// Thumbnails load in the background, so the dispatcher is run for a moment before the snapshot.
+    /// </summary>
+    private static void SaveTodayPane()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "OvermarkSnapshots", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var history = new CaptureHistory(Path.Combine(folder, "history.json"));
+            var at = DateTime.Today.AddHours(14).AddMinutes(32);
+            string Shot(string name, int width, int height)
+            {
+                var file = Path.Combine(folder, name);
+                File.WriteAllBytes(file, CaptureOutput.EncodePng(SampleCapture(width, height)));
+                return file;
+            }
+
+            history.Add(new CaptureRecord(Shot("a.png", 1920, 1080), CaptureKind.FullScreen, at.AddMinutes(-40), 1920, 1080));
+            var clip = Path.Combine(folder, "clip.mp4");
+            File.WriteAllText(clip, "");
+            history.Add(new CaptureRecord(clip, CaptureKind.Region, at.AddMinutes(-11), 1280, 720, 42));
+            var open = Shot("b.png", 900, 500);
+            history.Add(new CaptureRecord(open, CaptureKind.Window, at.AddMinutes(-3), 900, 500));
+            history.Add(new CaptureRecord(Shot("c.png", 640, 360), CaptureKind.Region, at, 640, 360));
+
+            var editor = new EditorWindow(open, SampleCapture(900, 500), new EditorSettings(), _ => { }, _ => { }, history, _ => { });
+            var content = (FrameworkElement)editor.Content;
+            var size = new Size(1300, 760);
+            content.Measure(size);
+            content.Arrange(new Rect(size));
+            RunDispatcherFor(TimeSpan.FromSeconds(1.5));
+            Save(content, size, "editor-today.png");
+            editor.Close();
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    private static void RunDispatcherFor(TimeSpan time)
+    {
+        var until = DateTime.UtcNow + time;
+        while (DateTime.UtcNow < until)
+        {
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background, () => frame.Continue = false);
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            Thread.Sleep(20);
         }
     }
 

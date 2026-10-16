@@ -71,6 +71,12 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Title bar** (Overmark's own, white): icon, file name, an *Unsaved* pill while there are unsaved changes, and brief messages such as *Saved*; then Delete · Pin · Copy · **Save** and the minimise, maximise and close buttons. Windows still handles dragging, double-clicking to maximise, snapping to screen edges, resizing, the shadow and (on Windows 11) the rounded corners.
 - **Hint pill** above the picture: the selected tool's name and a one-line reminder of how it works, plus that tool's on/off options (Arrowhead for curves, Box behind text for text).
 - **Zoom pill** at the top right: Fit, and the zoom level, which goes to actual size when clicked.
+- **Today's captures** down the left side: every screenshot and recording Overmark has saved today, newest first, each a thumbnail with what kind it was (Region, Window, Last region, Full screen or Video) and the time. The one being edited has a dark ring. A video shows a play symbol and its length.
+  - Clicking a screenshot opens it in place of the current one, in the same spot and size (unsaved changes are asked about first; Cancel stays put). One that's already open in another editor window is brought to the front instead. Clicking a video plays it in the default player.
+  - The list updates as new captures come in, and a capture's thumbnail updates when it's saved with marks.
+  - **Open folder** at the bottom shows the current capture in File Explorer.
+  - The switch at the left of the title bar hides or shows the list; the choice is remembered.
+  - Only what Overmark saved is listed (not other files in the folder), and anything since deleted or moved is left out. The list is kept in `%AppData%\Overmark\history.json`, which holds the last two weeks.
 - **Dock** along the bottom, with everything for drawing: undo · redo · the tools · the **loaded pen** · colours · thickness slider. It wraps onto two rows when the window is too narrow. The selected tool is dark, with a dot in the pen's colour.
   - Line, Arrow and Curve share one dock button, and Rectangle and Circle another. It shows the tool used last from its group (the arrow, to start with), and a small corner mark says there are more. Clicking it picks that tool; clicking it again while one of the group is picked opens a flyout above it listing all of them (icon, name and key). The keys pick any of them directly.
   - The **loaded pen** shows what the next mark will look like: a sample stroke in the current colour and thickness (wide and see-through for the highlighter, "Aa" at the text size for text), the colour's name, and the thickness.
@@ -116,7 +122,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Copy** (Ctrl+C) and **Pin** use the current image, crop and marks included. Pinning minimises the editor. (A Drag button was tried and removed; dragging into other apps is done from the preview popup.)
 - **Delete** (the bin button in the title bar, red under the mouse) asks first (*No* is the default), then moves the capture file to the Recycle Bin and closes the editor without asking about unsaved changes. It has no keyboard shortcut, as Delete removes the selected mark with the Move tool.
 - **Flatten:** marks are merged into the image when it's copied, saved or pinned. There are no project files.
-- **Opening:** click the preview, use *Edit last capture* in the tray menu, or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it).
+- **Opening:** click the preview, pick it from today's captures, use *Edit last capture* in the tray menu (which remembers the last capture across restarts), or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it).
 
 ## Pin to screen
 
@@ -175,7 +181,7 @@ Settings are stored in `%AppData%\Overmark\settings.json`, which can also be edi
 
 ## Not included
 
-Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, capture history, scrolling capture, and editing marks after drawing other than moving them.
+Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, a history browser beyond today's captures, scrolling capture, and editing marks after drawing other than moving them.
 
 ## Build phases
 

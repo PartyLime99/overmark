@@ -17,6 +17,7 @@ internal sealed class CaptureController(
     Action openSettings,
     PinBoard pins,
     RecordingController recordings,
+    CaptureHistory history,
     TrayIcon tray) : IDisposable
 {
     // One overlay window per monitor, kept between captures (creating them is the slow part of opening the overlay).
@@ -239,6 +240,7 @@ internal sealed class CaptureController(
             if (result.SavedPath is { } saved)
             {
                 LastSavedPath = saved;
+                history.Add(new CaptureRecord(saved, outcome.Kind, DateTime.Now, outcome.Region.Width, outcome.Region.Height));
             }
 
             if (current.PopupSeconds > 0 && (result.Copied || result.SavedPath is not null))

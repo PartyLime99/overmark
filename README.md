@@ -38,6 +38,8 @@ The video is saved as an MP4 (no sound) next to your screenshots and copied to t
 
 Click the preview after a capture (or **Edit last capture** in the tray menu) to draw on it. `Overmark.exe --edit <file>` opens any PNG.
 
+Down the left side is **Today**: everything you've captured today, newest first. Click a screenshot to switch to it (you're asked about unsaved changes first), or a recording to play it. **Open folder** shows the capture in File Explorer, and the button at the left of the title bar hides or shows the list.
+
 Everything for drawing is in the dock along the bottom: undo and redo, the tools, the **loaded pen** (a sample of what the next mark will look like), the colours and the thickness slider. Pick the colour and thickness **first**; they apply to the next mark only. Line, Arrow and Curve share one dock button, as do Rectangle and Circle: it shows the one you used last, and clicking it again opens a small menu with the others (their keys work as always).
 
 | Key | Tool or action |

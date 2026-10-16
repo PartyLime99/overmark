@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -9,6 +11,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Overmark.Capture;
 using Overmark.Platform;
+using Overmark.Recording;
 using Overmark.Settings;
 
 namespace Overmark.Editor;
@@ -62,14 +65,27 @@ internal partial class EditorWindow : Window
     private bool _fitToWindow = true;
     private bool _applyingSettings;
     private bool _deleted;
+    private bool _leaving;
     private Point? _erasingFrom;
 
-    public EditorWindow(string path, BitmapSource image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin)
+    // Today's captures down the left side, with thumbnails kept between refreshes of the list.
+    private readonly CaptureHistory? _history;
+    private readonly Action<string>? _switchTo;
+    private readonly Dictionary<string, (DateTime Written, BitmapSource Image)> _thumbnails = new(StringComparer.OrdinalIgnoreCase);
+    private int _recentVersion;
+
+    /// <param name="history">The captures to list down the left side; null leaves the list out.</param>
+    /// <param name="switchTo">Opens another capture in place of this one, when it's picked from the list.</param>
+    public EditorWindow(
+        string path, BitmapSource image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin,
+        CaptureHistory? history = null, Action<string>? switchTo = null)
     {
         InitializeComponent();
         _path = path;
         _rememberSettings = rememberSettings;
         _pin = pin;
+        _history = history;
+        _switchTo = switchTo;
         _document = new EditorDocument(image);
         _move = new MoveTool(_document);
 
@@ -191,6 +207,21 @@ internal partial class EditorWindow : Window
         };
         Closing += OnClosing;
 
+        RecentToggle.Checked += (_, _) => ShowRecentPane(true);
+        RecentToggle.Unchecked += (_, _) => ShowRecentPane(false);
+        OpenFolderButton.Click += (_, _) => ShowInExplorer();
+        if (history is null)
+        {
+            RecentToggle.Visibility = Visibility.Collapsed;
+            RecentPane.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            history.Changed += ListRecentCaptures;
+            Closed += (_, _) => history.Changed -= ListRecentCaptures;
+            ListRecentCaptures();
+        }
+
         ApplySettings(settings);
         UpdateCommands();
 
@@ -217,7 +248,8 @@ internal partial class EditorWindow : Window
         var padding = SurfaceFrame.Padding;
         var chrome = TitleBar.Height + Dock.DesiredSize.Height + padding.Top + padding.Bottom + 24; // plus the scroll area's slack
 
-        var width = Math.Max(image.PixelWidth / scale + padding.Left + padding.Right + 24, Dock.DesiredSize.Width + 8);
+        var pane = RecentPane.Visibility == Visibility.Visible ? RecentPane.Width : 0;
+        var width = Math.Max(image.PixelWidth / scale + padding.Left + padding.Right + 24, Dock.DesiredSize.Width + 8) + pane;
         Width = Math.Max(MinWidth, Math.Min(width, workArea.Width * 0.9));
         Height = Math.Max(MinHeight, Math.Min(image.PixelHeight / scale + chrome, workArea.Height * 0.85));
     }
@@ -574,6 +606,7 @@ internal partial class EditorWindow : Window
             _tools.CurveArrowhead = settings.CurveArrowhead;
             TextBoxToggle.IsChecked = settings.TextBoxed;
             _tools.TextBoxed = settings.TextBoxed;
+            ShowRecent = settings.ShowRecentCaptures;
 
             var tool = Enum.TryParse<ToolKind>(settings.Tool, true, out var saved) && saved is not (ToolKind.Move or ToolKind.Eraser or ToolKind.Crop)
                 ? saved
@@ -601,6 +634,7 @@ internal partial class EditorWindow : Window
             CurveArrowhead = _tools.CurveArrowhead,
             TextBoxed = _tools.TextBoxed,
             CustomColour = _customColour is { } custom ? Hex(custom) : null,
+            ShowRecentCaptures = RecentToggle.IsChecked == true,
         });
     }
 
@@ -919,6 +953,10 @@ internal partial class EditorWindow : Window
             File.Move(temporary, _path, overwrite: true);
             _document.MarkSaved();
             ShowStatus("Saved");
+
+            // Its thumbnail in the list now shows the marks.
+            _thumbnails.Remove(_path);
+            ListRecentCaptures();
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -958,22 +996,265 @@ internal partial class EditorWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (!_leaving && !ConfirmLeave())
+        {
+            e.Cancel = true;
+        }
+    }
+
+    /// <summary>
+    /// Before closing or switching to another capture: asks whether to save unsaved changes (saving them if so).
+    /// Returns false if the user cancelled, or the save failed, so the capture should stay open.
+    /// </summary>
+    public bool ConfirmLeave()
+    {
         if (_deleted)
         {
-            return;
+            return true;
         }
 
         _tools.Finish();
         if (!_document.HasUnsavedChanges)
         {
-            return;
+            return true;
         }
 
         var answer = MessageBox.Show(
             this, $"Save your changes to {Path.GetFileName(_path)}?", "Overmark", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (answer == MessageBoxResult.Cancel || (answer == MessageBoxResult.Yes && !Save()))
+        return answer == MessageBoxResult.No || (answer == MessageBoxResult.Yes && Save());
+    }
+
+    /// <summary>Closes after <see cref="ConfirmLeave"/> has already asked.</summary>
+    public void CloseWithoutAsking()
+    {
+        _leaving = true;
+        Close();
+    }
+
+    /// <summary>Whether the list of today's captures is showing (it never shows without a history to list).</summary>
+    public bool ShowRecent
+    {
+        get => RecentToggle.IsChecked == true;
+        set => RecentToggle.IsChecked = value && _history is not null;
+    }
+
+    private void ShowRecentPane(bool show)
+    {
+        RecentPane.Visibility = show && _history is not null ? Visibility.Visible : Visibility.Collapsed;
+        RememberChoices();
+
+        // The picture's area changed size, so fit it again once the layout has caught up.
+        if (_fitToWindow && IsLoaded)
         {
-            e.Cancel = true;
+            Dispatcher.InvokeAsync(FitToWindow, DispatcherPriority.Loaded);
+        }
+    }
+
+    /// <summary>
+    /// Fills the list with today's captures, newest first, the open one marked. Thumbnails are read in the
+    /// background (small, so it's quick) and kept, so refreshing the list after a new capture only reads the new one.
+    /// </summary>
+    private void ListRecentCaptures()
+    {
+        if (_history is null)
+        {
+            return;
+        }
+
+        var records = _history.TakenOn(DateTime.Today);
+        RecentCount.Text = records.Count == 1 ? "1 capture" : $"{records.Count} captures";
+        RecentList.Children.Clear();
+        if (records.Count == 0)
+        {
+            RecentList.Children.Add(new TextBlock
+            {
+                Text = "Captures you take today show up here.",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x5A, 0x62, 0x6D)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(6, 4, 6, 0),
+            });
+            return;
+        }
+
+        var toLoad = new List<(string Path, Image Target)>();
+        foreach (var record in records)
+        {
+            var (item, thumbnail) = MakeRecentItem(record);
+            RecentList.Children.Add(item);
+            if (thumbnail is null)
+            {
+                continue;
+            }
+
+            var written = File.GetLastWriteTimeUtc(record.Path);
+            if (_thumbnails.TryGetValue(record.Path, out var known) && known.Written == written)
+            {
+                thumbnail.Source = known.Image;
+            }
+            else
+            {
+                toLoad.Add((record.Path, thumbnail));
+            }
+        }
+
+        if (toLoad.Count > 0)
+        {
+            var version = ++_recentVersion;
+            _ = Task.Run(() =>
+            {
+                foreach (var (file, target) in toLoad)
+                {
+                    var written = File.GetLastWriteTimeUtc(file);
+                    if (LoadThumbnail(file) is not { } loaded)
+                    {
+                        continue;
+                    }
+
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        _thumbnails[file] = (written, loaded);
+                        if (version == _recentVersion)
+                        {
+                            target.Source = loaded;
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    /// <summary>One capture in the list: its thumbnail (or a play tile for a video), what kind it is and when.</summary>
+    private (Button Item, Image? Thumbnail) MakeRecentItem(CaptureRecord record)
+    {
+        const double tileWidth = 144;
+        const double tileHeight = 81;
+        var tile = new Grid
+        {
+            Width = tileWidth,
+            Height = tileHeight,
+            Clip = new RectangleGeometry(new Rect(0, 0, tileWidth, tileHeight), 6, 6),
+            Background = new SolidColorBrush(record.IsVideo ? Color.FromRgb(0x2B, 0x30, 0x38) : Color.FromRgb(0xEE, 0xF0, 0xF3)),
+        };
+
+        Image? thumbnail = null;
+        if (record.IsVideo)
+        {
+            tile.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse("M0,0 L12,7 L0,14 Z"),
+                Fill = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            var length = TimeSpan.FromSeconds(record.Seconds ?? 0);
+            tile.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0xC0, 0x16, 0x19, 0x1D)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(5, 1, 5, 1),
+                Margin = new Thickness(0, 0, 5, 5),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Child = new TextBlock
+                {
+                    Text = $"{(int)length.TotalMinutes}:{length.Seconds:00}",
+                    FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+                    FontSize = 10,
+                    Foreground = Brushes.White,
+                },
+            });
+        }
+        else
+        {
+            thumbnail = new Image { Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top };
+            RenderOptions.SetBitmapScalingMode(thumbnail, BitmapScalingMode.HighQuality);
+            tile.Children.Add(thumbnail);
+        }
+
+        var caption = new DockPanel { Margin = new Thickness(2, 5, 2, 1) };
+        var time = new TextBlock
+        {
+            Text = record.TakenAt.ToString("t", CultureInfo.CurrentCulture),
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x5A, 0x62, 0x6D)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        DockPanel.SetDock(time, System.Windows.Controls.Dock.Right); // "Dock" alone is the dock along the bottom
+        caption.Children.Add(time);
+        caption.Children.Add(new TextBlock { Text = KindName(record), FontSize = 12, FontWeight = FontWeights.SemiBold });
+
+        var content = new StackPanel();
+        content.Children.Add(tile);
+        content.Children.Add(caption);
+
+        var open = string.Equals(record.Path, _path, StringComparison.OrdinalIgnoreCase);
+        var item = new Button
+        {
+            Style = (Style)FindResource("RecentItem"),
+            Content = content,
+            Tag = open ? "open" : null,
+            ToolTip = $"{Path.GetFileName(record.Path)}  ·  {record.Width} × {record.Height}" + (record.IsVideo ? "  ·  click to play" : open ? "  ·  open now" : ""),
+        };
+        item.Click += (_, _) => OpenRecent(record);
+        return (item, thumbnail);
+    }
+
+    private static string KindName(CaptureRecord record) => record.IsVideo
+        ? "Video"
+        : record.Kind switch
+        {
+            CaptureKind.Window => "Window",
+            CaptureKind.LastRegion => "Last region",
+            CaptureKind.FullScreen => "Full screen",
+            _ => "Region",
+        };
+
+    /// <summary>A video plays in the default player; a screenshot opens in place of this one.</summary>
+    private void OpenRecent(CaptureRecord record)
+    {
+        if (record.IsVideo)
+        {
+            RecordingController.Play(record.Path);
+        }
+        else if (!string.Equals(record.Path, _path, StringComparison.OrdinalIgnoreCase))
+        {
+            _switchTo?.Invoke(record.Path);
+        }
+    }
+
+    /// <summary>A small copy of a capture for the list, or null if it can't be read (e.g. it's being written).</summary>
+    private static BitmapSource? LoadThumbnail(string path)
+    {
+        try
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            image.DecodePixelWidth = 288; // twice the tile's width, so it's sharp on high-DPI screens
+            image.UriSource = new Uri(path);
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException)
+        {
+            Log.Warn($"Couldn't read a thumbnail of {path}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>Opens the capture's folder in File Explorer, with the capture selected.</summary>
+    private void ShowInExplorer()
+    {
+        try
+        {
+            Process.Start("explorer.exe", $"/select,\"{_path}\"");
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            Log.Warn($"Couldn't show {_path} in File Explorer: {ex.Message}");
         }
     }
 

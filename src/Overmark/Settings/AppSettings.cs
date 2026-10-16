@@ -110,6 +110,9 @@ internal sealed class EditorSettings
 
     /// <summary>The colour last picked with the custom colour button, if any.</summary>
     public string? CustomColour { get; set; }
+
+    /// <summary>Whether the list of today's captures is shown down the editor's left side.</summary>
+    public bool ShowRecentCaptures { get; set; } = true;
 }
 
 /// <summary>A desktop rectangle in physical pixels.</summary>

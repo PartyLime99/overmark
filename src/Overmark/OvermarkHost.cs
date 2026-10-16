@@ -23,6 +23,7 @@ internal sealed class OvermarkHost : IDisposable
     private readonly CaptureController _captures;
     private readonly EditorLauncher _editors;
     private readonly PinBoard _pins = new();
+    private readonly CaptureHistory _history = new(AppInfo.HistoryFile);
     private readonly RecordingController _recordings;
     private readonly Action _quit;
     private readonly FileSystemWatcher _settingsWatcher;
@@ -44,10 +45,10 @@ internal sealed class OvermarkHost : IDisposable
 
         _quit = quit;
         _tray = new TrayIcon(RunFromMenu, EditLastCapture, ShowDisplayInfo, OpenSettings, Quit);
-        _editors = new EditorLauncher(() => _settings, RememberEditorSettings, _pins, _tray);
+        _editors = new EditorLauncher(() => _settings, RememberEditorSettings, _pins, _history, _tray);
         _recordings = new RecordingController(
-            () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop : null, _tray);
-        _captures = new CaptureController(() => _settings, RememberLastRegion, _editors.Open, OpenSettings, _pins, _recordings, _tray);
+            () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop : null, _history, _tray);
+        _captures = new CaptureController(() => _settings, RememberLastRegion, _editors.Open, OpenSettings, _pins, _recordings, _history, _tray);
         _hotkeys = new HotkeyService(dispatcher);
         _hotkeys.Triggered += Run;
         ApplyHotkeys();
@@ -178,7 +179,8 @@ internal sealed class OvermarkHost : IDisposable
 
     private void EditLastCapture()
     {
-        if (_captures.LastSavedPath is { } path && File.Exists(path))
+        // The history remembers the last capture across restarts.
+        if ((_captures.LastSavedPath ?? _history.LatestScreenshot()?.Path) is { } path && File.Exists(path))
         {
             _editors.Open(path);
         }
