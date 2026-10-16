@@ -12,6 +12,7 @@ namespace Overmark.Editor;
 internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSettings> rememberSettings, PinBoard pins, CaptureHistory history, TrayIcon tray)
 {
     private readonly Dictionary<string, EditorWindow> _open = new(StringComparer.OrdinalIgnoreCase);
+    private readonly EditStore _edits = CreateEditStore();
 
     public void Open(string path)
     {
@@ -26,13 +27,19 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
 
     /// <summary>
     /// Shows another capture in place of <paramref name="current"/>, as when it's picked from the list of today's
-    /// captures: a new window opens exactly where the old one was, and the old one closes. Unsaved changes are
-    /// asked about first; cancelling keeps the current capture. A capture that's already open elsewhere is just
-    /// brought to the front.
+    /// captures: a new window opens exactly where the old one was, and the old one closes. Unsaved marks aren't
+    /// asked about: they're kept as a draft, and come back (still unsaved) when that capture is opened again within
+    /// a day. A capture that's already open elsewhere is just brought to the front.
     /// </summary>
     public void SwitchTo(EditorWindow current, string path)
     {
-        if (TryActivate(path) || !current.ConfirmLeave() || Create(path) is not { } window)
+        if (TryActivate(path))
+        {
+            return;
+        }
+
+        current.KeepDraft();
+        if (Create(path) is not { } window)
         {
             return;
         }
@@ -82,12 +89,17 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         return true;
     }
 
+    /// <summary>
+    /// A window for the capture. If it was edited in the last day (and the file hasn't changed since), it opens
+    /// with its marks still editable, from the editable copy, rather than flattened into the picture.
+    /// </summary>
     private EditorWindow? Create(string path)
     {
+        var kept = _edits.Find(path);
         BitmapSource image;
         try
         {
-            image = Load(path);
+            image = kept?.Original ?? Load(path);
         }
         catch (Exception ex)
         {
@@ -99,10 +111,19 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         EditorWindow? window = null;
         window = new EditorWindow(
             path, image, settings().Editor, rememberSettings, rendered => pins.Open(rendered, edit: () => Open(path)),
-            history, other => SwitchTo(window!, other));
+            history, other => SwitchTo(window!, other), _edits,
+            kept is null ? null : new EditorDocument(kept.Original, kept.Crop, kept.Marks, unsaved: kept.Draft));
         _open[path] = window;
         window.Closed += (_, _) => _open.Remove(path);
         return window;
+    }
+
+    /// <summary>The store of editable copies, with anything over a day old cleared out.</summary>
+    private static EditStore CreateEditStore()
+    {
+        var store = new EditStore(AppInfo.EditsFolder);
+        store.CleanUp();
+        return store;
     }
 
     private static BitmapSource Load(string path)

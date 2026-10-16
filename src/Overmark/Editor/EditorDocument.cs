@@ -26,6 +26,21 @@ internal sealed class EditorDocument
         Crop = new Int32Rect(0, 0, image.PixelWidth, image.PixelHeight);
     }
 
+    /// <summary>
+    /// A capture brought back from an editable copy, with the marks and crop it had (but no undo history).
+    /// <paramref name="unsaved"/> starts it with unsaved changes, for marks that were never saved to the file.
+    /// </summary>
+    public EditorDocument(BitmapSource image, Int32Rect crop, IEnumerable<Mark> marks, bool unsaved)
+        : this(image)
+    {
+        Crop = crop;
+        _marks.AddRange(marks);
+        if (unsaved)
+        {
+            _savedAt = NeverSaved.Instance;
+        }
+    }
+
     public event Action? Changed;
 
     public BitmapSource Image { get; }
@@ -203,6 +218,20 @@ internal sealed class EditorDocument
         _undo.Push(edit);
         _redo.Clear();
         Changed?.Invoke();
+    }
+
+    /// <summary>Stands for a save that never happened, so a document brought back with unsaved marks reads as unsaved.</summary>
+    private sealed class NeverSaved : Edit
+    {
+        public static readonly NeverSaved Instance = new();
+
+        public override void Apply(EditorDocument document)
+        {
+        }
+
+        public override void Revert(EditorDocument document)
+        {
+        }
     }
 
     private abstract class Edit

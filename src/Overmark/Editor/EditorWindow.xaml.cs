@@ -71,14 +71,19 @@ internal partial class EditorWindow : Window
     // Today's captures down the left side, with thumbnails kept between refreshes of the list.
     private readonly CaptureHistory? _history;
     private readonly Action<string>? _switchTo;
+
+    // Keeps the marks editable for a day after the editor closes; null leaves them flattened, as before.
+    private readonly EditStore? _edits;
     private readonly Dictionary<string, (DateTime Written, BitmapSource Image)> _thumbnails = new(StringComparer.OrdinalIgnoreCase);
     private int _recentVersion;
 
     /// <param name="history">The captures to list down the left side; null leaves the list out.</param>
     /// <param name="switchTo">Opens another capture in place of this one, when it's picked from the list.</param>
+    /// <param name="edits">Where marks are kept editable between editors; null flattens them for good on save.</param>
+    /// <param name="document">The capture with its marks still editable (from <paramref name="edits"/>); null starts from <paramref name="image"/>.</param>
     public EditorWindow(
         string path, BitmapSource image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin,
-        CaptureHistory? history = null, Action<string>? switchTo = null)
+        CaptureHistory? history = null, Action<string>? switchTo = null, EditStore? edits = null, EditorDocument? document = null)
     {
         InitializeComponent();
         _path = path;
@@ -86,7 +91,8 @@ internal partial class EditorWindow : Window
         _pin = pin;
         _history = history;
         _switchTo = switchTo;
-        _document = new EditorDocument(image);
+        _edits = edits;
+        _document = document ?? new EditorDocument(image);
         _move = new MoveTool(_document);
 
         Picture.Source = image;
@@ -224,6 +230,10 @@ internal partial class EditorWindow : Window
 
         ApplySettings(settings);
         UpdateCommands();
+        if (document is not null)
+        {
+            ShowStatus("Marks still editable");
+        }
 
         // Last, so the toolbar is complete (swatches included) when it's measured.
         SizeToImage(image);
@@ -953,6 +963,7 @@ internal partial class EditorWindow : Window
             File.Move(temporary, _path, overwrite: true);
             _document.MarkSaved();
             ShowStatus("Saved");
+            KeepEditable();
 
             // Its thumbnail in the list now shows the marks.
             _thumbnails.Remove(_path);
@@ -991,6 +1002,7 @@ internal partial class EditorWindow : Window
 
         Log.Info($"Deleted {_path} from the editor");
         _deleted = true;
+        _edits?.Forget(_path);
         Close();
     }
 
@@ -1021,14 +1033,57 @@ internal partial class EditorWindow : Window
 
         var answer = MessageBox.Show(
             this, $"Save your changes to {Path.GetFileName(_path)}?", "Overmark", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        return answer == MessageBoxResult.No || (answer == MessageBoxResult.Yes && Save());
+        if (answer == MessageBoxResult.No)
+        {
+            // Not saving means the unsaved marks go, including any kept from switching away earlier.
+            _edits?.DiscardDraft(_path);
+            return true;
+        }
+
+        return answer == MessageBoxResult.Yes && Save();
     }
 
-    /// <summary>Closes after <see cref="ConfirmLeave"/> has already asked.</summary>
+    /// <summary>
+    /// Before switching to another capture: unsaved marks are kept as a draft for a day, rather than asking about
+    /// saving, so they're still there (and still unsaved) when the capture is opened again.
+    /// </summary>
+    public void KeepDraft()
+    {
+        _tools.Finish();
+        if (_document.HasUnsavedChanges)
+        {
+            _edits?.KeepDraft(_path, _document);
+        }
+    }
+
+    /// <summary>Closes without asking about unsaved changes (they've been asked about, or kept as a draft).</summary>
     public void CloseWithoutAsking()
     {
         _leaving = true;
         Close();
+    }
+
+    /// <summary>
+    /// After a save, which flattened the marks into the file: keeps them editable for a day, or forgets the editable
+    /// copy if there's nothing on the capture left to edit.
+    /// </summary>
+    private void KeepEditable()
+    {
+        if (_edits is null)
+        {
+            return;
+        }
+
+        var crop = _document.Crop;
+        var image = _document.Image;
+        if (_document.Marks.Count == 0 && crop.X == 0 && crop.Y == 0 && crop.Width == image.PixelWidth && crop.Height == image.PixelHeight)
+        {
+            _edits.Forget(_path);
+        }
+        else
+        {
+            _edits.KeepSaved(_path, _document);
+        }
     }
 
     /// <summary>Whether the list of today's captures is showing (it never shows without a history to list).</summary>
@@ -1170,6 +1225,28 @@ internal partial class EditorWindow : Window
             thumbnail = new Image { Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top };
             RenderOptions.SetBitmapScalingMode(thumbnail, BitmapScalingMode.HighQuality);
             tile.Children.Add(thumbnail);
+
+            // Unsaved marks left behind by switching away (the thumbnail is the saved file, without them).
+            if (!string.Equals(record.Path, _path, StringComparison.OrdinalIgnoreCase) && _edits?.HasDraft(record.Path) == true)
+            {
+                tile.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF1, 0xCC)),
+                    CornerRadius = new CornerRadius(7),
+                    Padding = new Thickness(6, 1, 6, 1),
+                    Margin = new Thickness(5, 5, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    ToolTip = "Has unsaved marks, kept from when you switched away",
+                    Child = new TextBlock
+                    {
+                        Text = "Unsaved",
+                        FontSize = 10,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0x7A, 0x4E, 0x00)),
+                    },
+                });
+            }
         }
 
         var caption = new DockPanel { Margin = new Thickness(2, 5, 2, 1) };

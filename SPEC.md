@@ -73,7 +73,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Hint pill** above the picture: the selected tool's name and a one-line reminder of how it works, plus that tool's on/off options (Arrowhead for curves, Box behind text for text).
 - **Zoom pill** at the top right: Fit, and the zoom level, which goes to actual size when clicked.
 - **Today's captures** down the left side: every screenshot and recording Overmark has saved today, newest first, each a thumbnail with what kind it was (Region, Window, Last region, Full screen or Video) and the time. The one being edited has a dark ring. A video shows a play symbol and its length.
-  - Clicking a screenshot opens it in place of the current one, in the same spot and size (unsaved changes are asked about first; Cancel stays put). One that's already open in another editor window is brought to the front instead. Clicking a video plays it in the default player.
+  - Clicking a screenshot opens it in place of the current one, in the same spot and size. Unsaved marks aren't asked about: they're kept as a draft (see *Editable for a day* below), and the capture shows an *Unsaved* tag in the list. One that's already open in another editor window is brought to the front instead. Clicking a video plays it in the default player.
   - The list updates as new captures come in, and a capture's thumbnail updates when it's saved with marks.
   - **Open folder** at the bottom shows the current capture in File Explorer.
   - The switch at the left of the title bar hides or shows the list; the choice is remembered.
@@ -122,7 +122,12 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Saving:** only Save or Ctrl+S writes to disk, overwriting the capture file with the annotated version. Closing with unsaved changes asks first. The window title starts with `*` while there are unsaved changes.
 - **Copy** (Ctrl+C) and **Pin** use the current image, crop and marks included. Pinning minimises the editor. (A Drag button was tried and removed; dragging into other apps is done from the preview popup.)
 - **Delete** (the bin button in the title bar, red under the mouse) asks first (*No* is the default), then moves the capture file to the Recycle Bin and closes the editor without asking about unsaved changes. It has no keyboard shortcut, as Delete removes the selected mark with the Move tool.
-- **Flatten:** marks are merged into the image when it's copied, saved or pinned. There are no project files.
+- **Flatten:** marks are merged into the image when it's copied, saved or pinned. There are no project files; instead, captures stay editable for a day:
+- **Editable for a day:** alongside the flattened PNG, Overmark keeps an editable copy of each capture that has marks (or a crop): the original pixels, the marks and the crop, in `%AppData%\Overmark\edits`. Opening the capture again within 24 hours of its last edit brings the marks back as marks, so they can still be moved, erased and recoloured; the status reads *Marks still editable*. Undo history doesn't carry over.
+  - Each capture can have a **saved** copy (matching what Save wrote to the file) and a **draft** (unsaved marks, kept when switching to another capture from today's captures). The draft wins while it lasts, and opens as unsaved.
+  - Closing the window still asks about unsaved changes: *Yes* saves (replacing the draft), *No* throws the unsaved marks away, draft included.
+  - A copy is only used while the capture file is exactly as Overmark left it (same time and size); a file changed by anything else opens as it is.
+  - Copies are deleted 24 hours after the capture's last edit (checked when Overmark starts and whenever a copy is kept), when the capture is deleted, or when it's saved with nothing left to edit.
 - **Opening:** click the preview, pick it from today's captures, use *Edit last capture* in the tray menu (which remembers the last capture across restarts), or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it).
 
 ## Pin to screen

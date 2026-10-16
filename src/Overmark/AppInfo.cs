@@ -18,5 +18,8 @@ internal static class AppInfo
     /// <summary>The captures saved recently, for the editor's list of today's captures.</summary>
     public static string HistoryFile { get; } = Path.Combine(DataFolder, "history.json");
 
+    /// <summary>Editable copies of recently edited captures (original pixels and marks), kept for a day.</summary>
+    public static string EditsFolder { get; } = Path.Combine(DataFolder, "edits");
+
     private static string DataFolder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Overmark");
 }
