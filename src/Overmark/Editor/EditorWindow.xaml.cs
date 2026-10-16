@@ -1307,7 +1307,12 @@ internal partial class EditorWindow : Window
                     StrokeEndLineCap = PenLineCap.Round,
                 },
             };
-            close.Click += (_, _) => closeCapture(record.Path);
+            close.Click += (_, e) =>
+            {
+                // Stop the click here: it would carry on to the tile it sits on, which opens the capture again.
+                e.Handled = true;
+                closeCapture(record.Path);
+            };
             tile.Children.Add(close);
             if (!open)
             {

@@ -46,6 +46,45 @@ public class EditorSwitchingTests
         CloseQuietly(editor);
     });
 
+    [Fact]
+    public void The_x_on_a_capture_closes_it_without_opening_it() => RunOnUiThread(() =>
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "OvermarkTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var history = new Overmark.Capture.CaptureHistory(Path.Combine(folder, "history.json"));
+            string Capture(string name, int minute)
+            {
+                var file = Path.Combine(folder, name);
+                File.WriteAllText(file, "");
+                history.Add(new Overmark.Capture.CaptureRecord(file, Overmark.Capture.CaptureKind.Region, DateTime.Today.AddMinutes(minute), 200, 100));
+                return file;
+            }
+
+            var open = Capture("open.png", 1);
+            var other = Capture("other.png", 2);
+            var closed = new List<string>();
+            var switched = new List<string>();
+            var editor = new EditorWindow(open, Image(200, 100), new EditorSettings(), _ => { }, _ => { }, history, switched.Add, closeCapture: closed.Add);
+
+            // The newest is listed first: the other capture, then the open one. Each tile has its x in the thumbnail's corner.
+            var list = (System.Windows.Controls.Panel)editor.FindName("RecentList");
+            var tile = (System.Windows.Controls.Button)list.Children[0];
+            var thumbnail = (System.Windows.Controls.Grid)((System.Windows.Controls.StackPanel)tile.Content).Children[0];
+            var x = thumbnail.Children.OfType<System.Windows.Controls.Button>().Single();
+            x.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, x));
+
+            Assert.Equal([other], closed);
+            Assert.Empty(switched);
+            CloseQuietly(editor);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    });
+
     private static EditorDocument Document(EditorWindow editor) => Field<EditorDocument>(editor, "_document");
 
     private static void Draw(EditorWindow editor, Point from, Point to)
