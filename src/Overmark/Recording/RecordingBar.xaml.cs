@@ -12,6 +12,9 @@ namespace Overmark.Recording;
 /// </summary>
 internal partial class RecordingBar : Window
 {
+    private static readonly Geometry PauseShape = (Geometry)Geometry.Parse("M6,4 V14 M12,4 V14").GetAsFrozen();
+    private static readonly Geometry ResumeShape = (Geometry)Geometry.Parse("M5,3 L15,9 L5,15 Z").GetAsFrozen();
+
     private readonly ScreenRect _region;
     private readonly MonitorInfo _monitor;
 
@@ -49,8 +52,9 @@ internal partial class RecordingBar : Window
     {
         TimeText.Text = $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}";
 
-        // Segoe MDL2 Assets: Play when paused, Pause while recording.
-        PauseGlyph.Text = ((char)(paused ? 0xE768 : 0xE769)).ToString();
+        // A play triangle and Resume when paused, two bars and Pause while recording.
+        PauseIcon.Data = paused ? ResumeShape : PauseShape;
+        PauseLabel.Text = paused ? "Resume" : "Pause";
         PauseButton.ToolTip = paused ? "Resume" : "Pause";
 
         // A solid dot while recording, hollow while paused.

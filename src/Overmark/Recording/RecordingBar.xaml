@@ -11,33 +11,75 @@
         ShowActivated="False"
         Topmost="True"
         SizeToContent="WidthAndHeight"
+        FontFamily="Segoe UI"
+        Foreground="#16191D"
         UseLayoutRounding="True"
         Opacity="0">
 
     <Window.Resources>
-        <Style x:Key="Glyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-
         <Style x:Key="BarButton" TargetType="Button">
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="11,0" />
             <Setter Property="Margin" Value="2,0,0,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="5" Padding="8,5">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
                             <ContentPresenter VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#33FFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#55FFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="StopButtonStyle" TargetType="Button" BasedOn="{StaticResource BarButton}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="#16191D" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2B3038" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#000000" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DiscardButtonStyle" TargetType="Button" BasedOn="{StaticResource BarButton}">
+            <Setter Property="Foreground" Value="#B42318" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FDECEC" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F9D7D5" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -47,25 +89,28 @@
     </Window.Resources>
 
     <!-- The margin leaves room for the shadow. -->
-    <Border Margin="10" CornerRadius="8" Background="#F2202020" BorderBrush="#E5484D" BorderThickness="1" Padding="8,4">
+    <Border Margin="14" CornerRadius="16" Background="White" Padding="14,5,5,5">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.45" />
+            <DropShadowEffect BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.3" />
         </Border.Effect>
         <StackPanel Orientation="Horizontal">
-            <Ellipse x:Name="Dot" Width="10" Height="10" Fill="#E5484D" Stroke="#E5484D" StrokeThickness="1.5" VerticalAlignment="Center" Margin="4,0,8,0" />
-            <TextBlock x:Name="TimeText" Text="0:00" Foreground="White" FontFamily="Segoe UI" FontSize="13" MinWidth="40" VerticalAlignment="Center" />
+            <Ellipse x:Name="Dot" Width="9" Height="9" Fill="#E5484D" Stroke="#E5484D" StrokeThickness="1.5" VerticalAlignment="Center" />
+            <TextBlock x:Name="TimeText" Text="0:00" FontFamily="Cascadia Mono, Consolas" FontSize="14" MinWidth="44" Margin="10,0,8,0" VerticalAlignment="Center" />
+            <Rectangle Width="1" Height="20" Fill="#E3E7EC" Margin="0,0,4,0" VerticalAlignment="Center" />
             <Button x:Name="PauseButton" Style="{StaticResource BarButton}" ToolTip="Pause">
-                <TextBlock x:Name="PauseGlyph" Style="{StaticResource Glyph}" Text="&#xE769;" />
-            </Button>
-            <Button x:Name="StopButton" Style="{StaticResource BarButton}">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE71A;" Foreground="#FF6B70" />
-                    <TextBlock Text="Stop" FontFamily="Segoe UI" FontSize="13" Margin="6,0,0,0" VerticalAlignment="Center" />
+                    <Path x:Name="PauseIcon" Data="M6,4 V14 M12,4 V14" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"
+                          Stroke="#16191D" Fill="#16191D" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                    <TextBlock x:Name="PauseLabel" Text="Pause" Margin="6,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
-            <Button x:Name="DiscardButton" Style="{StaticResource BarButton}" ToolTip="Stop and throw the recording away">
-                <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;" />
+            <Button x:Name="StopButton" Style="{StaticResource StopButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <Rectangle Width="9" Height="9" RadiusX="2" RadiusY="2" Fill="White" VerticalAlignment="Center" />
+                    <TextBlock Text="Stop" Margin="6,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
             </Button>
+            <Button x:Name="DiscardButton" Style="{StaticResource DiscardButtonStyle}" ToolTip="Stop and throw the recording away" Content="Discard" />
         </StackPanel>
     </Border>
 </Window>

@@ -9,77 +9,137 @@
         MinWidth="640"
         MinHeight="420"
         WindowStartupLocation="CenterScreen"
-        Background="#1C1C1C"
+        Background="#E9ECEF"
+        Foreground="#16191D"
+        FontFamily="Segoe UI"
         Icon="pack://application:,,,/Overmark;component/Assets/Overmark.ico"
         UseLayoutRounding="True">
 
-    <Window.Resources>
-        <ControlTemplate x:Key="FlatToggleTemplate" TargetType="ToggleButton">
-            <Border x:Name="Chrome" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
-            <ControlTemplate.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Chrome" Property="Background" Value="#22FFFFFF" />
-                </Trigger>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter TargetName="Chrome" Property="Background" Value="#4DFFFFFF" />
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
+    <!-- Overmark draws its own title bar (white, with Pin/Copy/Save in it); Windows still handles dragging,
+         resizing, snapping and the window shadow. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="44" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
 
-        <!-- The ring and the colour are two circles in one cell, so they share a centre. Rounding to whole screen
-             pixels (e.g. at 125% scaling) would nudge them apart, so it's off here; circles are smooth-edged anyway. -->
-        <ControlTemplate x:Key="SwatchTemplate" TargetType="RadioButton">
-            <Grid Width="26" Height="26" Background="Transparent" UseLayoutRounding="False">
-                <Ellipse x:Name="Ring" Stroke="Transparent" StrokeThickness="2" />
-                <Ellipse Margin="4" Fill="{TemplateBinding Background}" Stroke="#66FFFFFF" StrokeThickness="1" />
+    <Window.Resources>
+        <!-- The current pen colour, for the dot on the selected tool. Replaced whenever the colour changes. -->
+        <SolidColorBrush x:Key="PenBrush" Color="#E53935" />
+
+        <DrawingBrush x:Key="DotBrush" TileMode="Tile" Viewport="0,0,18,18" ViewportUnits="Absolute" Viewbox="0,0,18,18" ViewboxUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#E9ECEF">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,18,18" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#C3CAD2">
+                        <GeometryDrawing.Geometry>
+                            <EllipseGeometry Center="9,9" RadiusX="1" RadiusY="1" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
+        <DropShadowEffect x:Key="FloatShadow" BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.14" Color="#16191D" />
+
+        <!-- White floating panels: the dock, the hint and zoom pills, the flyouts. -->
+        <Style x:Key="FloatCard" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DADFE5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Effect" Value="{StaticResource FloatShadow}" />
+        </Style>
+
+        <!-- Line icons take their colour from the button they're in. -->
+        <Style x:Key="Icon" TargetType="Path">
+            <Setter Property="Stroke" Value="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="18" />
+        </Style>
+
+        <Style x:Key="SmallIcon" TargetType="Path" BasedOn="{StaticResource Icon}">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Stretch" Value="Uniform" />
+        </Style>
+
+        <Style x:Key="DockDivider" TargetType="Rectangle">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Margin" Value="8,0" />
+            <Setter Property="Fill" Value="#E3E7EC" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- A tool in the dock: dark when selected, with a dot in the pen's colour. -->
+        <ControlTemplate x:Key="DockToolTemplate" TargetType="ToggleButton">
+            <Grid Background="Transparent">
+                <Border x:Name="Chrome" CornerRadius="12" Background="Transparent" />
+                <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                <Ellipse x:Name="Dot" Width="6" Height="6" Fill="{DynamicResource PenBrush}" Stroke="#80FFFFFF" StrokeThickness="1"
+                         HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" Visibility="Collapsed" />
+                <Path x:Name="Caret" Data="M5,0 L5,5 L0,5 Z" Fill="#3A414B" Opacity="0.55" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                      Margin="0,0,5,5" Visibility="{TemplateBinding Tag}" />
             </Grid>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Ring" Property="Stroke" Value="#66FFFFFF" />
+                    <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                    <Setter TargetName="Content" Property="TextElement.Foreground" Value="#16191D" />
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter TargetName="Ring" Property="Stroke" Value="White" />
+                    <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
+                    <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                    <Setter TargetName="Caret" Property="Fill" Value="White" />
+                    <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
 
-        <Style x:Key="Tool" TargetType="RadioButton">
-            <Setter Property="Template" Value="{StaticResource FlatToggleTemplate}" />
+        <Style x:Key="DockTool" TargetType="RadioButton">
+            <Setter Property="Template" Value="{StaticResource DockToolTemplate}" />
             <Setter Property="GroupName" Value="Tools" />
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="Width" Value="36" />
-            <Setter Property="Height" Value="36" />
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="44" />
             <Setter Property="Margin" Value="1,0" />
+            <Setter Property="Tag" Value="{x:Static Visibility.Collapsed}" />
         </Style>
 
-        <Style x:Key="Toggle" TargetType="ToggleButton">
-            <Setter Property="Template" Value="{StaticResource FlatToggleTemplate}" />
+        <!-- A dock button standing for several tools (Line/Arrow/Curve, Rectangle/Circle); the corner mark says so. -->
+        <Style x:Key="GroupTool" TargetType="ToggleButton">
+            <Setter Property="Template" Value="{StaticResource DockToolTemplate}" />
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="Width" Value="36" />
-            <Setter Property="Height" Value="36" />
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="44" />
             <Setter Property="Margin" Value="1,0" />
+            <Setter Property="Tag" Value="{x:Static Visibility.Visible}" />
         </Style>
 
-        <Style x:Key="Action" TargetType="Button">
+        <Style x:Key="DockButton" TargetType="Button">
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Padding" Value="9,7" />
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="44" />
             <Setter Property="Margin" Value="1,0" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter VerticalAlignment="Center" />
+                        <Border x:Name="Chrome" CornerRadius="12" Background="Transparent">
+                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#22FFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="#16191D" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#44FFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.35" />
@@ -90,17 +150,200 @@
             </Setter>
         </Style>
 
-        <!-- Turns red under the mouse, so it's clear this one throws the capture away. -->
-        <Style x:Key="DeleteAction" TargetType="Button" BasedOn="{StaticResource Action}">
+        <!-- A tool in a flyout: icon, name and key. -->
+        <Style x:Key="FlyoutTool" TargetType="RadioButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent" Padding="10,0">
+                            <ContentPresenter x:Name="Content" VerticalAlignment="Center" TextElement.Foreground="#16191D" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FlyoutName" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="10,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="FlyoutKey" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Opacity" Value="0.6" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="DockPanel.Dock" Value="Right" />
+        </Style>
+
+        <!-- The ring and the colour are two circles in one cell, so they share a centre. Rounding to whole screen
+             pixels (e.g. at 125% scaling) would nudge them apart, so it's off here; circles are smooth-edged anyway. -->
+        <ControlTemplate x:Key="SwatchTemplate" TargetType="RadioButton">
+            <Grid Width="26" Height="26" Background="Transparent" UseLayoutRounding="False">
+                <Ellipse x:Name="Ring" Stroke="Transparent" StrokeThickness="2" />
+                <Ellipse Margin="4" Fill="{TemplateBinding Background}" Stroke="#2E16191D" StrokeThickness="1" />
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Ring" Property="Stroke" Value="#C3CAD2" />
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="Ring" Property="Stroke" Value="#16191D" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style x:Key="WheelButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Margin" Value="1,0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Grid Width="26" Height="26" Background="Transparent" UseLayoutRounding="False">
+                            <Ellipse x:Name="Ring" Stroke="Transparent" StrokeThickness="2" />
+                            <ContentPresenter Margin="4" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="Stroke" Value="#C3CAD2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The thickness slider: a dark fill up to a round thumb. -->
+        <Style x:Key="SliderFill" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Grid Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="{TemplateBinding Background}" VerticalAlignment="Center" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThicknessSliderStyle" TargetType="Slider">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Height="26" Background="Transparent">
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderFill}" Background="#16191D" Command="Slider.DecreaseLarge" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderFill}" Background="#DADFE5" Command="Slider.IncreaseLarge" />
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Focusable="False">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse x:Name="Knob" Width="16" Height="16" Fill="White" Stroke="#16191D" StrokeThickness="2" />
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Knob" Property="Fill" Value="#F0F2F5" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Title bar buttons. Windows must let these take clicks even though they're in the caption area. -->
+        <Style x:Key="BarButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="11,0" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
                             <ContentPresenter VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource BarButton}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#16191D" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2B3038" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#000000" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Turns red under the mouse, so it's clear this one throws the capture away. -->
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource BarButton}">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent">
+                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#4A525C" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
@@ -111,164 +354,354 @@
             </Setter>
         </Style>
 
-        <Style x:Key="Icon" TargetType="Path">
-            <Setter Property="Stroke" Value="White" />
-            <Setter Property="StrokeThickness" Value="1.6" />
-            <Setter Property="StrokeStartLineCap" Value="Round" />
-            <Setter Property="StrokeEndLineCap" Value="Round" />
-            <Setter Property="StrokeLineJoin" Value="Round" />
-            <Setter Property="Width" Value="18" />
-            <Setter Property="Height" Value="18" />
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent">
+                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <Style x:Key="Glyph" TargetType="TextBlock">
+        <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent">
+                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CaptionGlyph" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="10" />
         </Style>
 
-        <Style x:Key="Caption" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="VerticalAlignment" Value="Center" />
+        <!-- Small buttons in the zoom pill. -->
+        <Style x:Key="PillButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="Padding" Value="9,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#3A414B" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="9" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <Style x:Key="Divider" TargetType="Rectangle">
-            <Setter Property="Width" Value="1" />
-            <Setter Property="Height" Value="24" />
-            <Setter Property="Margin" Value="8,0" />
-            <Setter Property="Fill" Value="#44FFFFFF" />
+        <!-- On/off options in the hint pill (Arrowhead, Box behind text). -->
+        <Style x:Key="PillToggle" TargetType="ToggleButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#3A414B" />
+            <Setter Property="DockPanel.Dock" Value="Right" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Chrome" CornerRadius="13" Background="White" BorderBrush="#DADFE5" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="Content" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#16191D" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
-    <DockPanel>
-        <Border x:Name="Toolbar" DockPanel.Dock="Top" Background="#2A2A2A" BorderBrush="#3A3A3A" BorderThickness="0,0,0,1" Padding="8,4">
+    <Grid x:Name="Root">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border x:Name="TitleBar" Background="White" BorderBrush="#DADFE5" BorderThickness="0,0,0,1">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock x:Name="StatusText" Style="{StaticResource Caption}" Foreground="#CCFFFFFF" Margin="0,0,10,0" />
-                    <Button x:Name="DeleteButton" Style="{StaticResource DeleteAction}" ToolTip="Delete this capture: asks first, then moves the file to the Recycle Bin and closes the editor">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="DeleteButton" Style="{StaticResource DangerButton}" ToolTip="Delete this capture: asks first, then moves the file to the Recycle Bin and closes the editor">
+                        <Path Style="{StaticResource SmallIcon}" Data="M3,5 H15 M7,5 V3 H11 V5 M4.5,5 L5.5,16 H12.5 L13.5,5 M7.5,8 V13 M10.5,8 V13" />
                     </Button>
-                    <Button x:Name="PinButton" Style="{StaticResource Action}" ToolTip="Pin to the screen: keep it on top of everything">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE718;" />
-                    </Button>
-                    <Button x:Name="CopyButton" Style="{StaticResource Action}" ToolTip="Copy to the clipboard (Ctrl+C)">
+                    <Button x:Name="PinButton" Style="{StaticResource BarButton}" ToolTip="Pin to the screen: keep it on top of everything">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE8C8;" />
-                            <TextBlock Style="{StaticResource Caption}" Text="Copy" Margin="7,0,0,0" />
+                            <Path Style="{StaticResource SmallIcon}" Data="M11,2 L16,7 L13.5,8 L10.5,11 L11,14.5 L3.5,7 L7,7.5 L10,4.5 Z M7,11 L2.5,15.5" />
+                            <TextBlock Text="Pin" Margin="7,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="SaveButton" Style="{StaticResource Action}" ToolTip="Save over the capture file (Ctrl+S)">
+                    <Button x:Name="CopyButton" Style="{StaticResource BarButton}" ToolTip="Copy to the clipboard (Ctrl+C)">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE74E;" />
-                            <TextBlock Style="{StaticResource Caption}" Text="Save" Margin="7,0,0,0" />
+                            <Path Style="{StaticResource SmallIcon}" Data="M6.5,6.5 H15.5 V16 H6.5 Z M3,12 V2.5 H12" />
+                            <TextBlock Text="Copy" Margin="7,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
+                    </Button>
+                    <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" ToolTip="Save over the capture file (Ctrl+S)" Content="Save" />
+                    <Rectangle Width="1" Height="22" Fill="#E3E7EC" Margin="10,0,4,0" VerticalAlignment="Center" />
+                    <Button x:Name="MinimiseButton" Style="{StaticResource CaptionButton}" ToolTip="Minimise">
+                        <TextBlock Style="{StaticResource CaptionGlyph}" Text="&#xE921;" />
+                    </Button>
+                    <Button x:Name="MaximiseButton" Style="{StaticResource CaptionButton}" ToolTip="Maximise">
+                        <TextBlock x:Name="MaximiseGlyph" Style="{StaticResource CaptionGlyph}" Text="&#xE922;" />
+                    </Button>
+                    <Button x:Name="CloseButton" Style="{StaticResource CloseCaptionButton}" ToolTip="Close">
+                        <TextBlock Style="{StaticResource CaptionGlyph}" Text="&#xE8BB;" />
                     </Button>
                 </StackPanel>
 
-                <WrapPanel VerticalAlignment="Center">
-                    <RadioButton x:Name="MoveButton" Style="{StaticResource Tool}" ToolTip="Move (V). Click a mark to select it, then drag it; the arrow keys nudge it and Delete removes it. For a dimension, drag its text, its round handle to turn the text, its line to move it in or out, or an extension line to move it all.">
-                        <Path Style="{StaticResource Icon}" Data="M9,2 V16 M2,9 H16 M7,4 L9,2 L11,4 M7,14 L9,16 L11,14 M4,7 L2,9 L4,11 M14,7 L16,9 L14,11" />
-                    </RadioButton>
-                    <RadioButton x:Name="FreehandTool" Style="{StaticResource Tool}" ToolTip="Freehand (P)">
-                        <Path Style="{StaticResource Icon}" Data="M3,13 C5,5 8,15 10,9 C11,6 13,5 15,4" />
-                    </RadioButton>
-                    <RadioButton x:Name="LineTool" Style="{StaticResource Tool}" ToolTip="Line (L). Hold Shift for straight angles.">
-                        <Path Style="{StaticResource Icon}" Data="M3,15 L15,3" />
-                    </RadioButton>
-                    <RadioButton x:Name="ArrowTool" Style="{StaticResource Tool}" ToolTip="Arrow (A). Hold Shift for straight angles.">
-                        <Path Style="{StaticResource Icon}" Data="M3,15 L14,4 M8,4 L14,4 L14,10" />
-                    </RadioButton>
-                    <RadioButton x:Name="CurveTool" Style="{StaticResource Tool}" ToolTip="Curve (C). Drag a line, then drag the handle in its middle to bend it. Enter finishes it.">
-                        <Path Style="{StaticResource Icon}" Data="M3,15 Q4,3 15,4" />
-                    </RadioButton>
-                    <RadioButton x:Name="RectangleTool" Style="{StaticResource Tool}" ToolTip="Rectangle (R). Hold Shift for a square.">
-                        <Path Style="{StaticResource Icon}" Data="M3,4 H15 V14 H3 Z" />
-                    </RadioButton>
-                    <RadioButton x:Name="EllipseTool" Style="{StaticResource Tool}" ToolTip="Circle (O). Hold Shift for a perfect circle.">
-                        <Path Style="{StaticResource Icon}" Data="M2.5,9 A6.5,5.5 0 1 1 15.5,9 A6.5,5.5 0 1 1 2.5,9 Z" />
-                    </RadioButton>
-                    <RadioButton x:Name="HighlighterTool" Style="{StaticResource Tool}" ToolTip="Highlighter (H). Hold Shift for a straight line.">
-                        <Path Style="{StaticResource Icon}" Data="M2,9 H16" StrokeThickness="7" Opacity="0.6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
-                    </RadioButton>
-                    <RadioButton x:Name="TextTool" Style="{StaticResource Tool}" ToolTip="Text (T). Click where it goes and type; Enter finishes, Shift+Enter starts a new line. The thickness sets the size.">
-                        <Path Style="{StaticResource Icon}" Data="M4,4.5 H14 M9,4.5 V15 M7,15 H11" />
-                    </RadioButton>
-                    <RadioButton x:Name="DimensionTool" Style="{StaticResource Tool}" ToolTip="Dimension (D). Click two points, then move to choose horizontal, vertical or aligned and click to place it. Type the text (it starts as the length in pixels), then Enter.">
-                        <Path Style="{StaticResource Icon}" Data="M2,5 V15 M16,5 V15 M2.5,10 H15.5 M5.5,8 L2.5,10 L5.5,12 M12.5,8 L15.5,10 L12.5,12" />
-                    </RadioButton>
-                    <RadioButton x:Name="EraserTool" Style="{StaticResource Tool}" ToolTip="Eraser (E). Click or drag across marks to remove them.">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE75C;" />
-                    </RadioButton>
-                    <RadioButton x:Name="CropTool" Style="{StaticResource Tool}" ToolTip="Crop (X). Drag a box, then press Enter.">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE7A8;" />
-                    </RadioButton>
-                    <ToggleButton x:Name="ArrowheadToggle" Style="{StaticResource Toggle}" ToolTip="Arrowhead on curves" Visibility="Collapsed">
-                        <Path Style="{StaticResource Icon}" Data="M3,15 Q4,5 13,4 M10,1.5 L14,4 L10,6.5" />
-                    </ToggleButton>
-                    <ToggleButton x:Name="TextBoxToggle" Style="{StaticResource Toggle}" ToolTip="Box behind text, so it stands out on a busy background" Visibility="Collapsed">
-                        <Path Style="{StaticResource Icon}" Data="M2,3.5 H16 V14.5 H2 Z M6,7 H12 M9,7 V11.5" />
-                    </ToggleButton>
-
-                    <Rectangle Style="{StaticResource Divider}" />
-                    <StackPanel x:Name="SwatchPanel" Orientation="Horizontal" VerticalAlignment="Center" />
-                    <Button x:Name="CustomColourButton" Style="{StaticResource Action}" ToolTip="Pick a custom colour (9 selects it afterwards)">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE790;" />
-                    </Button>
-
-                    <Rectangle Style="{StaticResource Divider}" />
-                    <Grid Width="32" Height="36" ToolTip="Current colour and thickness">
-                        <Ellipse x:Name="ThicknessPreview" Width="5" Height="5" Fill="White" Stroke="#66FFFFFF" StrokeThickness="1"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Grid>
-                    <Slider x:Name="ThicknessSlider" Width="130" VerticalAlignment="Center" Focusable="False"
-                            Minimum="1" Maximum="30" SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True"
-                            ToolTip="Thickness. [ and ] change it too." />
-                    <TextBlock x:Name="ThicknessText" Style="{StaticResource Caption}" Foreground="#CCFFFFFF" MinWidth="38" Margin="8,0,0,0" />
-
-                    <Rectangle Style="{StaticResource Divider}" />
-                    <Button x:Name="UndoButton" Style="{StaticResource Action}" ToolTip="Undo (Ctrl+Z)">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE7A7;" />
-                    </Button>
-                    <Button x:Name="RedoButton" Style="{StaticResource Action}" ToolTip="Redo (Ctrl+Y)">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE7A6;" />
-                    </Button>
-
-                    <Rectangle Style="{StaticResource Divider}" />
-                    <Button x:Name="FitButton" Style="{StaticResource Action}" ToolTip="Fit to the window (Ctrl+0)">
-                        <TextBlock Style="{StaticResource Caption}" Text="Fit" />
-                    </Button>
-                    <Button x:Name="ActualSizeButton" Style="{StaticResource Action}" ToolTip="Actual size (Ctrl+1). Ctrl+scroll to zoom.">
-                        <TextBlock Style="{StaticResource Caption}" Text="100%" />
-                    </Button>
-                    <TextBlock x:Name="ZoomText" Style="{StaticResource Caption}" Foreground="#99FFFFFF" MinWidth="44" Margin="6,0,0,0" />
-                </WrapPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,8,0">
+                    <Image Source="pack://application:,,,/Overmark;component/Assets/Overmark.ico" Width="18" Height="18" VerticalAlignment="Center" />
+                    <TextBlock x:Name="FileNameText" FontSize="13" FontWeight="SemiBold" Margin="10,0,0,0" MaxWidth="420" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <Border x:Name="UnsavedPill" Background="#FFF1CC" CornerRadius="9" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
+                        <TextBlock Text="Unsaved" FontSize="11" FontWeight="SemiBold" Foreground="#7A4E00" />
+                    </Border>
+                    <TextBlock x:Name="StatusText" FontSize="12" Foreground="#5A626D" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
             </DockPanel>
         </Border>
 
-        <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Focusable="False">
-            <Border Padding="24">
-                <Grid x:Name="Surface" HorizontalAlignment="Center" VerticalAlignment="Center" ClipToBounds="True">
-                    <Grid.LayoutTransform>
-                        <ScaleTransform x:Name="SurfaceScale" />
-                    </Grid.LayoutTransform>
-                    <Grid x:Name="Layers" HorizontalAlignment="Left" VerticalAlignment="Top">
-                        <Image x:Name="Picture" Stretch="Fill" />
-                        <editor:CommittedMarksLayer x:Name="CommittedLayer" IsHitTestVisible="False" />
-                        <editor:PreviewLayer x:Name="DrawingLayer" Cursor="Cross" />
-                        <!-- Takes the typing for the text tool. Its own text is invisible: the preview layer draws the
-                             text as it will be kept, and this only adds the caret and selection. -->
-                        <Canvas>
-                            <TextBox x:Name="TypingBox" Visibility="Collapsed" MinWidth="1"
-                                     Background="Transparent" Foreground="Transparent" BorderThickness="0" Padding="0"
-                                     FontFamily="Segoe UI" FontWeight="SemiBold" AcceptsReturn="True" TextWrapping="NoWrap"
-                                     FocusVisualStyle="{x:Null}" SpellCheck.IsEnabled="False" />
-                        </Canvas>
+        <Grid Grid.Row="1" Background="{StaticResource DotBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <!-- The top padding keeps the fitted picture clear of the hint and zoom pills. -->
+                <Border x:Name="SurfaceFrame" Padding="28,62,28,16">
+                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <!-- A soft shadow from a few faint layers, which stays cheap however far it's zoomed in. -->
+                        <Border Margin="-7,-3,-7,-13" CornerRadius="10" Background="#07161E28" />
+                        <Border Margin="-3,-1,-3,-6" CornerRadius="6" Background="#0B161E28" />
+                        <Border Margin="-1" CornerRadius="2" Background="#1A16191D" />
+                        <Grid x:Name="Surface" ClipToBounds="True" Background="White">
+                            <Grid.LayoutTransform>
+                                <ScaleTransform x:Name="SurfaceScale" />
+                            </Grid.LayoutTransform>
+                            <Grid x:Name="Layers" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <Image x:Name="Picture" Stretch="Fill" />
+                                <editor:CommittedMarksLayer x:Name="CommittedLayer" IsHitTestVisible="False" />
+                                <editor:PreviewLayer x:Name="DrawingLayer" Cursor="Cross" />
+                                <!-- Takes the typing for the text tool. Its own text is invisible: the preview layer draws the
+                                     text as it will be kept, and this only adds the caret and selection. -->
+                                <Canvas>
+                                    <TextBox x:Name="TypingBox" Visibility="Collapsed" MinWidth="1"
+                                             Background="Transparent" Foreground="Transparent" BorderThickness="0" Padding="0"
+                                             FontFamily="Segoe UI" FontWeight="SemiBold" AcceptsReturn="True" TextWrapping="NoWrap"
+                                             FocusVisualStyle="{x:Null}" SpellCheck.IsEnabled="False" />
+                                </Canvas>
+                            </Grid>
+                        </Grid>
                     </Grid>
-                </Grid>
+                </Border>
+            </ScrollViewer>
+
+            <!-- What the selected tool does, with its on/off options. -->
+            <Border Style="{StaticResource FloatCard}" CornerRadius="17" Height="34" HorizontalAlignment="Center" VerticalAlignment="Top"
+                    Margin="130,14,130,0" Padding="14,0,4,0">
+                <DockPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="ToolNameText" DockPanel.Dock="Left" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Border DockPanel.Dock="Right" Width="6" />
+                    <ToggleButton x:Name="TextBoxToggle" Style="{StaticResource PillToggle}" Content="Box behind text" Visibility="Collapsed"
+                                  ToolTip="Put the text on a box, so it stands out on a busy background" />
+                    <ToggleButton x:Name="ArrowheadToggle" Style="{StaticResource PillToggle}" Content="Arrowhead" Visibility="Collapsed"
+                                  ToolTip="Put an arrowhead on the end of curves" />
+                    <TextBlock x:Name="HintText" FontSize="12" Foreground="#4A525C" Margin="8,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
             </Border>
-        </ScrollViewer>
-    </DockPanel>
+
+            <Border Style="{StaticResource FloatCard}" CornerRadius="12" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,16,0" Padding="2">
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="FitButton" Style="{StaticResource PillButton}" Content="Fit" ToolTip="Fit to the window (Ctrl+0)" />
+                    <Button x:Name="ActualSizeButton" Style="{StaticResource PillButton}" ToolTip="Actual size (Ctrl+1). Ctrl+scroll to zoom.">
+                        <TextBlock x:Name="ZoomText" FontFamily="Cascadia Mono, Consolas" FontWeight="Normal" MinWidth="38" TextAlignment="Center" />
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- Everything for drawing, in one dock. It wraps onto two rows when the window is narrow. -->
+            <Border x:Name="Dock" Grid.Row="1" Style="{StaticResource FloatCard}" CornerRadius="22" HorizontalAlignment="Center" Margin="16,4,16,16" Padding="6">
+                <WrapPanel HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="0,1">
+                        <Button x:Name="UndoButton" Style="{StaticResource DockButton}" ToolTip="Undo (Ctrl+Z)">
+                            <Path Style="{StaticResource Icon}" Data="M6,3.5 L2.5,7 L6,10.5 M2.5,7 H11 A4.5,4.5 0 0 1 11,16 H8" />
+                        </Button>
+                        <Button x:Name="RedoButton" Style="{StaticResource DockButton}" ToolTip="Redo (Ctrl+Y)">
+                            <Path Style="{StaticResource Icon}" Data="M12,3.5 L15.5,7 L12,10.5 M15.5,7 H7 A4.5,4.5 0 0 0 7,16 H10" />
+                        </Button>
+                        <Rectangle Style="{StaticResource DockDivider}" />
+
+                        <RadioButton x:Name="MoveButton" Style="{StaticResource DockTool}" ToolTip="Move (V). Click a mark to select it, then drag it; the arrow keys nudge it and Delete removes it. For a dimension, drag its text, its round handle to turn the text, its line to move it in or out, or an extension line to move it all.">
+                            <Path Style="{StaticResource Icon}" Data="M9,2 V16 M2,9 H16 M7,4 L9,2 L11,4 M7,14 L9,16 L11,14 M4,7 L2,9 L4,11 M14,7 L16,9 L14,11" />
+                        </RadioButton>
+                        <RadioButton x:Name="FreehandTool" Style="{StaticResource DockTool}" ToolTip="Freehand (P)">
+                            <Path Style="{StaticResource Icon}" Data="M3,13 C5,5 8,15 10,9 C11,6 13,5 15,4" />
+                        </RadioButton>
+                        <ToggleButton x:Name="LinesGroup" Style="{StaticResource GroupTool}" ToolTip="Line (L), Arrow (A) and Curve (C). Click again to pick another.">
+                            <Path x:Name="LinesIcon" Style="{StaticResource Icon}" Data="M3,15 L14,4 M8,4 L14,4 L14,10" />
+                        </ToggleButton>
+                        <ToggleButton x:Name="ShapesGroup" Style="{StaticResource GroupTool}" ToolTip="Rectangle (R) and Circle (O). Click again to pick the other.">
+                            <Path x:Name="ShapesIcon" Style="{StaticResource Icon}" Data="M3,4 H15 V14 H3 Z" />
+                        </ToggleButton>
+                        <RadioButton x:Name="HighlighterTool" Style="{StaticResource DockTool}" ToolTip="Highlighter (H). Hold Shift for a straight line.">
+                            <Path Style="{StaticResource Icon}" Data="M2,9 H16" StrokeThickness="6" Opacity="0.6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
+                        </RadioButton>
+                        <RadioButton x:Name="TextTool" Style="{StaticResource DockTool}" ToolTip="Text (T). Click where it goes and type; Enter finishes, Shift+Enter starts a new line. The thickness sets the size.">
+                            <Path Style="{StaticResource Icon}" Data="M4,4.5 H14 M9,4.5 V15 M7,15 H11" />
+                        </RadioButton>
+                        <RadioButton x:Name="DimensionTool" Style="{StaticResource DockTool}" ToolTip="Dimension (D). Click two points, then move to choose horizontal, vertical or aligned and click to place it. Type the text (it starts as the length in pixels), then Enter.">
+                            <Path Style="{StaticResource Icon}" Data="M2,5 V15 M16,5 V15 M2.5,10 H15.5 M5.5,8 L2.5,10 L5.5,12 M12.5,8 L15.5,10 L12.5,12" />
+                        </RadioButton>
+                        <RadioButton x:Name="EraserTool" Style="{StaticResource DockTool}" ToolTip="Eraser (E). Click or drag across marks to remove them.">
+                            <Path Style="{StaticResource Icon}" Data="M6.5,15 L2.8,11.3 L10.3,3.8 L14.7,8.2 L7.9,15 Z M5.6,8.5 L10,12.9 M8,15 H16" />
+                        </RadioButton>
+                        <RadioButton x:Name="CropTool" Style="{StaticResource DockTool}" ToolTip="Crop (X). Drag a box, then press Enter.">
+                            <Path Style="{StaticResource Icon}" Data="M5,1.5 V13 H16.5 M1.5,5 H13 V16.5" />
+                        </RadioButton>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,1">
+                        <Rectangle Style="{StaticResource DockDivider}" />
+
+                        <!-- The loaded pen: what the next mark will look like. -->
+                        <Border Background="#F4F6F8" CornerRadius="15" Padding="3,3,12,3" MinWidth="128" VerticalAlignment="Center"
+                                ToolTip="The loaded pen: what your next mark will look like">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="38" Height="38" CornerRadius="11" Background="White" BorderBrush="#E3E7EC" BorderThickness="1">
+                                    <Grid ClipToBounds="True">
+                                        <Path x:Name="PenSample" Data="M6,27 C11,7 18,32 23.5,17 C26,10.5 28.5,10.5 31,9.5" StrokeLineJoin="Round"
+                                              HorizontalAlignment="Left" VerticalAlignment="Top" />
+                                        <TextBlock x:Name="PenSampleText" Text="Aa" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
+                                    </Grid>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center" Margin="9,0,0,0">
+                                    <TextBlock x:Name="PenColourText" FontSize="12" FontWeight="Bold" />
+                                    <TextBlock x:Name="ThicknessText" FontFamily="Cascadia Mono, Consolas" FontSize="11" Foreground="#5A626D" Margin="0,1,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel x:Name="SwatchPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <Button x:Name="CustomColourButton" Style="{StaticResource WheelButton}" VerticalAlignment="Center" ToolTip="Pick a custom colour (9 selects it afterwards)">
+                            <Viewbox Width="18" Height="18">
+                                <Canvas Width="20" Height="20">
+                                    <Path Fill="#E53935" Data="M10,10 L10,0 A10,10 0 0 1 18.66,5 Z" />
+                                    <Path Fill="#FB8C00" Data="M10,10 L18.66,5 A10,10 0 0 1 18.66,15 Z" />
+                                    <Path Fill="#FDD835" Data="M10,10 L18.66,15 A10,10 0 0 1 10,20 Z" />
+                                    <Path Fill="#43A047" Data="M10,10 L10,20 A10,10 0 0 1 1.34,15 Z" />
+                                    <Path Fill="#1E88E5" Data="M10,10 L1.34,15 A10,10 0 0 1 1.34,5 Z" />
+                                    <Path Fill="#8E24AA" Data="M10,10 L1.34,5 A10,10 0 0 1 10,0 Z" />
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
+
+                        <Rectangle Style="{StaticResource DockDivider}" />
+                        <Ellipse Width="4" Height="4" Fill="#8A929C" VerticalAlignment="Center" />
+                        <Slider x:Name="ThicknessSlider" Style="{StaticResource ThicknessSliderStyle}" Width="128" Margin="8,0" VerticalAlignment="Center"
+                                Minimum="1" Maximum="30" SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True"
+                                ToolTip="Thickness. [ and ] change it too (Shift: by 5)." />
+                        <Ellipse Width="12" Height="12" Fill="#8A929C" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    </StackPanel>
+                </WrapPanel>
+            </Border>
+
+            <!-- Flyouts for the dock's grouped tools. -->
+            <Popup x:Name="LinesFlyout" PlacementTarget="{Binding ElementName=LinesGroup}" Placement="Custom" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
+                <Border Margin="14" Style="{StaticResource FloatCard}" CornerRadius="16" Padding="6" Width="172">
+                    <StackPanel>
+                        <RadioButton x:Name="LineTool" Style="{StaticResource FlyoutTool}" ToolTip="Line (L). Hold Shift for straight angles.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="L" />
+                                <Path Style="{StaticResource SmallIcon}" Data="M3,15 L15,3" />
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Line" />
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ArrowTool" Style="{StaticResource FlyoutTool}" ToolTip="Arrow (A). Hold Shift for straight angles.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="A" />
+                                <Path Style="{StaticResource SmallIcon}" Data="M3,15 L14,4 M8,4 L14,4 L14,10" />
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Arrow" />
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="CurveTool" Style="{StaticResource FlyoutTool}" ToolTip="Curve (C). Drag a line, then drag the handle in its middle to bend it. Enter finishes it.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="C" />
+                                <Path Style="{StaticResource SmallIcon}" Data="M3,15 Q4,3 15,4" />
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Curve" />
+                            </DockPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+            </Popup>
+
+            <Popup x:Name="ShapesFlyout" PlacementTarget="{Binding ElementName=ShapesGroup}" Placement="Custom" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
+                <Border Margin="14" Style="{StaticResource FloatCard}" CornerRadius="16" Padding="6" Width="172">
+                    <StackPanel>
+                        <RadioButton x:Name="RectangleTool" Style="{StaticResource FlyoutTool}" ToolTip="Rectangle (R). Hold Shift for a square.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="R" />
+                                <Path Style="{StaticResource SmallIcon}" Data="M3,4 H15 V14 H3 Z" />
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Rectangle" />
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="EllipseTool" Style="{StaticResource FlyoutTool}" ToolTip="Circle (O). Hold Shift for a perfect circle.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="O" />
+                                <Path Style="{StaticResource SmallIcon}" Data="M2.5,9 A6.5,5.5 0 1 1 15.5,9 A6.5,5.5 0 1 1 2.5,9 Z" />
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Circle" />
+                            </DockPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+            </Popup>
+        </Grid>
+    </Grid>
 </Window>

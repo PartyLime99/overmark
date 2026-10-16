@@ -11,34 +11,46 @@
         ShowActivated="False"
         Topmost="True"
         SizeToContent="WidthAndHeight"
+        FontFamily="Segoe UI"
+        Foreground="#16191D"
         UseLayoutRounding="True"
         Opacity="0"
         Left="-32000"
         Top="-32000">
 
     <Window.Resources>
-        <Style x:Key="Glyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Foreground" Value="White" />
+        <Style x:Key="Icon" TargetType="Path">
+            <Setter Property="Stroke" Value="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Stretch" Value="Uniform" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="IconButton" TargetType="Button">
+        <!-- A row in the action list: icon, name, and a quieter note on the right. -->
+        <Style x:Key="ActionRow" TargetType="Button">
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="Margin" Value="2,0,0,0" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="5" Padding="7">
-                            <ContentPresenter />
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent" Padding="10,0">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#33FFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#55FFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -46,20 +58,52 @@
             </Setter>
         </Style>
 
-        <!-- Turns red under the mouse, so it's clear this one throws the capture away. -->
-        <Style x:Key="DeleteButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+        <!-- Delete is red, and redder under the mouse, so it's clear this one throws the capture away. -->
+        <Style x:Key="DeleteRow" TargetType="Button" BasedOn="{StaticResource ActionRow}">
+            <Setter Property="Foreground" Value="#B42318" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="5" Padding="7">
-                            <ContentPresenter />
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent" Padding="10,0">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#FDECEC" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#F9D7D5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RowName" TargetType="TextBlock">
+            <Setter Property="Margin" Value="10,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="RowNote" TargetType="TextBlock">
+            <Setter Property="DockPanel.Dock" Value="Right" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="#5A626D" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="CloseButtonStyle" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Width="28" Height="28" CornerRadius="9" Background="#EBFFFFFF">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#4A525C" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="White" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -69,34 +113,51 @@
     </Window.Resources>
 
     <!-- The margin leaves room for the shadow. -->
-    <Border Margin="14" CornerRadius="10" Background="#F2202020" BorderBrush="#40FFFFFF" BorderThickness="1" Padding="10">
+    <Border Margin="16" CornerRadius="20" Background="White" Padding="8" Width="290">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.45" />
+            <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Opacity="0.35" />
         </Border.Effect>
-        <StackPanel Width="300">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button x:Name="DeleteButton" Style="{StaticResource DeleteButton}" ToolTip="Delete: moves the file to the Recycle Bin and takes it off the clipboard">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;" />
-                    </Button>
-                    <Button x:Name="PinButton" Style="{StaticResource IconButton}" ToolTip="Pin to the screen">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE718;" />
-                    </Button>
-                    <Button x:Name="CloseButton" Style="{StaticResource IconButton}" ToolTip="Close">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE711;" />
-                    </Button>
-                </StackPanel>
-                <TextBlock x:Name="Heading" Foreground="White" FontFamily="Segoe UI" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </DockPanel>
+        <StackPanel>
+            <Grid>
+                <Border x:Name="PreviewFrame" CornerRadius="13" Background="#F4F6F8" BorderBrush="#E3E7EC" BorderThickness="1" Cursor="Hand"
+                        ToolTip="Click to open it, or drag it into another app">
+                    <Image x:Name="Preview" MaxHeight="170" Stretch="Uniform" StretchDirection="DownOnly"
+                           RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center">
+                        <Image.Clip>
+                            <RectangleGeometry x:Name="PreviewClip" RadiusX="12" RadiusY="12" />
+                        </Image.Clip>
+                    </Image>
+                </Border>
+                <Button x:Name="CloseButton" Style="{StaticResource CloseButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" ToolTip="Close">
+                    <Path Style="{StaticResource Icon}" Width="12" Height="12" Data="M4.5,4.5 L13.5,13.5 M13.5,4.5 L4.5,13.5" />
+                </Button>
+            </Grid>
 
-            <Border x:Name="PreviewFrame" Margin="0,8" CornerRadius="6" Background="#18FFFFFF" Cursor="Hand" ToolTip="Click to edit, or drag into another app">
-                <Image x:Name="Preview" MaxHeight="190" Stretch="Uniform" StretchDirection="DownOnly"
-                       RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" />
-            </Border>
+            <StackPanel Margin="10,10,10,6">
+                <TextBlock x:Name="Heading" FontSize="14" FontWeight="Bold" />
+                <TextBlock x:Name="Details" FontSize="12" Foreground="#5A626D" TextWrapping="Wrap" Margin="0,2,0,0" />
+            </StackPanel>
 
-            <TextBlock x:Name="Details" Foreground="#CCFFFFFF" FontFamily="Segoe UI" FontSize="12" TextWrapping="Wrap" />
-            <TextBlock x:Name="Hint" Foreground="#88FFFFFF" FontFamily="Segoe UI" FontSize="11" Margin="0,2,0,0"
-                       Text="Click to edit  ·  drag into another app" />
+            <Button x:Name="EditButton" Style="{StaticResource ActionRow}">
+                <DockPanel>
+                    <TextBlock Style="{StaticResource RowNote}" Text="or click the picture" />
+                    <Path x:Name="EditIcon" Style="{StaticResource Icon}" Data="M3,15 L3.5,12 L12,3.5 L14.5,6 L6,14.5 Z M10.5,5 L13,7.5" />
+                    <TextBlock x:Name="EditLabel" Style="{StaticResource RowName}" Text="Edit" />
+                </DockPanel>
+            </Button>
+            <Button x:Name="PinButton" Style="{StaticResource ActionRow}">
+                <DockPanel>
+                    <Path Style="{StaticResource Icon}" Data="M11,2 L16,7 L13.5,8 L10.5,11 L11,14.5 L3.5,7 L7,7.5 L10,4.5 Z M7,11 L2.5,15.5" />
+                    <TextBlock Style="{StaticResource RowName}" Text="Pin to the screen" />
+                </DockPanel>
+            </Button>
+            <Button x:Name="DeleteButton" Style="{StaticResource DeleteRow}" ToolTip="Moves the file to the Recycle Bin and takes it off the clipboard">
+                <DockPanel>
+                    <TextBlock Style="{StaticResource RowNote}" Text="to the Recycle Bin" Foreground="#B42318" />
+                    <Path Style="{StaticResource Icon}" Data="M3,5 H15 M7,5 V3 H11 V5 M4.5,5 L5.5,16 H12.5 L13.5,5 M7.5,8 V13 M10.5,8 V13" />
+                    <TextBlock Style="{StaticResource RowName}" Text="Delete" />
+                </DockPanel>
+            </Button>
         </StackPanel>
     </Border>
 </Window>

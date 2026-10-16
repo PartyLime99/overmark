@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -23,15 +24,21 @@ internal partial class CapturePopup : Window
     /// <param name="edit">What a click does: open the editor, or play a video.</param>
     /// <param name="pin">Pins the image; null hides the pin button (e.g. for a video).</param>
     /// <param name="delete">Throws the capture away; null hides the delete button (e.g. when nothing was saved).</param>
-    /// <param name="hint">The line under the details; null keeps the default for screenshots.</param>
+    /// <param name="video">True for a recording: the first action reads Play rather than Edit.</param>
     public CapturePopup(
         BitmapSource image, string heading, string details, string? path, MonitorInfo monitor, TimeSpan showFor,
-        Action? edit, Action? pin, Action? delete, string? hint = null)
+        Action? edit, Action? pin, Action? delete, bool video = false)
     {
         InitializeComponent();
-        if (hint is not null)
+        if (video)
         {
-            Hint.Text = hint;
+            EditLabel.Text = "Play";
+            EditIcon.Data = Geometry.Parse("M5,3 L15,9 L5,15 Z");
+        }
+
+        if (edit is null)
+        {
+            EditButton.Visibility = Visibility.Collapsed;
         }
 
         if (pin is null)
@@ -64,10 +71,17 @@ internal partial class CapturePopup : Window
             delete?.Invoke();
         };
         CloseButton.Click += (_, _) => FadeOut();
+        EditButton.Click += (_, _) =>
+        {
+            edit?.Invoke();
+            FadeOut();
+        };
+
+        // Rounds the picture's corners to match its frame, whatever shape the capture is.
+        Preview.SizeChanged += (_, _) => PreviewClip.Rect = new Rect(0, 0, Preview.ActualWidth, Preview.ActualHeight);
 
         if (path is null)
         {
-            Hint.Text = "Pin it, or paste it from the clipboard";
             PreviewFrame.Cursor = null;
             PreviewFrame.ToolTip = null;
         }

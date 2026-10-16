@@ -33,11 +33,11 @@ public class UiSnapshotTests
             var capture = SampleCapture(1280, 720);
             var monitor = new MonitorInfo("DISPLAY1", new ScreenRect(0, 0, 2560, 1440), new ScreenRect(0, 0, 2560, 1380), true, 120);
 
-            var popup = new CapturePopup(capture, "Screenshot copied", "1280 × 720  ·  2026-10-15_10-30-00.png", @"C:\x.png", monitor, TimeSpan.FromSeconds(5), () => { }, () => { }, () => { });
+            var popup = new CapturePopup(capture, "Copied and saved", "1280 × 720  ·  2026-10-15_10-30-00.png", @"C:\x.png", monitor, TimeSpan.FromSeconds(5), () => { }, () => { }, () => { });
             Save((FrameworkElement)popup.Content, new Size(400, 400), "popup.png");
 
-            var videoPopup = new CapturePopup(capture, "Recording copied", "0:42  ·  1280 × 720  ·  2026-10-15_10-30-00.mp4", "x.mp4", monitor,
-                TimeSpan.FromSeconds(5), () => { }, pin: null, delete: () => { }, hint: "Click to play  ·  drag into another app, or paste it");
+            var videoPopup = new CapturePopup(capture, "Recording copied and saved", "0:42  ·  1280 × 720  ·  2026-10-15_10-30-00.mp4", "x.mp4", monitor,
+                TimeSpan.FromSeconds(5), () => { }, pin: null, delete: () => { }, video: true);
             Save((FrameworkElement)videoPopup.Content, new Size(400, 400), "popup-video.png");
 
             var bar = new RecordingBar(new ScreenRect(100, 100, 1280, 720), monitor, "Ctrl+Shift+PrtScn");
@@ -47,12 +47,13 @@ public class UiSnapshotTests
             Save((FrameworkElement)bar.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "recording-bar-paused.png");
 
             var editor = new EditorWindow(@"C:\x.png", capture, new EditorSettings(), _ => { }, _ => { });
-            Save((FrameworkElement)editor.Content, new Size(editor.Width, 220), "editor-top.png");
+            Save((FrameworkElement)editor.Content, new Size(1180, 760), "editor.png");
             editor.Close();
 
             SaveTyping();
             SaveTextMarks();
             SaveDimensions();
+            SaveOverlay();
 
             var pin = new PinWindow(SampleCapture(420, 240), null, null);
             Save((FrameworkElement)pin.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "pin.png");
@@ -167,6 +168,34 @@ public class UiSnapshotTests
         Save(content, size, "editor-dimensions.png");
 
         // Not closed, for the same reason as in SaveTyping.
+    }
+
+    /// <summary>
+    /// The capture overlay part-way through a drag, with the magnifier, and with the toolbar shown too (in use it
+    /// hides once a drag starts), in screenshot mode and then in video mode.
+    /// </summary>
+    private static void SaveOverlay()
+    {
+        var bounds = new ScreenRect(0, 0, 2000, 1125);
+        var monitor = new MonitorInfo("DISPLAY1", bounds, new ScreenRect(0, 0, 2000, 1065), true, 120);
+        var image = SampleCapture(2000, 1125);
+        foreach (var record in new[] { false, true })
+        {
+            var session = new CaptureSession(bounds, [monitor], [], null, false, new PixelPoint(400, 300), _ => { }, recordMode: record);
+            session.PointerPressed(new PixelPoint(400, 300), 1, 6);
+            session.PointerMoved(new PixelPoint(1100, 700));
+
+            var window = new OverlayWindow(monitor);
+            var frozen = (Image)window.FindName("FrozenImage");
+            frozen.Source = image;
+            frozen.Width = 1600;
+            frozen.Height = 900;
+            ((FrameworkElement)window.FindName("Toolbar")).Visibility = Visibility.Visible;
+            ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("ScreenshotButton")).IsChecked = !record;
+            ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("RecordButton")).IsChecked = record;
+            ((OverlayCanvas)window.FindName("Overlay")).Attach(session, image, monitor);
+            Save((FrameworkElement)window.Content, new Size(1600, 900), record ? "overlay-video.png" : "overlay.png");
+        }
     }
 
     private sealed class NoRecorder : Overmark.Hotkeys.IHotkeyRecorder

@@ -142,7 +142,7 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
             return;
         }
 
-        ShowPopup(recorder.FirstFrame ?? BlankFrame(), copied ? "Recording copied" : "Recording saved", details, path, clipboardVersion,
+        ShowPopup(recorder.FirstFrame ?? BlankFrame(), copied ? "Recording copied and saved" : "Recording saved", details, path, clipboardVersion,
             TimeSpan.FromSeconds(current.PopupSeconds));
     }
 
@@ -153,7 +153,7 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
         var pointer = Pointer.Position;
         var monitor = monitors.FirstOrDefault(m => m.Bounds.Contains(pointer)) ?? monitors[0];
         var popup = new CapturePopup(preview, heading, details, path, monitor, showFor, () => Play(path), pin: null,
-            delete: () => Delete(path, clipboardVersion), hint: "Click to play  ·  drag into another app, or paste it");
+            delete: () => Delete(path, clipboardVersion), video: true);
         popup.Closed += (_, _) =>
         {
             if (_popup == popup)

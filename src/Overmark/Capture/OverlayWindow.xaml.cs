@@ -17,8 +17,9 @@ namespace Overmark.Capture;
 internal partial class OverlayWindow : Window
 {
     private const double HandleToleranceDips = 6;
+    private const double ToolbarGapDips = 22;
 
-    private static readonly Brush RecordingBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x80, 0xE5, 0x48, 0x4D)));
+    private static readonly Brush RecordDotBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D)));
 
     private CaptureSession? _session;
     private bool _hasToolbar;
@@ -54,7 +55,8 @@ internal partial class OverlayWindow : Window
         FullScreenButton.Click += (_, _) => _session?.CaptureFullScreen();
         CancelButton.Click += (_, _) => _session?.Cancel();
         SettingsButton.Click += (_, _) => SettingsRequested?.Invoke();
-        RecordButton.Click += (_, _) => _session?.SetRecordMode(!_session.RecordMode);
+        ScreenshotButton.Click += (_, _) => _session?.SetRecordMode(false);
+        RecordButton.Click += (_, _) => _session?.SetRecordMode(true);
     }
 
     /// <summary>Raised once the first frame of a capture is on screen.</summary>
@@ -138,6 +140,10 @@ internal partial class OverlayWindow : Window
         var scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
         FrozenImage.Width = bounds.Width / scale;
         FrozenImage.Height = bounds.Height / scale;
+
+        // The toolbar sits just above the taskbar (or the screen's bottom edge, if the taskbar is elsewhere).
+        var taskbar = Math.Max(0, bounds.Bottom - Monitor.WorkArea.Bottom);
+        Toolbar.Margin = new Thickness(0, 0, 0, taskbar / scale + ToolbarGapDips);
     }
 
     private static T Frozen<T>(T freezable)
@@ -182,8 +188,9 @@ internal partial class OverlayWindow : Window
 
         Overlay.InvalidateVisual();
         Toolbar.Visibility = _hasToolbar && session.Mode == SessionMode.Idle ? Visibility.Visible : Visibility.Collapsed;
-        RecordButton.Background = session.RecordMode ? RecordingBrush : Brushes.Transparent;
-        RecordCaption.Text = session.RecordMode ? "Recording: pick an area" : "Record";
+        ScreenshotButton.IsChecked = !session.RecordMode;
+        RecordButton.IsChecked = session.RecordMode;
+        RecordDot.Fill = session.RecordMode ? Brushes.White : RecordDotBrush; // white on the red button once chosen
 
         var handle = session.ActiveHandle != SelectionHandle.None
             ? session.ActiveHandle

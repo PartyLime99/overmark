@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -20,7 +21,26 @@ internal partial class EditorWindow : Window
 {
     private const double MinZoom = 0.1;
     private const double MaxZoom = 8;
-    private const double SurfacePadding = 24;
+
+    private static readonly ToolKind[] LineTools = [ToolKind.Line, ToolKind.Arrow, ToolKind.Curve];
+    private static readonly ToolKind[] ShapeTools = [ToolKind.Rectangle, ToolKind.Ellipse];
+
+    /// <summary>The tool's name and a one-line reminder of how it works, for the pill above the picture.</summary>
+    private static readonly Dictionary<ToolKind, (string Name, string Hint)> ToolHints = new()
+    {
+        [ToolKind.Move] = ("Move", "drag a mark to move it · arrow keys nudge · Delete removes"),
+        [ToolKind.Freehand] = ("Freehand", "drag to draw · a click makes a dot"),
+        [ToolKind.Line] = ("Line", "drag from start to end · Shift snaps to 0°, 45° or 90°"),
+        [ToolKind.Arrow] = ("Arrow", "drag from tail to tip · Shift snaps to 0°, 45° or 90°"),
+        [ToolKind.Curve] = ("Curve", "drag a line, then bend it from the handle in the middle · Enter finishes"),
+        [ToolKind.Rectangle] = ("Rectangle", "drag a box · Shift makes a square"),
+        [ToolKind.Ellipse] = ("Circle", "drag · Shift makes a perfect circle"),
+        [ToolKind.Highlighter] = ("Highlighter", "four times as wide, see-through · Shift keeps it straight"),
+        [ToolKind.Text] = ("Text", "click and type · Shift+Enter for a new line · size is 4 × thickness"),
+        [ToolKind.Dimension] = ("Dimension", "click two points, move to pick H, V or aligned, click to place"),
+        [ToolKind.Eraser] = ("Eraser", "click or drag across marks to remove them"),
+        [ToolKind.Crop] = ("Crop", "drag a box, then press Enter"),
+    };
 
     private readonly string _path;
     private readonly EditorDocument _document;
@@ -32,7 +52,11 @@ internal partial class EditorWindow : Window
     private readonly List<RadioButton> _swatches = [];
     private readonly RadioButton _customSwatch;
     private readonly DispatcherTimer _statusTimer = new() { Interval = TimeSpan.FromSeconds(2.5) };
+    private readonly Dictionary<Popup, DateTime> _flyoutClosedAt = [];
     private ToolKind _lastDrawingTool = ToolKind.Arrow;
+    private ToolKind _lastLineTool = ToolKind.Arrow;
+    private ToolKind _lastShapeTool = ToolKind.Rectangle;
+    private bool _syncingTools;
     private Color? _customColour;
     private double _zoom = 1;
     private bool _fitToWindow = true;
@@ -77,8 +101,17 @@ internal partial class EditorWindow : Window
         };
         foreach (var (tool, button) in _toolButtons)
         {
-            button.Checked += (_, _) => SelectTool(tool);
+            button.Checked += (_, _) =>
+            {
+                if (!_syncingTools)
+                {
+                    SelectTool(tool);
+                }
+            };
         }
+
+        SetUpFlyout(LinesGroup, LinesFlyout, LineTools, () => _lastLineTool);
+        SetUpFlyout(ShapesGroup, ShapesFlyout, ShapeTools, () => _lastShapeTool);
 
         _customSwatch = BuildSwatches();
         ThicknessSlider.ValueChanged += (_, e) => SetThickness(e.NewValue);
@@ -96,6 +129,21 @@ internal partial class EditorWindow : Window
         SaveButton.Click += (_, _) => Save();
         PinButton.Click += (_, _) => Pin();
         DeleteButton.Click += (_, _) => DeleteCapture();
+        MinimiseButton.Click += (_, _) => SystemCommands.MinimizeWindow(this);
+        MaximiseButton.Click += (_, _) =>
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                SystemCommands.RestoreWindow(this);
+            }
+            else
+            {
+                SystemCommands.MaximizeWindow(this);
+            }
+        };
+        CloseButton.Click += (_, _) => Close();
+        SourceInitialized += (_, _) => RoundCorners();
+        StateChanged += (_, _) => FitMaximisedWindow();
 
         DrawingLayer.MouseLeftButtonDown += OnPointerDown;
         DrawingLayer.MouseMove += OnPointerMove;
@@ -156,7 +204,7 @@ internal partial class EditorWindow : Window
 
     /// <summary>
     /// Opens big enough to show the capture at actual size when it fits, up to most of the screen, and at least
-    /// wide enough for the toolbar to sit on one row.
+    /// wide enough for the dock to sit on one row.
     /// </summary>
     private void SizeToImage(BitmapSource image)
     {
@@ -164,13 +212,134 @@ internal partial class EditorWindow : Window
         var scale = (monitor?.Dpi ?? 96) / 96.0;
         var workArea = SystemParameters.WorkArea;
 
-        // Measured with unlimited width, the toolbar's wrap panel reports its one-row width.
-        Toolbar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var toolbarWidth = Toolbar.DesiredSize.Width + 16; // plus the window frame
+        // Measured with unlimited width, the dock's wrap panel reports its one-row size (margins included).
+        Dock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var padding = SurfaceFrame.Padding;
+        var chrome = TitleBar.Height + Dock.DesiredSize.Height + padding.Top + padding.Bottom + 24; // plus the scroll area's slack
 
-        var width = Math.Max(image.PixelWidth / scale + 2 * SurfacePadding + 40, toolbarWidth);
+        var width = Math.Max(image.PixelWidth / scale + padding.Left + padding.Right + 24, Dock.DesiredSize.Width + 8);
         Width = Math.Max(MinWidth, Math.Min(width, workArea.Width * 0.9));
-        Height = Math.Max(MinHeight, Math.Min(image.PixelHeight / scale + 2 * SurfacePadding + 120, workArea.Height * 0.85));
+        Height = Math.Max(MinHeight, Math.Min(image.PixelHeight / scale + chrome, workArea.Height * 0.85));
+    }
+
+    /// <summary>
+    /// A dock button standing for several tools. Clicking it picks the one last used from the group; clicking it
+    /// again, while one of them is picked, opens a flyout with all of them.
+    /// </summary>
+    private void SetUpFlyout(ToggleButton group, Popup flyout, ToolKind[] members, Func<ToolKind> last)
+    {
+        flyout.CustomPopupPlacementCallback = (popup, target, _) =>
+            [new CustomPopupPlacement(new Point((target.Width - popup.Width) / 2, -popup.Height + 4), PopupPrimaryAxis.Horizontal)];
+        flyout.Closed += (_, _) => _flyoutClosedAt[flyout] = DateTime.UtcNow;
+
+        group.Click += (_, _) =>
+        {
+            if (members.Contains(_tools.Tool))
+            {
+                // The click that closed the flyout (by landing outside it) shouldn't open it again straight away.
+                var justClosed = _flyoutClosedAt.TryGetValue(flyout, out var closedAt) && DateTime.UtcNow - closedAt < TimeSpan.FromMilliseconds(250);
+                flyout.IsOpen = !justClosed;
+            }
+            else
+            {
+                _toolButtons[last()].IsChecked = true;
+            }
+
+            ShowToolButtons(); // the click toggled the button; put it back to match the tool
+        };
+
+        foreach (var tool in members)
+        {
+            _toolButtons[tool].Click += (_, _) => flyout.IsOpen = false;
+        }
+    }
+
+    /// <summary>Marks the selected tool in the dock and flyouts, and shows each group's current (or last) tool.</summary>
+    private void ShowToolButtons()
+    {
+        var tool = _tools.Tool;
+        if (LineTools.Contains(tool))
+        {
+            _lastLineTool = tool;
+        }
+        else if (ShapeTools.Contains(tool))
+        {
+            _lastShapeTool = tool;
+        }
+
+        _syncingTools = true;
+        try
+        {
+            // The flyouts' buttons aren't in the dock's group, so the others are unchecked here rather than by WPF.
+            foreach (var (kind, button) in _toolButtons)
+            {
+                button.IsChecked = kind == tool;
+            }
+
+            LinesGroup.IsChecked = LineTools.Contains(tool);
+            ShapesGroup.IsChecked = ShapeTools.Contains(tool);
+        }
+        finally
+        {
+            _syncingTools = false;
+        }
+
+        LinesIcon.Data = ToolIcon(_lastLineTool);
+        ShapesIcon.Data = ToolIcon(_lastShapeTool);
+    }
+
+    /// <summary>The icon of the tool's button, borrowed for its group's button in the dock.</summary>
+    private Geometry ToolIcon(ToolKind tool) =>
+        ((DockPanel)_toolButtons[tool].Content).Children.OfType<System.Windows.Shapes.Path>().First().Data;
+
+    private void CloseFlyouts()
+    {
+        LinesFlyout.IsOpen = false;
+        ShapesFlyout.IsOpen = false;
+    }
+
+    /// <summary>Windows 11 rounds the corners of normal windows; a window with its own title bar has to ask.</summary>
+    private void RoundCorners()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        var round = NativeMethods.DWMWCP_ROUND;
+        NativeMethods.DwmSetWindowAttribute(handle, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
+    }
+
+    /// <summary>
+    /// A maximised window reaches past the screen's edges by the width of its (invisible) frame, so the content is
+    /// pulled in by that much to keep the title bar and dock on screen.
+    /// </summary>
+    private void FitMaximisedWindow()
+    {
+        // Segoe Fluent Icons: Restore when maximised, Maximize otherwise.
+        MaximiseGlyph.Text = ((char)(WindowState == WindowState.Maximized ? 0xE923 : 0xE922)).ToString();
+        MaximiseButton.ToolTip = WindowState == WindowState.Maximized ? "Restore" : "Maximise";
+        if (WindowState != WindowState.Maximized)
+        {
+            Root.Margin = new Thickness(0);
+            return;
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        if (!NativeMethods.GetWindowRect(handle, out var rect))
+        {
+            return;
+        }
+
+        var centre = new PixelPoint((rect.Left + rect.Right) / 2, (rect.Top + rect.Bottom) / 2);
+        if (Displays.GetMonitors().FirstOrDefault(m => m.Bounds.Contains(centre)) is not { } monitor)
+        {
+            return;
+        }
+
+        var work = monitor.WorkArea;
+        var scale = DeviceScale;
+        Root.Margin = new Thickness(
+            Math.Max(0, work.Left - rect.Left) / scale,
+            Math.Max(0, work.Top - rect.Top) / scale,
+            Math.Max(0, rect.Right - work.Right) / scale,
+            Math.Max(0, rect.Bottom - work.Bottom) / scale);
     }
 
     private RadioButton BuildSwatches()
@@ -210,7 +379,10 @@ internal partial class EditorWindow : Window
         _tools.Tool = tool;
         ArrowheadToggle.Visibility = tool == ToolKind.Curve ? Visibility.Visible : Visibility.Collapsed;
         TextBoxToggle.Visibility = tool == ToolKind.Text ? Visibility.Visible : Visibility.Collapsed;
-        ShowThickness();
+        ToolNameText.Text = ToolHints[tool].Name;
+        HintText.Text = ToolHints[tool].Hint;
+        ShowToolButtons();
+        ShowPen();
 
         // The eraser shows its own circle instead of the crosshair; the move tool's pointer shows what it would grab.
         DrawingLayer.Cursor = tool switch
@@ -241,23 +413,47 @@ internal partial class EditorWindow : Window
     private void SelectColour(Color colour)
     {
         _tools.Colour = colour;
-        ThicknessPreview.Fill = new SolidColorBrush(colour);
+        var brush = new SolidColorBrush(colour);
+        brush.Freeze();
+        Resources["PenBrush"] = brush;
+        ShowPen();
         RememberChoices();
     }
 
     private void SetThickness(double thickness)
     {
         _tools.Width = thickness;
-        ShowThickness();
-        ThicknessPreview.Width = ThicknessPreview.Height = Math.Clamp(thickness, 3, 30);
+        ShowPen();
         RememberChoices();
     }
 
-    /// <summary>The number beside the slider: the line thickness, or for the text tool the text size it gives.</summary>
-    private void ShowThickness()
+    /// <summary>
+    /// The loaded pen in the dock: a sample in the pen's colour and thickness (or "Aa" at the text size for the text
+    /// tool), the colour's name, and the thickness, or for the text tool the text size it gives.
+    /// </summary>
+    private void ShowPen()
     {
-        var size = _tools.Tool == ToolKind.Text ? Palette.StrokeWidth(ToolKind.Text, _tools.Width) : _tools.Width;
-        ThicknessText.Text = $"{size:0} px";
+        var colour = _tools.Colour;
+        var brush = new SolidColorBrush(colour);
+        brush.Freeze();
+        var tool = _tools.Tool;
+        var text = tool == ToolKind.Text;
+
+        PenSample.Visibility = text ? Visibility.Collapsed : Visibility.Visible;
+        PenSampleText.Visibility = text ? Visibility.Visible : Visibility.Collapsed;
+        PenSample.Stroke = brush;
+        PenSampleText.Foreground = brush;
+        PenSampleText.FontSize = Math.Min(Palette.StrokeWidth(ToolKind.Text, _tools.Width), 22);
+
+        // Capped so the sample stays inside its tile; the number beside it is exact.
+        var highlighter = tool == ToolKind.Highlighter;
+        PenSample.StrokeThickness = highlighter ? Math.Min(Palette.StrokeWidth(tool, _tools.Width), 22) : Math.Min(_tools.Width, 14);
+        PenSample.Opacity = highlighter ? Palette.HighlighterAlpha / 255.0 : 1;
+        PenSample.StrokeStartLineCap = PenSample.StrokeEndLineCap = highlighter ? PenLineCap.Flat : PenLineCap.Round;
+
+        var index = Palette.Colours.ToList().IndexOf(colour);
+        PenColourText.Text = index >= 0 ? Palette.ColourNames[index] : "Custom";
+        ThicknessText.Text = text ? $"{Palette.StrokeWidth(ToolKind.Text, _tools.Width):0} px text" : $"{_tools.Width:0} px";
     }
 
     private void SetCurveArrowhead(bool on)
@@ -580,6 +776,9 @@ internal partial class EditorWindow : Window
             case Key.Enter:
                 _tools.Finish();
                 break;
+            case Key.Escape when LinesFlyout.IsOpen || ShapesFlyout.IsOpen:
+                CloseFlyouts();
+                break;
             case Key.Escape:
                 _tools.Cancel();
                 break;
@@ -658,6 +857,8 @@ internal partial class EditorWindow : Window
         UndoButton.IsEnabled = _document.CanUndo;
         RedoButton.IsEnabled = _document.CanRedo;
         Title = $"{(_document.HasUnsavedChanges ? "*" : "")}{Path.GetFileName(_path)} - Overmark";
+        FileNameText.Text = Path.GetFileName(_path);
+        UnsavedPill.Visibility = _document.HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Shows only the cropped part: the surface is the crop's size, with the full image shifted inside it.</summary>
@@ -778,9 +979,10 @@ internal partial class EditorWindow : Window
             return;
         }
 
+        var padding = SurfaceFrame.Padding;
         var fit = Math.Min(
-            (width - 2 * SurfacePadding) * DeviceScale / _document.Crop.Width,
-            (height - 2 * SurfacePadding) * DeviceScale / _document.Crop.Height);
+            (width - padding.Left - padding.Right) * DeviceScale / _document.Crop.Width,
+            (height - padding.Top - padding.Bottom) * DeviceScale / _document.Crop.Height);
 
         // Small captures are shown at actual size rather than blown up.
         _zoom = Math.Clamp(Math.Min(1, fit), MinZoom, MaxZoom);
@@ -796,14 +998,15 @@ internal partial class EditorWindow : Window
         _fitToWindow = false;
 
         var at = anchor ?? new Point(Scroller.ViewportWidth / 2, Scroller.ViewportHeight / 2);
-        var contentX = Scroller.HorizontalOffset + at.X - SurfacePadding;
-        var contentY = Scroller.VerticalOffset + at.Y - SurfacePadding;
+        var padding = SurfaceFrame.Padding;
+        var contentX = Scroller.HorizontalOffset + at.X - padding.Left;
+        var contentY = Scroller.VerticalOffset + at.Y - padding.Top;
         ApplyZoom();
         Scroller.UpdateLayout();
 
         var ratio = _zoom / previous;
-        Scroller.ScrollToHorizontalOffset(contentX * ratio + SurfacePadding - at.X);
-        Scroller.ScrollToVerticalOffset(contentY * ratio + SurfacePadding - at.Y);
+        Scroller.ScrollToHorizontalOffset(contentX * ratio + padding.Left - at.X);
+        Scroller.ScrollToVerticalOffset(contentY * ratio + padding.Top - at.Y);
     }
 
     /// <summary>Zoom is in screen pixels per image pixel, so 100% shows the capture exactly as it was on screen.</summary>

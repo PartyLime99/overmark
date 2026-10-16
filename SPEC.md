@@ -42,38 +42,44 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 ## Capture overlay
 
 - Freezes every monitor as soon as the key is pressed. Typically visible about 125 ms after the key press (the first capture after starting is slower).
-- Dashed crosshair lines through the pointer, the full width and height of the screen (can be turned off).
-- **Magnifier:** a circle beside the pointer showing zoomed pixels on a grid, with the centre pixel outlined and a coordinate label underneath (e.g. `X: 3444 Y: 800`). It flips sides near screen edges (can be turned off).
-- Drag to select a region, with a live size readout (`W × H`).
+- Thin white crosshair lines (with a faint dark edge, so they show on any background) through the pointer, the full width and height of the screen (can be turned off).
+- **Magnifier:** a white card beside the pointer: a round lens of zoomed pixels on a grid, with the centre pixel outlined, and under it the pointer's position (e.g. `3444, 800`) and the colour of the pixel under it, as hex with a swatch (e.g. `E3E6EA`). It flips sides near screen edges (can be turned off).
+- Drag to select a region, with a live size readout in a dark pill above it (`W × H at X, Y`). The selection has a white outline and thick white corner marks, all just outside it so they never cover captured pixels; the rest of the screen is dimmed.
 - **Window snap:** the window under the pointer is highlighted, and a click (without dragging) selects exactly that window.
 - **Capture on release** (default): letting go of the mouse, or clicking a window, captures straight away.
 - **Fine adjustment:** the arrow keys move the pointer 1 px (Shift: 10 px), before and during a drag. With *capture on release* turned off, releasing the mouse shows handles instead: drag the edges or corners, nudge with the arrow keys (Ctrl+arrows resize), then Enter or double-click captures.
 - Esc cancels. Right-click drops the current selection, or cancels if there isn't one.
-- **Toolbar** at the top of the monitor the pointer is on, until a selection starts:
-  - **Last region** (L): captures the previous region or window capture again. Hovering it previews that area with a dashed outline. Greyed out until there is one.
-  - **Full screen** (F): the whole monitor.
-  - **Record** (R): switches to record mode, where whatever is picked next (region, window, last region or full screen) is recorded as a video instead of captured. The button turns red and reads *Recording: pick an area*; pressing it again switches back.
-  - **Settings** (gear): cancels the capture and opens Settings.
-  - **Cancel** (×).
+- **Toolbar** at the bottom centre of the monitor the pointer is on (just above the taskbar), until a selection starts. It's a white bar of buttons, each an icon over a short label, with its key in the corner:
+  - **Photo** / **Video** (R): whether whatever is picked next (region, window, last region or full screen) is captured as a screenshot or recorded as a video. The chosen one is filled in: dark for Photo, red for Video. R switches between them.
+  - **Last** (L): captures the previous region or window capture again. Hovering it previews that area with a dashed outline. Greyed out until there is one.
+  - **Full** (F): the whole monitor.
+  - **Settings**: cancels the capture and opens Settings.
+  - **Esc**: cancels.
 
 ## After a capture
 
 - The image is copied to the clipboard and saved as a PNG in the save folder.
-- A **preview** pops up bottom-right of the monitor the pointer is on, showing the image, its size and file name. It stays about 5 seconds (adjustable; 0 shows a plain Windows notification instead), stays while the mouse is over it, and never takes focus from the app being used.
-  - Click it to open the editor (brought to the front).
+- A **preview** pops up bottom-right of the monitor the pointer is on: a white card with the picture (with a close button in its corner), a heading (*Copied and saved*), the size and file name, and a list of actions. It stays about 5 seconds (adjustable; 0 shows a plain Windows notification instead), stays while the mouse is over it, and never takes focus from the app being used.
+  - Click the picture, or **Edit**, to open the editor (brought to the front).
   - Drag it into Outlook, Teams, Word, a folder, etc.
-  - Pin it to the screen.
-  - **Delete** it, for a capture taken by mistake: the file goes to the Recycle Bin (so it can be put back), and the clipboard is emptied if it still holds the capture. The bin icon turns red under the mouse.
+  - **Pin to the screen**.
+  - **Delete** it, for a capture taken by mistake: the file goes to the Recycle Bin (so it can be put back), and the clipboard is emptied if it still holds the capture. The row is red, and turns pink under the mouse.
 
 ## Editor
 
-**Toolbar:** tools · colour swatches · thickness slider · undo/redo · zoom · Delete · Pin · Copy · Save
+**Layout:** light, with the picture on a dotted grey background.
+- **Title bar** (Overmark's own, white): icon, file name, an *Unsaved* pill while there are unsaved changes, and brief messages such as *Saved*; then Delete · Pin · Copy · **Save** and the minimise, maximise and close buttons. Windows still handles dragging, double-clicking to maximise, snapping to screen edges, resizing, the shadow and (on Windows 11) the rounded corners.
+- **Hint pill** above the picture: the selected tool's name and a one-line reminder of how it works, plus that tool's on/off options (Arrowhead for curves, Box behind text for text).
+- **Zoom pill** at the top right: Fit, and the zoom level, which goes to actual size when clicked.
+- **Dock** along the bottom, with everything for drawing: undo · redo · the tools · the **loaded pen** · colours · thickness slider. It wraps onto two rows when the window is too narrow. The selected tool is dark, with a dot in the pen's colour.
+  - Line, Arrow and Curve share one dock button, and Rectangle and Circle another. It shows the tool used last from its group (the arrow, to start with), and a small corner mark says there are more. Clicking it picks that tool; clicking it again while one of the group is picked opens a flyout above it listing all of them (icon, name and key). The keys pick any of them directly.
+  - The **loaded pen** shows what the next mark will look like: a sample stroke in the current colour and thickness (wide and see-through for the highlighter, "Aa" at the text size for text), the colour's name, and the thickness.
 
 **Colour and thickness**
 - 8 preset colours plus a custom colour picker. Keys 1–8 pick the presets, 9 the custom colour.
-- Thickness from 1 to 30 px on a slider, with a dot showing the current colour and thickness. [ and ] change it by 1 (Shift: by 5). The highlighter draws four times as wide.
+- Thickness from 1 to 30 px on a slider (clicking anywhere on it jumps there), with the loaded pen showing the result. [ and ] change it by 1 (Shift: by 5). The highlighter draws four times as wide.
 - Picked **before** drawing and applied to the next mark only; marks already drawn never change. Text that's still being typed isn't drawn yet, so it does take colour, size and box changes.
-- For the text tool, the thickness sets the text size: four times the thickness (minimum 10 px), so the default thickness of 5 gives 20 px text. The number beside the slider shows the text size while the text tool is selected.
+- For the text tool, the thickness sets the text size: four times the thickness (minimum 10 px), so the default thickness of 5 gives 20 px text. The loaded pen shows the text size while the text tool is selected.
 - The last-used tool, colour and thickness are remembered.
 
 **Tools**
@@ -107,7 +113,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Zoom:** fits the window to start with; Ctrl+scroll zooms around the pointer; Ctrl+0 fits, Ctrl+1 is actual size.
 - **Saving:** only Save or Ctrl+S writes to disk, overwriting the capture file with the annotated version. Closing with unsaved changes asks first. The window title starts with `*` while there are unsaved changes.
 - **Copy** (Ctrl+C) and **Pin** use the current image, crop and marks included. Pinning minimises the editor. (A Drag button was tried and removed; dragging into other apps is done from the preview popup.)
-- **Delete** (the bin button, red under the mouse) asks first (*No* is the default), then moves the capture file to the Recycle Bin and closes the editor without asking about unsaved changes. It has no keyboard shortcut, as Delete removes the selected mark with the Move tool.
+- **Delete** (the bin button in the title bar, red under the mouse) asks first (*No* is the default), then moves the capture file to the Recycle Bin and closes the editor without asking about unsaved changes. It has no keyboard shortcut, as Delete removes the selected mark with the Move tool.
 - **Flatten:** marks are merged into the image when it's copied, saved or pinned. There are no project files.
 - **Opening:** click the preview, use *Edit last capture* in the tray menu, or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it).
 
@@ -128,14 +134,14 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Frames** are copied from the screen with GDI at a steady 15, 30 or 60 a second (30 by default), on their own thread. If the encoder falls behind, frames are skipped rather than letting the video drift. The mouse pointer is drawn in (can be turned off).
 - **While recording:**
   - A 2 px red frame just outside the area. It ignores the mouse, so clicks go through to whatever is underneath.
-  - A small **bar** just below the area (or above it, or inside its bottom edge when there's no room): a red dot, the elapsed time, **Pause/Resume**, **Stop** and **Discard**. It never takes focus.
+  - A small white **bar** just below the area (or above it, or inside its bottom edge when there's no room): a red dot (hollow while paused), the elapsed time, **Pause**/**Resume**, a dark **Stop** button and a red **Discard**. It never takes focus.
   - Both are excluded from all screen captures (`WDA_EXCLUDEFROMCAPTURE`), so they never appear in the video, or in screenshots taken meanwhile.
   - The tray menu's *Record screen* item reads *Stop recording*.
 - **Pause** leaves no gap: the video continues from where it paused. The time shown excludes pauses.
 - **Stop** (the button, the record hotkey, the tray item, or quitting Overmark) finishes the file. Then:
   - It's saved in the save folder, named like screenshots but `.mp4`.
   - It's copied to the clipboard as a file, so Ctrl+V pastes it into Teams, Outlook or Explorer.
-  - The preview pops up with the first frame, length, size and file name. Clicking it plays the video in the default player; dragging it drops the file; the delete button sends it to the Recycle Bin. There's no pin button.
+  - The preview pops up with the first frame, length, size and file name. Clicking the picture (or **Play**) plays the video in the default player; dragging it drops the file; **Delete** sends it to the Recycle Bin. There's no pin action.
 - **Discard** stops and deletes the file.
 - One recording at a time. Screenshots still work while recording.
 
@@ -177,5 +183,5 @@ Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, capture histor
 3. **Editor drawing:** pick-first colour and thickness, the drawing tools, Shift-snap, undo/redo, zoom, copy and save. *Done.*
 4. **Eraser and output:** eraser, crop, drag-out, the preview popup, pins. *Done.*
 5. **Settings and installer:** settings window, start with Windows, Velopack installer and auto-update, first GitHub release. *Done except the first release.*
-6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, deleting a capture from the preview, dimensions, and the Move tool.
+6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, deleting a capture from the preview, dimensions, the Move tool, and a lighter redesign of the editor (own title bar, one dock for drawing, the loaded pen), the capture toolbar, the magnifier, the preview and the recording bar.
 7. **Wider release:** signing, GitHub Actions builds, README screenshots, winget.

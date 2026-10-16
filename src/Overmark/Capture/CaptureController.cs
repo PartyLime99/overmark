@@ -277,9 +277,9 @@ internal sealed class CaptureController(
 
         var heading = result switch
         {
-            { Copied: true, SavedPath: not null } => "Screenshot copied",
-            { SavedPath: not null } => "Screenshot saved",
-            _ => "Screenshot copied, not saved",
+            { Copied: true, SavedPath: not null } => "Copied and saved",
+            { SavedPath: not null } => "Saved, not copied",
+            _ => "Copied, not saved",
         };
         var path = result.SavedPath;
         var details = $"{outcome.Region.Width} × {outcome.Region.Height}" + (path is null ? "" : $"  ·  {Path.GetFileName(path)}");
