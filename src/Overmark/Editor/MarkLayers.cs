@@ -9,8 +9,14 @@ internal sealed class CommittedMarksLayer : FrameworkElement
 {
     private EditorDocument? _document;
 
+    /// <summary>Draws <paramref name="document"/>'s marks, instead of any document it drew before.</summary>
     public void Attach(EditorDocument document)
     {
+        if (_document is not null)
+        {
+            _document.Changed -= InvalidateVisual;
+        }
+
         _document = document;
         document.Changed += InvalidateVisual;
         InvalidateVisual();
@@ -70,8 +76,19 @@ internal sealed class PreviewLayer : FrameworkElement
         }
     }
 
+    /// <summary>Draws what <paramref name="tools"/> and <paramref name="move"/> show, instead of any it drew before.</summary>
     public void Attach(DrawingTools tools, MoveTool move)
     {
+        if (_tools is not null)
+        {
+            _tools.PreviewChanged -= InvalidateVisual;
+        }
+
+        if (_move is not null)
+        {
+            _move.Changed -= InvalidateVisual;
+        }
+
         _tools = tools;
         _move = move;
         tools.PreviewChanged += InvalidateVisual;

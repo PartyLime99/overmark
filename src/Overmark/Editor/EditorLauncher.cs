@@ -26,10 +26,9 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
     }
 
     /// <summary>
-    /// Shows another capture in place of <paramref name="current"/>, as when it's picked from the list of today's
-    /// captures: a new window opens exactly where the old one was, and the old one closes. Unsaved marks aren't
-    /// asked about: they're kept as a draft, and come back (still unsaved) when that capture is opened again within
-    /// a day. A capture that's already open elsewhere is just brought to the front.
+    /// Shows another capture in <paramref name="current"/>'s window, as when it's picked from the list of today's
+    /// captures. Unsaved marks aren't asked about: they're kept as a draft, and come back (still unsaved) when that
+    /// capture is opened again within a day. A capture that's already open elsewhere is just brought to the front.
     /// </summary>
     public void SwitchTo(EditorWindow current, string path)
     {
@@ -39,7 +38,7 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         }
 
         current.KeepDraft();
-        ReplaceWindow(current, path);
+        ShowIn(current, path);
     }
 
     /// <summary>
@@ -61,7 +60,7 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
             }
 
             history.Close(path);
-            if (next is null || TryActivate(next) || !ReplaceWindow(current, next))
+            if (next is null || TryActivate(next) || !ShowIn(current, next))
             {
                 current.CloseWithoutAsking();
             }
@@ -101,30 +100,17 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         history.Close(path);
     }
 
-    /// <summary>Opens <paramref name="path"/> exactly where <paramref name="current"/> is, then closes it. False if it couldn't be opened.</summary>
-    private bool ReplaceWindow(EditorWindow current, string path)
+    /// <summary>Shows <paramref name="path"/> in <paramref name="window"/>, in place of its capture. False if it couldn't be read.</summary>
+    private bool ShowIn(EditorWindow window, string path)
     {
-        if (Create(path) is not { } window)
+        if (Prepare(path) is not { } capture)
         {
             return false;
         }
 
-        var maximised = current.WindowState == WindowState.Maximized;
-        var bounds = maximised ? current.RestoreBounds : new Rect(current.Left, current.Top, current.Width, current.Height);
-        window.WindowStartupLocation = WindowStartupLocation.Manual;
-        window.Left = bounds.Left;
-        window.Top = bounds.Top;
-        window.Width = bounds.Width;
-        window.Height = bounds.Height;
-        window.ShowRecent = current.ShowRecent;
-        window.Show();
-        if (maximised)
-        {
-            window.WindowState = WindowState.Maximized;
-        }
-
-        ForegroundWindow.Activate(window);
-        current.CloseWithoutAsking();
+        _open.Remove(window.CapturePath);
+        window.ShowCapture(path, capture.Image, capture.Kept);
+        _open[path] = window;
         return true;
     }
 
@@ -155,11 +141,37 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         return true;
     }
 
-    /// <summary>
-    /// A window for the capture. If it was edited in the last day (and the file hasn't changed since), it opens
-    /// with its marks still editable, from the editable copy, rather than flattened into the picture.
-    /// </summary>
     private EditorWindow? Create(string path)
+    {
+        if (Prepare(path) is not { } capture)
+        {
+            return null;
+        }
+
+        EditorWindow? window = null;
+        window = new EditorWindow(
+            path, capture.Image, settings().Editor, rememberSettings, Pin, history, other => SwitchTo(window!, other), _edits,
+            capture.Kept, other => CloseCapture(window!, other));
+        _open[path] = window;
+
+        // The window may have moved on to other captures by the time it closes.
+        window.Closed += (_, _) => _open.Remove(window.CapturePath);
+        return window;
+
+        // Editing the pin later reopens the capture that was pinned, wherever the window has got to since.
+        void Pin(BitmapSource rendered)
+        {
+            var pinned = window!.CapturePath;
+            pins.Open(rendered, edit: () => Open(pinned));
+        }
+    }
+
+    /// <summary>
+    /// The capture's picture, read for editing. If it was edited in the last day (and the file hasn't changed since),
+    /// <c>Kept</c> brings back its marks, still editable, from the editable copy, rather than flattened into the
+    /// picture. Null, after saying why, if it can't be read.
+    /// </summary>
+    private (BitmapSource Image, EditorDocument? Kept)? Prepare(string path)
     {
         var kept = _edits.Find(path);
         BitmapSource image;
@@ -176,16 +188,7 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
 
         // Opening a capture that was closed off the list puts it back on.
         history.Reopen(path);
-
-        EditorWindow? window = null;
-        window = new EditorWindow(
-            path, image, settings().Editor, rememberSettings, rendered => pins.Open(rendered, edit: () => Open(path)),
-            history, other => SwitchTo(window!, other), _edits,
-            kept is null ? null : new EditorDocument(kept.Original, kept.Crop, kept.Marks, unsaved: kept.Draft),
-            other => CloseCapture(window!, other));
-        _open[path] = window;
-        window.Closed += (_, _) => _open.Remove(path);
-        return window;
+        return (image, kept is null ? null : new EditorDocument(kept.Original, kept.Crop, kept.Marks, unsaved: kept.Draft));
     }
 
     /// <summary>The store of editable copies, with anything over a day old cleared out.</summary>

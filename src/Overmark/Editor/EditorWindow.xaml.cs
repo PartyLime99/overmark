@@ -45,10 +45,11 @@ internal partial class EditorWindow : Window
         [ToolKind.Crop] = ("Crop", "drag a box, then press Enter"),
     };
 
-    private readonly string _path;
-    private readonly EditorDocument _document;
+    // The capture being edited. All three change when another capture is shown in this window.
+    private string _path;
+    private EditorDocument _document;
     private readonly DrawingTools _tools = new();
-    private readonly MoveTool _move;
+    private MoveTool _move;
     private readonly Action<EditorSettings> _rememberSettings;
     private readonly Action<BitmapSource> _pin;
     private readonly Dictionary<ToolKind, RadioButton> _toolButtons;
@@ -98,17 +99,7 @@ internal partial class EditorWindow : Window
         _edits = edits;
         _document = document ?? new EditorDocument(image);
         _move = new MoveTool(_document);
-
-        foreach (var layer in new FrameworkElement[] { Layers, Picture, CommittedLayer, DrawingLayer })
-        {
-            layer.Width = image.PixelWidth;
-            layer.Height = image.PixelHeight;
-        }
-
-        CommittedLayer.Attach(_document);
-        DrawingLayer.Attach(_tools, _move);
-        ShowCrop();
-        ShowPicture();
+        AttachDocument();
 
         _toolButtons = new()
         {
@@ -186,12 +177,10 @@ internal partial class EditorWindow : Window
             }
         };
 
-        _tools.Committed += _document.Add;
-        _tools.CropApplied += _document.CropTo;
+        // Lambdas rather than method groups, so they reach whichever capture is showing now.
+        _tools.Committed += mark => _document.Add(mark);
+        _tools.CropApplied += area => _document.CropTo(area);
         _tools.PreviewChanged += ShowTypingBox;
-        _document.Changed += UpdateCommands;
-        _document.Changed += ShowCrop;
-        _document.Changed += ShowPicture;
         _statusTimer.Tick += (_, _) =>
         {
             _statusTimer.Stop();
@@ -1332,6 +1321,68 @@ internal partial class EditorWindow : Window
 
     /// <summary>The capture this window is editing.</summary>
     public string CapturePath => _path;
+
+    /// <summary>
+    /// Shows another capture in this window, in place of the current one, so switching doesn't flash a new window
+    /// open and the old one closed. The current one's unsaved changes must already be dealt with (kept as a draft,
+    /// saved or thrown away). <paramref name="document"/> brings back a capture whose marks are still editable.
+    /// </summary>
+    public void ShowCapture(string path, BitmapSource image, EditorDocument? document)
+    {
+        _tools.Cancel();
+        _document.Changed -= OnDocumentChanged;
+        _path = path;
+        _document = document ?? new EditorDocument(image);
+        _move = new MoveTool(_document);
+        _deleted = false;
+        _leaving = false;
+        _erasingFrom = null;
+        DrawingLayer.EraserAt = null;
+        AttachDocument();
+
+        UpdateCommands();
+        ListRecentCaptures();
+        _fitToWindow = true;
+        if (IsLoaded)
+        {
+            FitToWindow();
+        }
+        else
+        {
+            ApplyZoom();
+        }
+
+        _statusTimer.Stop();
+        StatusText.Text = "";
+        if (document is not null)
+        {
+            ShowStatus("Marks still editable");
+        }
+    }
+
+    /// <summary>Shows the current capture: the layers sized to its picture, its marks drawn, and its changes followed.</summary>
+    private void AttachDocument()
+    {
+        var image = _document.Image;
+        foreach (var layer in new FrameworkElement[] { Layers, Picture, CommittedLayer, DrawingLayer })
+        {
+            layer.Width = image.PixelWidth;
+            layer.Height = image.PixelHeight;
+        }
+
+        CommittedLayer.Attach(_document);
+        DrawingLayer.Attach(_tools, _move);
+        _document.Changed += OnDocumentChanged;
+        ShowCrop();
+        ShowPicture();
+    }
+
+    private void OnDocumentChanged()
+    {
+        UpdateCommands();
+        ShowCrop();
+        ShowPicture();
+    }
 
     private static string KindName(CaptureRecord record) => record.IsVideo
         ? "Video"
