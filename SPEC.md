@@ -120,7 +120,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 ## Pin to screen
 
 - **One pin at a time:** pinning something new replaces the old pin.
-- **Title strip** along the top: a move grip, "Pinned", a see-through slider and a close ✕.
+- **Title strip** along the top, white with rounded top corners: a move grip, "Pinned", a see-through slider and a close ✕ (red under the mouse). A thin dark outline round the pin marks its edges on any background.
 - **Move** by dragging the strip or the image. Overmark moves it itself rather than using Windows' title-bar dragging, so a double-click or dragging to a screen edge can't maximise it.
 - **See-through:** the slider (or Shift+scroll) fades the image down to 20%, so what's underneath shows through; the strip stays solid.
 - **Zoom:** Ctrl+scroll, 25% to 400%; 100% is one image pixel per screen pixel.
@@ -147,7 +147,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 ## Settings
 
-The settings window (tray menu → *Settings…*, or the gear on the capture toolbar) edits a copy; nothing changes until Save.
+The settings window (tray menu → *Settings…*, or **Settings** on the capture toolbar) edits a copy; nothing changes until Save. It's light like the rest of Overmark: each group of settings is a white card on a pale grey background, and Save (dark) and Cancel sit in a white bar along the bottom.
 
 - **Hotkeys:** click a box and press the keys. While recording, Overmark's keyboard hook hands key presses to the window, so PrtScn can be recorded even though Overmark owns it. Recording stops as soon as the box loses focus, or after 10 seconds.
 - **Capture on release**, or adjust the selection first.
@@ -183,5 +183,5 @@ Sound in recordings, blur/pixelate, numbered steps, OCR, uploads, capture histor
 3. **Editor drawing:** pick-first colour and thickness, the drawing tools, Shift-snap, undo/redo, zoom, copy and save. *Done.*
 4. **Eraser and output:** eraser, crop, drag-out, the preview popup, pins. *Done.*
 5. **Settings and installer:** settings window, start with Windows, Velopack installer and auto-update, first GitHub release. *Done except the first release.*
-6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, deleting a capture from the preview, dimensions, the Move tool, and a lighter redesign of the editor (own title bar, one dock for drawing, the loaded pen), the capture toolbar, the magnifier, the preview and the recording bar.
+6. **Shakedown:** daily use by early users, fixing whatever gets in the way. Added along the way: the circle tool, crosshair and magnifier switches, screen recording without sound, the text tool, deleting a capture from the preview, dimensions, the Move tool, and a lighter redesign of the editor (own title bar, one dock for drawing, the loaded pen), the capture toolbar, the magnifier, the preview, the recording bar, Settings and pins.
 7. **Wider release:** signing, GitHub Actions builds, README screenshots, winget.

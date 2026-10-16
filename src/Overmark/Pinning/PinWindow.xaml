@@ -11,55 +11,121 @@
         ShowActivated="False"
         Topmost="True"
         SizeToContent="WidthAndHeight"
+        FontFamily="Segoe UI"
+        Foreground="#16191D"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         Opacity="0">
 
     <Window.Resources>
-        <Style x:Key="Glyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="White" />
+        <!-- Line icons take their colour from the text around them. -->
+        <Style x:Key="Icon" TargetType="Path">
+            <Setter Property="Stroke" Value="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Stretch" Value="Uniform" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="StripButton" TargetType="Button">
+        <!-- Turns red under the mouse, like a window's close button. -->
+        <Style x:Key="CloseButtonStyle" TargetType="Button">
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Cursor" Value="Arrow" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="4" Padding="7,5">
-                            <ContentPresenter />
+                        <Border x:Name="Chrome" Width="24" Height="24" CornerRadius="8" Background="Transparent">
+                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#4A525C" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#E5484D" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#C42B1C" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#A32417" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- The see-through slider: a dark fill up to a round thumb, like the editor's thickness slider. -->
+        <Style x:Key="SliderFill" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Grid Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="{TemplateBinding Background}" VerticalAlignment="Center" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SeeThroughSlider" TargetType="Slider">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Height="24" Background="Transparent">
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderFill}" Background="#16191D" Command="Slider.DecreaseLarge" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderFill}" Background="#DADFE5" Command="Slider.IncreaseLarge" />
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Focusable="False">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse x:Name="Knob" Width="14" Height="14" Fill="White" Stroke="#16191D" StrokeThickness="2" />
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Knob" Property="Fill" Value="#F0F2F5" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <!-- Transparent behind the image, so fading it shows whatever is underneath the pin. -->
-    <Border BorderBrush="#E5484D" BorderThickness="1" Background="Transparent">
+    <!-- Transparent behind the image, so fading it shows whatever is underneath the pin. The dark outline marks
+         the pin's edges on any background. -->
+    <Border BorderBrush="#16191D" BorderThickness="1" CornerRadius="10,10,0,0" Background="Transparent">
         <DockPanel>
             <!-- The title strip: drag it (or the image) to move the pin. -->
-            <Border x:Name="Strip" DockPanel.Dock="Top" Height="26" Background="#2A2A2A" Cursor="SizeAll" ToolTip="Drag to move">
-                <DockPanel Margin="6,0,2,0">
+            <Border x:Name="Strip" DockPanel.Dock="Top" Height="30" Background="White" CornerRadius="9,9,0,0"
+                    BorderBrush="#DADFE5" BorderThickness="0,0,0,1" Cursor="SizeAll" ToolTip="Drag to move">
+                <DockPanel Margin="9,0,3,0">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE7B3;" Foreground="#AAFFFFFF" Margin="4,0,4,0" />
-                        <Slider x:Name="SeeThrough" Width="64" Minimum="0.2" Maximum="1" Value="1" SmallChange="0.1" LargeChange="0.2"
+                        <Path Style="{StaticResource Icon}" TextElement.Foreground="#5A626D" Width="15" Height="15" Margin="6,0,6,0"
+                              Data="M1.5,9 C4,4.5 14,4.5 16.5,9 C14,13.5 4,13.5 1.5,9 Z M9,7 A2,2 0 1 1 8.99,7 Z" />
+                        <Slider x:Name="SeeThrough" Style="{StaticResource SeeThroughSlider}" Width="64" Minimum="0.2" Maximum="1" Value="1" SmallChange="0.1" LargeChange="0.2"
                                 Focusable="False" VerticalAlignment="Center" Cursor="Arrow"
                                 ToolTip="See-through: slide left to fade the image (or Shift+scroll)" />
-                        <Button x:Name="CloseButton" Style="{StaticResource StripButton}" Margin="4,0,0,0" ToolTip="Close (Esc)">
-                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE711;" FontSize="10" />
+                        <Button x:Name="CloseButton" Style="{StaticResource CloseButtonStyle}" Margin="6,0,0,0" ToolTip="Close (Esc)">
+                            <Path Style="{StaticResource Icon}" Width="10" Height="10" Data="M4.5,4.5 L13.5,13.5 M13.5,4.5 L4.5,13.5" />
                         </Button>
                     </StackPanel>
-                    <TextBlock Text="&#x283F;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="#AAFFFFFF" VerticalAlignment="Center" Margin="0,0,6,0" />
-                    <TextBlock Text="Pinned" FontFamily="Segoe UI" FontSize="12" Foreground="#DDFFFFFF" VerticalAlignment="Center" />
+                    <!-- The grip: six dots. -->
+                    <Path Style="{StaticResource Icon}" TextElement.Foreground="#8A929C" Stretch="None" Width="8" Height="14" StrokeThickness="2"
+                          Data="M1.5,2 H1.51 M6.5,2 H6.51 M1.5,7 H1.51 M6.5,7 H6.51 M1.5,12 H1.51 M6.5,12 H6.51" />
+                    <TextBlock Text="Pinned" FontSize="12" FontWeight="SemiBold" Margin="7,0,0,0" VerticalAlignment="Center" />
                 </DockPanel>
             </Border>
 

@@ -14,7 +14,7 @@ namespace Overmark.Settings;
 internal partial class SettingsWindow : Window
 {
     private static readonly Brush RecordingBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D)));
-    private static readonly Brush NormalBorderBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)));
+    private static readonly Brush NormalBorderBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xDA, 0xDF, 0xE5)));
 
     private readonly AppSettings _settings;
     private readonly IHotkeyRecorder _hotkeys;

@@ -7,79 +7,247 @@
         SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Background="#1F1F1F"
+        Background="#F4F6F8"
+        Foreground="#16191D"
+        FontFamily="Segoe UI"
         Icon="pack://application:,,,/Overmark;component/Assets/Overmark.ico"
         UseLayoutRounding="True">
 
     <Window.Resources>
+        <!-- A rounded ring round whatever has keyboard focus. -->
+        <Style x:Key="FocusRing">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Border Margin="-3" CornerRadius="12" BorderBrush="#8016191D" BorderThickness="1.5" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One group of settings. -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DADFE5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="18,12,18,14" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+
+        <!-- Line icons take their colour from the text around them. -->
+        <Style x:Key="Icon" TargetType="Path">
+            <Setter Property="Stroke" Value="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
         <Style x:Key="Heading" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Margin" Value="0,20,0,8" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="9,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="HeadingRow" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal" />
+            <Setter Property="Margin" Value="0,0,0,8" />
         </Style>
 
         <Style x:Key="Label" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="#E6FFFFFF" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
         <Style x:Key="Hint" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="Foreground" Value="#5A626D" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Margin" Value="0,5,0,0" />
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Background" Value="#2B2B2B" />
-            <Setter Property="BorderBrush" Value="#55FFFFFF" />
-            <Setter Property="CaretBrush" Value="White" />
-            <Setter Property="Padding" Value="6,5" />
-        </Style>
-
-        <Style TargetType="CheckBox">
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="#E6FFFFFF" />
-            <Setter Property="Margin" Value="0,4,0,0" />
-        </Style>
-
-        <Style TargetType="RadioButton">
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="#E6FFFFFF" />
-            <Setter Property="Margin" Value="0,0,18,0" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-
-        <Style x:Key="Action" TargetType="Button">
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Background" Value="#333333" />
-            <Setter Property="BorderBrush" Value="#55FFFFFF" />
-            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DADFE5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CaretBrush" Value="#16191D" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="1" CornerRadius="5" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#444444" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#C3CAD2" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#16191D" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A rounded box with a tick, dark when ticked. -->
+        <Style TargetType="CheckBox">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Margin" Value="0,7,0,0" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Box" Width="18" Height="18" CornerRadius="5" Background="White" BorderBrush="#B8C0C9" BorderThickness="1.5"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="Tick" Data="M3.5,9.5 L7,13 L14.5,5" Width="10" Height="10" Stretch="Uniform" Stroke="White" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed" />
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#8A929C" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="#16191D" />
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#16191D" />
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Box" Property="Background" Value="#2B3038" />
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#2B3038" />
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One choice in a segmented control: the chosen one is dark. -->
+        <Style x:Key="Segment" TargetType="RadioButton">
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Width" Value="48" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Chrome" CornerRadius="8" Background="Transparent">
+                            <ContentPresenter x:Name="Content" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="#3A414B" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="#16191D" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
+                                <Setter TargetName="Content" Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The slider: a dark fill up to a round thumb, like the editor's thickness slider. -->
+        <Style x:Key="SliderFill" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Grid Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="{TemplateBinding Background}" VerticalAlignment="Center" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Slider">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Height="26" Background="Transparent">
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderFill}" Background="#16191D" Command="Slider.DecreaseLarge" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderFill}" Background="#DADFE5" Command="Slider.IncreaseLarge" />
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Focusable="False">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse x:Name="Knob" Width="16" Height="16" Fill="White" Stroke="#16191D" StrokeThickness="2" />
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Knob" Property="Fill" Value="#F0F2F5" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- White with a light border; grey under the mouse. -->
+        <Style x:Key="Action" TargetType="Button">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DADFE5" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#555555" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -88,109 +256,178 @@
         </Style>
 
         <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource Action}">
-            <Setter Property="Background" Value="#C9363B" />
-            <Setter Property="BorderBrush" Value="#E5484D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="#16191D" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2B3038" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#000000" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- The box you click to record a hotkey. -->
+        <!-- The box you click to record a hotkey. Its border turns red while recording (set in code). -->
         <Style x:Key="HotkeyBox" TargetType="Button" BasedOn="{StaticResource Action}">
-            <Setter Property="Background" Value="#2B2B2B" />
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Normal" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Padding" Value="12,0" />
             <Setter Property="MinWidth" Value="220" />
         </Style>
     </Window.Resources>
 
-    <DockPanel Margin="22,6,22,20">
-        <DockPanel DockPanel.Dock="Bottom" Margin="0,24,0,0">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button x:Name="SaveButton" Style="{StaticResource Primary}" Content="Save" IsDefault="True" MinWidth="88" />
-                <Button x:Name="CancelButton" Style="{StaticResource Action}" Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />
-            </StackPanel>
-            <TextBlock x:Name="VersionText" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0">
-                <Run x:Name="VersionRun" />
-                <Run Text="  ·  " />
-                <Hyperlink x:Name="OpenFileLink" Foreground="#99FFFFFF">Open settings file</Hyperlink>
-            </TextBlock>
-        </DockPanel>
+    <DockPanel Background="#F4F6F8">
+        <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#DADFE5" BorderThickness="0,1,0,0" Padding="22,12">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="SaveButton" Style="{StaticResource Primary}" Content="Save" IsDefault="True" MinWidth="88" />
+                    <Button x:Name="CancelButton" Style="{StaticResource Action}" Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />
+                </StackPanel>
+                <TextBlock x:Name="VersionText" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0">
+                    <Run x:Name="VersionRun" />
+                    <Run Text="  ·  " />
+                    <Hyperlink x:Name="OpenFileLink" Foreground="#5A626D">Open settings file</Hyperlink>
+                </TextBlock>
+            </DockPanel>
+        </Border>
 
         <!-- Scrolls only on a screen too short to show everything. -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-            <StackPanel>
-                <TextBlock Style="{StaticResource Heading}" Text="Hotkeys" />
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="Region capture" />
-                    <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Last region" />
-                    <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Full screen" />
-                    <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Record screen" />
-                    <Button x:Name="RegionCaptureBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
-                    <Button x:Name="LastRegionBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
-                    <Button x:Name="FullScreenBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
-                    <Button x:Name="RecordBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,3" />
-                    <Button x:Name="RegionCaptureClear" Grid.Row="0" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
-                    <Button x:Name="LastRegionClear" Grid.Row="1" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
-                    <Button x:Name="FullScreenClear" Grid.Row="2" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
-                    <Button x:Name="RecordClear" Grid.Row="3" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,3,0,3" />
-                </Grid>
-                <TextBlock Style="{StaticResource Hint}" Text="Click a box, then press the keys you want. Esc keeps the old one." />
-                <TextBlock x:Name="HotkeyProblems" Style="{StaticResource Hint}" Foreground="#FF8A80" Visibility="Collapsed" />
+            <StackPanel Margin="16,14,16,6">
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource HeadingRow}">
+                            <Path Style="{StaticResource Icon}"
+                                  Data="M3.5,4.5 H14.5 A1.5,1.5 0 0 1 16,6 V12 A1.5,1.5 0 0 1 14.5,13.5 H3.5 A1.5,1.5 0 0 1 2,12 V6 A1.5,1.5 0 0 1 3.5,4.5 Z M5.5,7.5 H5.51 M8,7.5 H8.01 M10.5,7.5 H10.51 M13,7.5 H13.01 M6.5,10.5 H11.5" />
+                            <TextBlock Style="{StaticResource Heading}" Text="Hotkeys" />
+                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="124" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition />
+                                <RowDefinition />
+                                <RowDefinition />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Style="{StaticResource Label}" Text="Region capture" />
+                            <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Last region" />
+                            <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Full screen" />
+                            <TextBlock Grid.Row="3" Style="{StaticResource Label}" Text="Record screen" />
+                            <Button x:Name="RegionCaptureBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,2" />
+                            <Button x:Name="LastRegionBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,2" />
+                            <Button x:Name="FullScreenBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,2" />
+                            <Button x:Name="RecordBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,2" />
+                            <Button x:Name="RegionCaptureClear" Grid.Row="0" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                            <Button x:Name="LastRegionClear" Grid.Row="1" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                            <Button x:Name="FullScreenClear" Grid.Row="2" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                            <Button x:Name="RecordClear" Grid.Row="3" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                        </Grid>
+                        <TextBlock Style="{StaticResource Hint}" Text="Click a box, then press the keys you want. Esc keeps the old one." Margin="0,7,0,0" />
+                        <TextBlock x:Name="HotkeyProblems" Style="{StaticResource Hint}" Foreground="#B42318" Visibility="Collapsed" />
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Style="{StaticResource Heading}" Text="Capturing" />
-                <CheckBox x:Name="CaptureOnRelease" Content="Capture as soon as I let go of the mouse" />
-                <TextBlock Style="{StaticResource Hint}" Text="Turn this off to adjust the selection with handles first, then press Enter to capture." />
-                <CheckBox x:Name="ShowCrosshairBox" Content="Show crosshair lines across the screen" Margin="0,10,0,0" />
-                <CheckBox x:Name="ShowMagnifierBox" Content="Show the magnifier beside the pointer" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource HeadingRow}">
+                            <Path Style="{StaticResource Icon}" Data="M2,5 V15 H16 V5 H12.5 L11,3 H7 L5.5,5 Z M9,7.5 A2.5,2.5 0 1 0 9.01,7.5 Z" />
+                            <TextBlock Style="{StaticResource Heading}" Text="Capturing" />
+                        </StackPanel>
+                        <CheckBox x:Name="CaptureOnRelease" Content="Capture as soon as I let go of the mouse" Margin="0" />
+                        <TextBlock Style="{StaticResource Hint}" Text="Turn this off to adjust the selection with handles first, then press Enter to capture." Margin="28,3,0,0" />
+                        <CheckBox x:Name="ShowCrosshairBox" Content="Show crosshair lines across the screen" Margin="0,12,0,0" />
+                        <CheckBox x:Name="ShowMagnifierBox" Content="Show the magnifier beside the pointer" />
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Style="{StaticResource Heading}" Text="Saving" />
-                <TextBlock Style="{StaticResource Label}" Text="Folder" Margin="0,0,0,4" />
-                <DockPanel>
-                    <Button x:Name="BrowseButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Browse…" Margin="8,0,0,0" />
-                    <TextBox x:Name="SaveFolderBox" />
-                </DockPanel>
-                <TextBlock x:Name="SaveFolderHint" Style="{StaticResource Hint}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource HeadingRow}">
+                            <Path Style="{StaticResource Icon}" Data="M2,5 A1,1 0 0 1 3,4 H7 L8.5,5.5 H15 A1,1 0 0 1 16,6.5 V13.5 A1,1 0 0 1 15,14.5 H3 A1,1 0 0 1 2,13.5 Z" />
+                            <TextBlock Style="{StaticResource Heading}" Text="Saving" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Label}" Text="Folder" Margin="0,0,0,5" />
+                        <DockPanel>
+                            <Button x:Name="BrowseButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Browse…" Margin="8,0,0,0" />
+                            <TextBox x:Name="SaveFolderBox" />
+                        </DockPanel>
+                        <TextBlock x:Name="SaveFolderHint" Style="{StaticResource Hint}" />
 
-                <TextBlock Style="{StaticResource Label}" Text="File names" Margin="0,12,0,4" />
-                <TextBox x:Name="PatternBox" />
-                <TextBlock x:Name="PatternExample" Style="{StaticResource Hint}" Foreground="#CCFFFFFF" />
-                <TextBlock Style="{StaticResource Hint}"
-                           Text="yyyy year, MM month, dd day, HH hour, mm minutes, ss seconds. Put words in single quotes, e.g. 'Overmark' yyyy-MM-dd." />
+                        <TextBlock Style="{StaticResource Label}" Text="File names" Margin="0,12,0,5" />
+                        <TextBox x:Name="PatternBox" FontFamily="Cascadia Mono, Consolas" FontSize="12" />
+                        <TextBlock x:Name="PatternExample" Style="{StaticResource Hint}" Foreground="#16191D" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="yyyy year, MM month, dd day, HH hour, mm minutes, ss seconds. Put words in single quotes, e.g. 'Overmark' yyyy-MM-dd." />
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Style="{StaticResource Heading}" Text="Recording" />
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Style="{StaticResource Label}" Text="Frames a second" Margin="0,0,16,0" />
-                    <RadioButton x:Name="Fps15" GroupName="FrameRate" Content="15" />
-                    <RadioButton x:Name="Fps30" GroupName="FrameRate" Content="30" />
-                    <RadioButton x:Name="Fps60" GroupName="FrameRate" Content="60" />
-                </StackPanel>
-                <CheckBox x:Name="RecordCursorBox" Content="Show the mouse pointer in recordings" Margin="0,8,0,0" />
-                <TextBlock Style="{StaticResource Hint}" Text="Recordings are saved as MP4 videos (no sound) next to your screenshots. 30 frames a second suits most uses; 60 is smoother but makes bigger files." />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource HeadingRow}">
+                            <Path Style="{StaticResource Icon}"
+                                  Data="M2.5,5 H11 A1,1 0 0 1 12,6 V12.5 A1,1 0 0 1 11,13.5 H2.5 A1,1 0 0 1 1.5,12.5 V6 A1,1 0 0 1 2.5,5 Z M12,8 L16.5,5.5 V13 L12,10.5" />
+                            <TextBlock Style="{StaticResource Heading}" Text="Recording" />
+                        </StackPanel>
+                        <DockPanel>
+                            <TextBlock Style="{StaticResource Label}" Text="Frames a second" Margin="0,0,16,0" />
+                            <Border Background="#F0F2F5" CornerRadius="11" Padding="3" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="Fps15" GroupName="FrameRate" Style="{StaticResource Segment}" Content="15" />
+                                    <RadioButton x:Name="Fps30" GroupName="FrameRate" Style="{StaticResource Segment}" Content="30" />
+                                    <RadioButton x:Name="Fps60" GroupName="FrameRate" Style="{StaticResource Segment}" Content="60" />
+                                </StackPanel>
+                            </Border>
+                        </DockPanel>
+                        <CheckBox x:Name="RecordCursorBox" Content="Show the mouse pointer in recordings" Margin="0,12,0,0" />
+                        <TextBlock Style="{StaticResource Hint}" Text="Recordings are saved as MP4 videos (no sound) next to your screenshots. 30 frames a second suits most uses; 60 is smoother but makes bigger files." Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Style="{StaticResource Heading}" Text="After a capture" />
-                <DockPanel>
-                    <TextBlock x:Name="PopupText" DockPanel.Dock="Right" Style="{StaticResource Label}" MinWidth="150" Margin="12,0,0,0" />
-                    <Slider x:Name="PopupSlider" Minimum="0" Maximum="15" SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True"
-                            VerticalAlignment="Center" />
-                </DockPanel>
-                <TextBlock Style="{StaticResource Hint}" Text="How long the preview stays in the corner. At 0, a plain Windows notification is shown instead." />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource HeadingRow}">
+                            <Path Style="{StaticResource Icon}" Data="M2,3.5 H16 V14.5 H2 Z M9.5,9 H14 V12.5 H9.5 Z" />
+                            <TextBlock Style="{StaticResource Heading}" Text="After a capture" />
+                        </StackPanel>
+                        <DockPanel>
+                            <TextBlock x:Name="PopupText" DockPanel.Dock="Right" Style="{StaticResource Label}" FontWeight="SemiBold" MinWidth="150" Margin="16,0,0,0" />
+                            <Slider x:Name="PopupSlider" Minimum="0" Maximum="15" SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="How long the preview stays in the corner. At 0, a plain Windows notification is shown instead." />
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Style="{StaticResource Heading}" Text="Windows" />
-                <CheckBox x:Name="StartWithWindowsBox" Content="Start Overmark when I sign in to Windows" />
-                <CheckBox x:Name="CheckForUpdatesBox" Content="Check for updates automatically" />
-                <DockPanel Margin="0,10,0,0">
-                    <Button x:Name="WindowsSettingButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Open Windows setting" Margin="8,0,0,0" />
-                    <TextBlock x:Name="PrintScreenStatus" Style="{StaticResource Label}" TextWrapping="Wrap" />
-                </DockPanel>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Style="{StaticResource HeadingRow}">
+                            <Path Style="{StaticResource Icon}" Data="M2,3 H16 V13 H2 Z M6.5,16 H11.5 M9,13 V16" />
+                            <TextBlock Style="{StaticResource Heading}" Text="Windows" />
+                        </StackPanel>
+                        <CheckBox x:Name="StartWithWindowsBox" Content="Start Overmark when I sign in to Windows" Margin="0" />
+                        <CheckBox x:Name="CheckForUpdatesBox" Content="Check for updates automatically" />
+                        <DockPanel Margin="0,12,0,0">
+                            <Button x:Name="WindowsSettingButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Open Windows setting" Margin="12,0,0,0"
+                                    VerticalAlignment="Center" />
+                            <TextBlock x:Name="PrintScreenStatus" Style="{StaticResource Label}" TextWrapping="Wrap" />
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>
