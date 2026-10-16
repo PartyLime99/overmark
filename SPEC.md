@@ -75,6 +75,9 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Today's captures** down the left side: every screenshot and recording Overmark has saved today, newest first, each a thumbnail with what kind it was (Region, Window, Last region, Full screen or Video) and the time. The one being edited has a dark ring. A video shows a play symbol and its length.
   - Clicking a screenshot opens it in place of the current one, in the same spot and size. Unsaved marks aren't asked about: they're kept as a draft (see *Editable for a day* below), and the capture shows an *Unsaved* tag in the list. One that's already open in another editor window is brought to the front instead. Clicking a video plays it in the default player.
   - The list updates as new captures come in, and a capture's thumbnail updates when it's saved with marks.
+  - An **x** in a capture's corner (always shown on the one being edited, on the others while the pointer is over them) takes it off the list, like closing a tab. The file stays where it is, and opening the capture again (from the preview, the tray or `--edit`) puts it back on the list.
+    - Unsaved changes are asked about first, as when closing the editor: *Yes* saves them into the file, *No* throws them away, *Cancel* keeps it. For a capture that isn't open, that means its draft; for one open in another editor window, that window closes as usual.
+    - Closing the capture being edited moves on to the next one down the list (or the one above, at the bottom), or closes the editor if no screenshots are left.
   - **Open folder** at the bottom shows the current capture in File Explorer.
   - The switch at the left of the title bar hides or shows the list; the choice is remembered.
   - Only what Overmark saved is listed (not other files in the folder), and anything since deleted or moved is left out. The list is kept in `%AppData%\Overmark\history.json`, which holds the last two weeks.

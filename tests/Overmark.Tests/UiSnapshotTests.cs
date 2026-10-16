@@ -277,7 +277,7 @@ public class UiSnapshotTests
             history.Add(new CaptureRecord(open, CaptureKind.Window, at.AddMinutes(-3), 900, 500));
             history.Add(new CaptureRecord(Shot("c.png", 640, 360), CaptureKind.Region, at, 640, 360));
 
-            var editor = new EditorWindow(open, SampleCapture(900, 500), new EditorSettings(), _ => { }, _ => { }, history, _ => { });
+            var editor = new EditorWindow(open, SampleCapture(900, 500), new EditorSettings(), _ => { }, _ => { }, history, _ => { }, closeCapture: _ => { });
             var content = (FrameworkElement)editor.Content;
             var size = new Size(1300, 760);
             content.Measure(size);

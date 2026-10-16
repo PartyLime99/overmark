@@ -543,6 +543,25 @@
             </Setter>
         </Style>
 
+        <!-- The x on a capture in the list, which takes it off the list. -->
+        <Style x:Key="TileClose" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Width="22" Height="22" CornerRadius="11" Background="#B316191D">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="PaneButton" TargetType="Button">
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Height" Value="32" />

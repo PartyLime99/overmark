@@ -71,6 +71,7 @@ internal partial class EditorWindow : Window
     // Today's captures down the left side, with thumbnails kept between refreshes of the list.
     private readonly CaptureHistory? _history;
     private readonly Action<string>? _switchTo;
+    private readonly Action<string>? _closeCapture;
 
     // Keeps the marks editable for a day after the editor closes; null leaves them flattened, as before.
     private readonly EditStore? _edits;
@@ -81,9 +82,11 @@ internal partial class EditorWindow : Window
     /// <param name="switchTo">Opens another capture in place of this one, when it's picked from the list.</param>
     /// <param name="edits">Where marks are kept editable between editors; null flattens them for good on save.</param>
     /// <param name="document">The capture with its marks still editable (from <paramref name="edits"/>); null starts from <paramref name="image"/>.</param>
+    /// <param name="closeCapture">Takes a capture off the list, when its x is clicked (asking about unsaved marks first).</param>
     public EditorWindow(
         string path, BitmapSource image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin,
-        CaptureHistory? history = null, Action<string>? switchTo = null, EditStore? edits = null, EditorDocument? document = null)
+        CaptureHistory? history = null, Action<string>? switchTo = null, EditStore? edits = null, EditorDocument? document = null,
+        Action<string>? closeCapture = null)
     {
         InitializeComponent();
         _path = path;
@@ -91,6 +94,7 @@ internal partial class EditorWindow : Window
         _pin = pin;
         _history = history;
         _switchTo = switchTo;
+        _closeCapture = closeCapture;
         _edits = edits;
         _document = document ?? new EditorDocument(image);
         _move = new MoveTool(_document);
@@ -1293,8 +1297,41 @@ internal partial class EditorWindow : Window
             ToolTip = $"{Path.GetFileName(record.Path)}  ·  {record.Width} × {record.Height}" + (record.IsVideo ? "  ·  click to play" : open ? "  ·  open now" : ""),
         };
         item.Click += (_, _) => OpenRecent(record);
+
+        // An x in the corner takes it off the list: always there on the open capture, on the others while hovered.
+        if (_closeCapture is { } closeCapture)
+        {
+            var close = new Button
+            {
+                Style = (Style)FindResource("TileClose"),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 5, 5, 0),
+                Visibility = open ? Visibility.Visible : Visibility.Hidden,
+                ToolTip = open ? "Close this capture (asks first if it has unsaved changes)" : "Take it off the list (asks first if it has unsaved marks)",
+                Content = new System.Windows.Shapes.Path
+                {
+                    Data = Geometry.Parse("M1,1 L9,9 M9,1 L1,9"),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1.6,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                },
+            };
+            close.Click += (_, _) => closeCapture(record.Path);
+            tile.Children.Add(close);
+            if (!open)
+            {
+                item.MouseEnter += (_, _) => close.Visibility = Visibility.Visible;
+                item.MouseLeave += (_, _) => close.Visibility = Visibility.Hidden;
+            }
+        }
+
         return (item, thumbnail);
     }
+
+    /// <summary>The capture this window is editing.</summary>
+    public string CapturePath => _path;
 
     private static string KindName(CaptureRecord record) => record.IsVideo
         ? "Video"

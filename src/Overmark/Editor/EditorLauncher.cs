@@ -39,9 +39,74 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         }
 
         current.KeepDraft();
+        ReplaceWindow(current, path);
+    }
+
+    /// <summary>
+    /// The x on a capture in the list: takes it off the list, asking first about unsaved changes, as closing an
+    /// editor does. Closing the capture being edited moves on to the next one in the list (or closes the editor if
+    /// there's none); one open in another window closes that window; one with a draft asks whether to save it.
+    /// </summary>
+    public void CloseCapture(EditorWindow current, string path)
+    {
+        if (string.Equals(current.CapturePath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            // Picked before closing, while this one is still on the list to count from.
+            var screenshots = history.TakenOn(DateTime.Today).Where(r => !r.IsVideo).Select(r => r.Path).ToList();
+            var index = screenshots.FindIndex(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+            var next = index + 1 < screenshots.Count ? screenshots[index + 1] : index > 0 ? screenshots[index - 1] : null;
+            if (!current.ConfirmLeave())
+            {
+                return;
+            }
+
+            history.Close(path);
+            if (next is null || TryActivate(next) || !ReplaceWindow(current, next))
+            {
+                current.CloseWithoutAsking();
+            }
+
+            return;
+        }
+
+        if (_open.TryGetValue(path, out var other))
+        {
+            // That window asks about its own unsaved changes; cancelling keeps it open, and on the list.
+            other.Close();
+            if (_open.ContainsKey(path))
+            {
+                return;
+            }
+        }
+        else if (_edits.HasDraft(path))
+        {
+            var answer = MessageBox.Show(
+                current, $"Save your changes to {Path.GetFileName(path)}?", "Overmark", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (answer == MessageBoxResult.Cancel)
+            {
+                return;
+            }
+
+            if (answer == MessageBoxResult.No)
+            {
+                _edits.DiscardDraft(path);
+            }
+            else if (!_edits.SaveDraft(path, out var problem))
+            {
+                MessageBox.Show(current, $"Couldn't save {Path.GetFileName(path)}:\n\n{problem}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+        }
+
+        history.Close(path);
+    }
+
+    /// <summary>Opens <paramref name="path"/> exactly where <paramref name="current"/> is, then closes it. False if it couldn't be opened.</summary>
+    private bool ReplaceWindow(EditorWindow current, string path)
+    {
         if (Create(path) is not { } window)
         {
-            return;
+            return false;
         }
 
         var maximised = current.WindowState == WindowState.Maximized;
@@ -60,6 +125,7 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
 
         ForegroundWindow.Activate(window);
         current.CloseWithoutAsking();
+        return true;
     }
 
     /// <summary>Asks every open editor to close. Returns false if the user kept one open (to save it first).</summary>
@@ -108,11 +174,15 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
             return null;
         }
 
+        // Opening a capture that was closed off the list puts it back on.
+        history.Reopen(path);
+
         EditorWindow? window = null;
         window = new EditorWindow(
             path, image, settings().Editor, rememberSettings, rendered => pins.Open(rendered, edit: () => Open(path)),
             history, other => SwitchTo(window!, other), _edits,
-            kept is null ? null : new EditorDocument(kept.Original, kept.Crop, kept.Marks, unsaved: kept.Draft));
+            kept is null ? null : new EditorDocument(kept.Original, kept.Crop, kept.Marks, unsaved: kept.Draft),
+            other => CloseCapture(window!, other));
         _open[path] = window;
         window.Closed += (_, _) => _open.Remove(path);
         return window;

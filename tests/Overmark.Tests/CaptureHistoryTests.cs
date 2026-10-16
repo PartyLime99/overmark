@@ -98,6 +98,24 @@ public sealed class CaptureHistoryTests : IDisposable
     }
 
     [Fact]
+    public void A_closed_capture_leaves_the_list_until_reopened()
+    {
+        var history = new CaptureHistory(HistoryPath);
+        history.Add(Record("a.png", Today));
+        history.Add(Record("b.png", Today.AddMinutes(1)));
+        var raised = 0;
+        history.Changed += () => raised++;
+
+        history.Close(Path.Combine(_folder, "B.PNG"));
+        Assert.Equal(["a.png"], new CaptureHistory(HistoryPath).TakenOn(Today).Select(r => Path.GetFileName(r.Path)));
+        Assert.True(File.Exists(Path.Combine(_folder, "b.png")));
+
+        history.Reopen(Path.Combine(_folder, "b.png"));
+        Assert.Equal(2, history.TakenOn(Today).Count);
+        Assert.Equal(2, raised);
+    }
+
+    [Fact]
     public void Adding_raises_changed()
     {
         var history = new CaptureHistory(HistoryPath);

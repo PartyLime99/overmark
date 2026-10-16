@@ -38,9 +38,9 @@ The video is saved as an MP4 (no sound) next to your screenshots and copied to t
 
 Click the preview after a capture (or **Edit last capture** in the tray menu) to draw on it. `Overmark.exe --edit <file>` opens any PNG.
 
-Down the left side is **Today**: everything you've captured today, newest first. Click a screenshot to switch to it, or a recording to play it. Unsaved marks aren't lost when you switch: they're kept as a draft (tagged *Unsaved* in the list) and are there when you come back.
+Down the left side is **Today**: everything you've captured today, newest first. Click a screenshot to switch to it, or a recording to play it. Unsaved marks aren't lost when you switch: they're kept as a draft (tagged *Unsaved* in the list) and are there when you come back. The **x** on a capture takes it off the list (the file stays put), asking first if it has unsaved changes; closing the one you're editing moves on to the next. **Open folder** shows the capture in File Explorer, and the button at the left of the title bar hides or shows the list.
 
-Marks stay **editable for a day**: reopen a capture within 24 hours of editing it and its marks can still be moved, erased and recoloured, even after saving. (The PNG always has them flattened in, for sharing.) **Open folder** shows the capture in File Explorer, and the button at the left of the title bar hides or shows the list.
+Marks stay **editable for a day**: reopen a capture within 24 hours of editing it and its marks can still be moved, erased and recoloured, even after saving. (The PNG always has them flattened in, for sharing.)
 
 Everything for drawing is in the dock along the bottom: undo and redo, the tools, the **loaded pen** (a sample of what the next mark will look like), the colours and the thickness slider. Pick the colour and thickness **first**; they apply to the next mark only. Line, Arrow and Curve share one dock button, as do Rectangle and Circle: it shows the one you used last, and clicking it again opens a small menu with the others (their keys work as always).
 

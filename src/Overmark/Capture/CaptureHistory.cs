@@ -5,7 +5,8 @@ namespace Overmark.Capture;
 
 /// <summary>One saved screenshot or recording, as remembered for the editor's list of today's captures.</summary>
 /// <param name="Seconds">How long a recording is; null for a screenshot.</param>
-internal sealed record CaptureRecord(string Path, CaptureKind Kind, DateTime TakenAt, int Width, int Height, double? Seconds = null)
+/// <param name="Closed">Taken off the list with its close button (it comes back if it's opened again).</param>
+internal sealed record CaptureRecord(string Path, CaptureKind Kind, DateTime TakenAt, int Width, int Height, double? Seconds = null, bool Closed = false)
 {
     [JsonIgnore]
     public bool IsVideo => Seconds is not null;
@@ -54,12 +55,32 @@ internal sealed class CaptureHistory(string filePath)
         Changed?.Invoke();
     }
 
-    /// <summary>The captures taken on <paramref name="day"/> whose files are still there, newest first.</summary>
+    /// <summary>The captures taken on <paramref name="day"/> whose files are still there and that haven't been closed, newest first.</summary>
     public IReadOnlyList<CaptureRecord> TakenOn(DateTime day) =>
         Records()
-            .Where(r => r.TakenAt.Date == day.Date && File.Exists(r.Path))
+            .Where(r => r.TakenAt.Date == day.Date && !r.Closed && File.Exists(r.Path))
             .OrderByDescending(r => r.TakenAt)
             .ToList();
+
+    /// <summary>Takes a capture off the list (the file stays where it is).</summary>
+    public void Close(string path) => SetClosed(path, closed: true);
+
+    /// <summary>Puts a closed capture back on the list, when it's opened again.</summary>
+    public void Reopen(string path) => SetClosed(path, closed: false);
+
+    private void SetClosed(string path, bool closed)
+    {
+        var records = Records();
+        var index = records.FindIndex(r => string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (index < 0 || records[index].Closed == closed)
+        {
+            return;
+        }
+
+        records[index] = records[index] with { Closed = closed };
+        Write(records);
+        Changed?.Invoke();
+    }
 
     /// <summary>The most recent screenshot (not recording) whose file is still there.</summary>
     public CaptureRecord? LatestScreenshot() =>

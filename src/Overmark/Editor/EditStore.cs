@@ -100,6 +100,38 @@ internal sealed class EditStore(string folder, Func<DateTime>? utcNow = null)
     /// <summary>Keeps the document's unsaved marks, without touching the capture file.</summary>
     public void KeepDraft(string capture, EditorDocument document) => Keep(capture, document, draft: true);
 
+    /// <summary>
+    /// Saves a capture's draft into its file, the marks flattened in as the editor's Save does, without opening it,
+    /// and keeps it as saved. Returns false, with the reason, if the file couldn't be written.
+    /// </summary>
+    public bool SaveDraft(string capture, out string? problem)
+    {
+        problem = null;
+        if (Find(capture) is not { Draft: true } kept)
+        {
+            return true;
+        }
+
+        var document = new EditorDocument(kept.Original, kept.Crop, kept.Marks, unsaved: true);
+        try
+        {
+            // Write next to the file and swap it in, so a failed save never leaves a half-written capture.
+            var temporary = capture + ".saving";
+            File.WriteAllBytes(temporary, CaptureOutput.EncodePng(document.Render()));
+            File.Move(temporary, capture, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error($"Couldn't save the draft of {capture}", ex);
+            problem = ex.Message;
+            return false;
+        }
+
+        document.MarkSaved();
+        KeepSaved(capture, document);
+        return true;
+    }
+
     /// <summary>Throws away unsaved marks, so the capture opens as it was last saved.</summary>
     public void DiscardDraft(string capture) => Delete(SlotPath(Key(capture), draft: true));
 

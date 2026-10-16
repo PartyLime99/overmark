@@ -78,6 +78,30 @@ public sealed class EditStoreTests : IDisposable
     }
 
     [Fact]
+    public void A_draft_can_be_saved_without_opening_it()
+    {
+        var store = Store();
+        var document = Document(new LineMark(Red, new Point(1, 1), new Point(10, 10)));
+        SaveFile(document);
+        store.KeepDraft(Capture, document);
+
+        Assert.True(store.SaveDraft(Capture, out var problem));
+
+        Assert.Null(problem);
+        Assert.False(store.HasDraft(Capture));
+        var kept = Assert.IsType<KeptEdit>(store.Find(Capture));
+        Assert.False(kept.Draft);
+        Assert.Single(kept.Marks);
+
+        // The file now holds the flattened picture: a real PNG of the capture's size, with the line drawn in.
+        var saved = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(Capture)), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+        Assert.Equal(20, saved.PixelWidth);
+        var pixel = new byte[4];
+        new FormatConvertedBitmap(saved, PixelFormats.Bgra32, null, 0).CopyPixels(new Int32Rect(5, 5, 1, 1), pixel, 4, 0);
+        Assert.NotEqual(0xFF, pixel[1]); // not white: the red line goes through it
+    }
+
+    [Fact]
     public void A_file_changed_by_something_else_opens_as_it_is()
     {
         var store = Store();
