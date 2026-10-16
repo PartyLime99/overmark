@@ -101,6 +101,35 @@ public class CaptureSessionTests
     }
 
     [Fact]
+    public void C_switches_to_centre_and_reshapes_a_drag_under_way()
+    {
+        var session = Start(adjust: false);
+        session.PointerPressed(new PixelPoint(1000, 600), 1, 6);
+        session.PointerMoved(new PixelPoint(1100, 650));
+        Assert.Equal(new ScreenRect(1000, 600, 101, 51), session.Selection);
+
+        Assert.True(session.KeyPressed(Key.C, ModifierKeys.None));
+        Assert.True(session.FromCentre);
+        Assert.Equal(new ScreenRect(900, 550, 201, 101), session.Selection);
+
+        session.PointerReleased(new PixelPoint(1100, 650));
+        Assert.Equal(new ScreenRect(900, 550, 201, 101), _outcome?.Region);
+    }
+
+    [Fact]
+    public void Choosing_the_current_shape_again_changes_nothing()
+    {
+        var session = Start(fromCentre: true);
+        var changes = 0;
+        session.Changed += () => changes++;
+
+        session.SetFromCentre(true);
+
+        Assert.Equal(0, changes);
+        Assert.True(session.FromCentre);
+    }
+
+    [Fact]
     public void Click_on_a_window_selects_it()
     {
         var session = Start();

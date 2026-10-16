@@ -15,7 +15,7 @@ Press **PrtScn** and the screen freezes, with crosshairs and a magnifier. Then:
 - **Drag** to select a region, or **click** a window. Letting go captures it.
 - Before or during a drag, the **arrow keys** move the pointer one pixel at a time (Shift: 10).
 - **Esc** or right-click cancels.
-- The **toolbar** at the bottom has **Photo** / **Video** (R switches), **Last** region (L), **Full** screen (F), **Settings** and **Esc** to cancel.
+- The **toolbar** at the bottom has **Photo** / **Video** (R switches), **Corner** / **Centre** (C switches; Centre drags out from the middle), **Last** region (L), **Full** screen (F), **Settings** and **Esc** to cancel.
 
 Each capture is copied to the clipboard and saved as a PNG in `Pictures\Screenshots`. A preview pops up in the corner: **click** the picture (or **Edit**) to edit, **drag** it into Outlook, Teams or a folder, **pin** it so it floats on top of everything, or **delete** it if it was a mistake (it goes to the Recycle Bin, and off the clipboard).
 

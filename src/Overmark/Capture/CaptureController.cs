@@ -13,6 +13,7 @@ namespace Overmark.Capture;
 internal sealed class CaptureController(
     Func<AppSettings> settings,
     Action<ScreenRect> rememberRegion,
+    Action<bool> rememberFromCentre,
     Action<string> openEditor,
     Action openSettings,
     PinBoard pins,
@@ -116,7 +117,16 @@ internal sealed class CaptureController(
         var session = new CaptureSession(
             desktop, monitors, windows, current.LastRegion?.ToScreenRect(), current.AdjustBeforeCapture, cursor, Pointer.MoveTo,
             current.ShowCrosshair, current.ShowMagnifier, record, current.DrawFromCentre);
-        session.Finished += outcome => OnSessionFinished(screenshot, outcome);
+        session.Finished += outcome =>
+        {
+            // Corner or Centre picked on the toolbar sticks for next time.
+            if (session.FromCentre != settings().DrawFromCentre)
+            {
+                rememberFromCentre(session.FromCentre);
+            }
+
+            OnSessionFinished(screenshot, outcome);
+        };
         _session = session;
 
         // The toolbar goes on the monitor the pointer is on.

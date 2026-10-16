@@ -43,7 +43,6 @@ internal sealed class CaptureSession
     private readonly bool _adjustBeforeCapture;
     private readonly bool _crosshair;
     private readonly bool _magnifier;
-    private readonly bool _fromCentre;
     private readonly Action<PixelPoint> _moveCursor;
     private PixelPoint _pressPoint;
     private ScreenRect _dragAnchor;
@@ -69,7 +68,7 @@ internal sealed class CaptureSession
         _adjustBeforeCapture = adjustBeforeCapture;
         _crosshair = crosshair;
         _magnifier = magnifier;
-        _fromCentre = fromCentre;
+        FromCentre = fromCentre;
         _moveCursor = moveCursor;
         LastRegion = lastRegion?.Intersect(desktop);
         Cursor = Clamp(cursor);
@@ -115,8 +114,11 @@ internal sealed class CaptureSession
         _ => HoveredWindow?.Bounds,
     };
 
+    /// <summary>True when a drag starts at the selection's centre rather than at a corner.</summary>
+    public bool FromCentre { get; private set; }
+
     /// <summary>Where a centre-out drag started, while one is being dragged; null otherwise.</summary>
-    public PixelPoint? DragCentre => _fromCentre && Mode == SessionMode.Dragging ? _pressPoint : null;
+    public PixelPoint? DragCentre => FromCentre && Mode == SessionMode.Dragging ? _pressPoint : null;
 
     public bool ShowsCrosshair => _crosshair && IsAiming;
 
@@ -277,6 +279,9 @@ internal sealed class CaptureSession
             case Key.R:
                 SetRecordMode(!RecordMode);
                 return true;
+            case Key.C:
+                SetFromCentre(!FromCentre);
+                return true;
             case Key.Left:
                 Nudge(-step, 0, modifiers);
                 return true;
@@ -302,6 +307,23 @@ internal sealed class CaptureSession
         }
 
         RecordMode = on;
+        Changed?.Invoke();
+    }
+
+    /// <summary>Switches between dragging from a corner and from the centre, reshaping a drag that's under way.</summary>
+    public void SetFromCentre(bool on)
+    {
+        if (IsFinished || FromCentre == on)
+        {
+            return;
+        }
+
+        FromCentre = on;
+        if (Mode == SessionMode.Dragging)
+        {
+            Selection = DraggedRegion();
+        }
+
         Changed?.Invoke();
     }
 
@@ -403,7 +425,7 @@ internal sealed class CaptureSession
 
     // From the press to the pointer: corner to corner, or out from the press as the centre.
     private ScreenRect DraggedRegion() =>
-        _fromCentre ? SelectionMath.FromCentre(_pressPoint, Cursor, Desktop) : ScreenRect.FromCorners(_pressPoint, Cursor);
+        FromCentre ? SelectionMath.FromCentre(_pressPoint, Cursor, Desktop) : ScreenRect.FromCorners(_pressPoint, Cursor);
 
     private bool MovedPastThreshold() =>
         Math.Abs(Cursor.X - _pressPoint.X) >= DragThreshold || Math.Abs(Cursor.Y - _pressPoint.Y) >= DragThreshold;

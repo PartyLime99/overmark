@@ -149,6 +149,20 @@
                     </StackPanel>
                 </ToggleButton>
                 <Rectangle Style="{StaticResource Divider}" />
+                <!-- Corner or Centre: where a drag starts, shown by the cross on each icon. -->
+                <ToggleButton x:Name="CornerButton" Style="{StaticResource ModeButton}" Background="#16191D" ToolTip="Drag a selection from corner to corner">
+                    <StackPanel>
+                        <Path Style="{StaticResource Icon}" Data="M4,5 H15 V14 H4 Z M4,2 V8 M1,5 H7" />
+                        <TextBlock Style="{StaticResource Label}" Text="Corner" />
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton x:Name="CentreButton" Style="{StaticResource ModeButton}" Background="#16191D" Tag="C" ToolTip="Drag a selection out from its centre instead (C)">
+                    <StackPanel>
+                        <Path Style="{StaticResource Icon}" Data="M3,4 H15 V14 H3 Z M9,6.5 V11.5 M6.5,9 H11.5" />
+                        <TextBlock Style="{StaticResource Label}" Text="Centre" />
+                    </StackPanel>
+                </ToggleButton>
+                <Rectangle Style="{StaticResource Divider}" />
                 <Button x:Name="LastRegionButton" Style="{StaticResource ToolbarButton}" Tag="L" ToolTip="Capture the last region again (L)">
                     <StackPanel>
                         <Path Style="{StaticResource Icon}" Data="M2,6 V2 H6 M16,12 V16 H12 M12.5,5.5 A4,4 0 1 0 13.5,9.5 M13.5,3 V6 H10.5" />

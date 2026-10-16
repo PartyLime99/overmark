@@ -22,7 +22,7 @@ internal sealed class OverlayCanvas : FrameworkElement
     private const double HandleSize = 9;
     private const double BracketLength = 18;
     private const double BracketThickness = 4;
-    private const double CentreMarkSize = 7;
+    private const double CentreMarkSize = 8;
     private const double LabelGap = 10;
     private const double PillPaddingX = 10;
     private const double PillPaddingY = 5;
@@ -192,12 +192,12 @@ internal sealed class OverlayCanvas : FrameworkElement
         dc.DrawGeometry(null, pen, geometry);
     }
 
-    /// <summary>A small white cross on the pixel a centre-out drag started from.</summary>
+    /// <summary>A small dark cross with a white halo (like the magnifier's centre pixel) on the pixel a centre-out drag started from.</summary>
     private void DrawCentreMark(DrawingContext dc, PixelPoint centre, double scale)
     {
         var px = 1 / scale;
         var middle = new Point((centre.X - _monitor!.Bounds.Left + 0.5) / scale, (centre.Y - _monitor.Bounds.Top + 0.5) / scale);
-        foreach (var pen in new[] { new Pen(EdgeBrush, 4 * px), new Pen(Brushes.White, 2 * px) })
+        foreach (var pen in new[] { new Pen(Brushes.White, 4 * px), new Pen(InkBrush, 2 * px) })
         {
             dc.DrawLine(pen, new Point(middle.X - CentreMarkSize, middle.Y), new Point(middle.X + CentreMarkSize, middle.Y));
             dc.DrawLine(pen, new Point(middle.X, middle.Y - CentreMarkSize), new Point(middle.X, middle.Y + CentreMarkSize));

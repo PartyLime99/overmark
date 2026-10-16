@@ -55,8 +55,10 @@ internal partial class OverlayWindow : Window
         FullScreenButton.Click += (_, _) => _session?.CaptureFullScreen();
         CancelButton.Click += (_, _) => _session?.Cancel();
         SettingsButton.Click += (_, _) => SettingsRequested?.Invoke();
-        ScreenshotButton.Click += (_, _) => _session?.SetRecordMode(false);
-        RecordButton.Click += (_, _) => _session?.SetRecordMode(true);
+        ScreenshotButton.Click += (_, _) => Choose(session => session.SetRecordMode(false));
+        RecordButton.Click += (_, _) => Choose(session => session.SetRecordMode(true));
+        CornerButton.Click += (_, _) => Choose(session => session.SetFromCentre(false));
+        CentreButton.Click += (_, _) => Choose(session => session.SetFromCentre(true));
     }
 
     /// <summary>Raised once the first frame of a capture is on screen.</summary>
@@ -179,6 +181,17 @@ internal partial class OverlayWindow : Window
         e.Handled = true;
     }
 
+    // A click toggles the button itself, so the buttons are set from the session again afterwards: clicking the
+    // chosen one leaves it chosen.
+    private void Choose(Action<CaptureSession> choice)
+    {
+        if (_session is { } session)
+        {
+            choice(session);
+            OnSessionChanged();
+        }
+    }
+
     private void OnSessionChanged()
     {
         if (_session is not { IsFinished: false } session)
@@ -190,6 +203,8 @@ internal partial class OverlayWindow : Window
         Toolbar.Visibility = _hasToolbar && session.Mode == SessionMode.Idle ? Visibility.Visible : Visibility.Collapsed;
         ScreenshotButton.IsChecked = !session.RecordMode;
         RecordButton.IsChecked = session.RecordMode;
+        CornerButton.IsChecked = !session.FromCentre;
+        CentreButton.IsChecked = session.FromCentre;
         RecordDot.Fill = session.RecordMode ? Brushes.White : RecordDotBrush; // white on the red button once chosen
 
         var handle = session.ActiveHandle != SelectionHandle.None

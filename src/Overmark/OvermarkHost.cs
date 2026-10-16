@@ -48,7 +48,7 @@ internal sealed class OvermarkHost : IDisposable
         _editors = new EditorLauncher(() => _settings, RememberEditorSettings, _pins, _history, _tray);
         _recordings = new RecordingController(
             () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop : null, _history, _tray);
-        _captures = new CaptureController(() => _settings, RememberLastRegion, _editors.Open, OpenSettings, _pins, _recordings, _history, _tray);
+        _captures = new CaptureController(() => _settings, RememberLastRegion, RememberFromCentre, _editors.Open, OpenSettings, _pins, _recordings, _history, _tray);
         _hotkeys = new HotkeyService(dispatcher);
         _hotkeys.Triggered += Run;
         ApplyHotkeys();
@@ -129,6 +129,12 @@ internal sealed class OvermarkHost : IDisposable
     private void RememberLastRegion(ScreenRect region)
     {
         _settings.LastRegion = SavedRegion.From(region);
+        SaveSettings();
+    }
+
+    private void RememberFromCentre(bool fromCentre)
+    {
+        _settings.DrawFromCentre = fromCentre;
         SaveSettings();
     }
 

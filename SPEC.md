@@ -51,6 +51,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - Esc cancels. Right-click drops the current selection, or cancels if there isn't one.
 - **Toolbar** at the bottom centre of the monitor the pointer is on (just above the taskbar), until a selection starts. It's a white bar of buttons, each an icon over a short label, with its key in the corner:
   - **Photo** / **Video** (R): whether whatever is picked next (region, window, last region or full screen) is captured as a screenshot or recorded as a video. The chosen one is filled in: dark for Photo, red for Video. R switches between them.
+  - **Corner** / **Centre** (C): whether a drag starts at a corner of the selection or at its centre (the same choice as in Settings, and the one picked here is saved). Dark when chosen. C switches between them, even part-way through a drag.
   - **Last** (L): captures the previous region or window capture again. Hovering it previews that area with a dashed outline. Greyed out until there is one.
   - **Full** (F): the whole monitor.
   - **Settings**: cancels the capture and opens Settings.

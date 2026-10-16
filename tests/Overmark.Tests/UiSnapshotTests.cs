@@ -173,7 +173,7 @@ public class UiSnapshotTests
 
     /// <summary>
     /// The capture overlay part-way through a drag, with the magnifier, and with the toolbar shown too (in use it
-    /// hides once a drag starts), in screenshot mode and then in video mode.
+    /// hides once a drag starts): a screenshot dragged from a corner, then a video dragged out from the centre (the same area).
     /// </summary>
     private static void SaveOverlay()
     {
@@ -182,8 +182,9 @@ public class UiSnapshotTests
         var image = SampleCapture(2000, 1125);
         foreach (var record in new[] { false, true })
         {
-            var session = new CaptureSession(bounds, [monitor], [], null, false, new PixelPoint(400, 300), _ => { }, recordMode: record);
-            session.PointerPressed(new PixelPoint(400, 300), 1, 6);
+            var press = record ? new PixelPoint(750, 500) : new PixelPoint(400, 300);
+            var session = new CaptureSession(bounds, [monitor], [], null, false, press, _ => { }, recordMode: record, fromCentre: record);
+            session.PointerPressed(press, 1, 6);
             session.PointerMoved(new PixelPoint(1100, 700));
 
             var window = new OverlayWindow(monitor);
@@ -194,6 +195,8 @@ public class UiSnapshotTests
             ((FrameworkElement)window.FindName("Toolbar")).Visibility = Visibility.Visible;
             ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("ScreenshotButton")).IsChecked = !record;
             ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("RecordButton")).IsChecked = record;
+            ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("CornerButton")).IsChecked = !record;
+            ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("CentreButton")).IsChecked = record;
             ((OverlayCanvas)window.FindName("Overlay")).Attach(session, image, monitor);
             Save((FrameworkElement)window.Content, new Size(1600, 900), record ? "overlay-video.png" : "overlay.png");
         }
