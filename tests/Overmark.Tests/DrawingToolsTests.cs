@@ -344,10 +344,10 @@ public class DrawingToolsTests
         Assert.Null(_tools.Typing);
     }
 
-    private void Click(double x, double y)
+    private void Click(double x, double y, bool shift = false)
     {
-        _tools.PointerDown(new Point(x, y), false, Tolerance);
-        _tools.PointerUp(new Point(x, y), false);
+        _tools.PointerDown(new Point(x, y), shift, Tolerance);
+        _tools.PointerUp(new Point(x, y), shift);
     }
 
     [Fact]
@@ -386,6 +386,53 @@ public class DrawingToolsTests
         Drag(10, 10, 10, 150);
 
         Assert.Equal([new Point(10, 10), new Point(10, 150)], _tools.DimensionPoints);
+    }
+
+    [Fact]
+    public void Shift_snaps_a_dimensions_second_point_but_not_where_it_is_placed()
+    {
+        _tools.Tool = ToolKind.Dimension;
+
+        Click(100, 100, shift: true);
+        Click(300, 108, shift: true);
+        Assert.Equal([new Point(100, 100), new Point(300, 100)], _tools.DimensionPoints);
+
+        Click(230, 60, shift: true);
+        _tools.Finish();
+        var dimension = Assert.IsType<DimensionMark>(Assert.Single(_committed));
+        Assert.Equal((new Point(300, 100), new Point(230, 60), DimensionKind.Horizontal), (dimension.B, dimension.Through, dimension.Kind));
+        Assert.Equal("200 px", dimension.Text);
+    }
+
+    [Fact]
+    public void Shift_snaps_a_dimension_dragged_between_its_points()
+    {
+        _tools.Tool = ToolKind.Dimension;
+
+        Drag(10, 10, 14, 150, shift: true);
+        Assert.Equal([new Point(10, 10), new Point(10, 150)], _tools.DimensionPoints);
+
+        _tools.Cancel();
+        Drag(0, 0, 100, 92, shift: true); // 45°
+        var second = _tools.DimensionPoints[1];
+        Assert.Equal(96, second.X, 6);
+        Assert.Equal(96, second.Y, 6);
+    }
+
+    [Fact]
+    public void The_dimension_guide_line_follows_shift()
+    {
+        _tools.Tool = ToolKind.Dimension;
+        Click(0, 0);
+        _tools.PointerMove(new Point(100, 6), true);
+        Assert.Equal(new Point(100, 0), _tools.DimensionGuide);
+
+        _tools.ShiftChanged(false);
+        Assert.Equal(new Point(100, 6), _tools.DimensionGuide);
+
+        _tools.ShiftChanged(true);
+        Click(100, 6); // Shift up by the time it's clicked: the click's own Shift decides
+        Assert.Equal(new Point(100, 6), _tools.DimensionPoints[1]);
     }
 
     [Fact]

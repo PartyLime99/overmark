@@ -604,7 +604,7 @@
                         <RadioButton x:Name="TextTool" Style="{StaticResource DockTool}" ToolTip="Text (T). Click where it goes and type; Enter finishes, Shift+Enter starts a new line. The thickness sets the size.">
                             <Path Style="{StaticResource Icon}" Data="M4,4.5 H14 M9,4.5 V15 M7,15 H11" />
                         </RadioButton>
-                        <RadioButton x:Name="DimensionTool" Style="{StaticResource DockTool}" ToolTip="Dimension (D). Click two points, then move to choose horizontal, vertical or aligned and click to place it. Type the text (it starts as the length in pixels), then Enter.">
+                        <RadioButton x:Name="DimensionTool" Style="{StaticResource DockTool}" ToolTip="Dimension (D). Click two points (hold Shift for straight angles between them), then move to choose horizontal, vertical or aligned and click to place it. Type the text (it starts as the length in pixels), then Enter.">
                             <Path Style="{StaticResource Icon}" Data="M2,5 V15 M16,5 V15 M2.5,10 H15.5 M5.5,8 L2.5,10 L5.5,12 M12.5,8 L15.5,10 L12.5,12" />
                         </RadioButton>
                         <RadioButton x:Name="EraserTool" Style="{StaticResource DockTool}" ToolTip="Eraser (E). Click or drag across marks to remove them.">

@@ -96,7 +96,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 | Highlighter | H | Wide translucent stroke; text underneath stays readable. Shift makes it straight |
 | Text | T | Click and type; the first line is centred on the click. Enter finishes, Shift+Enter starts a new line, Esc drops it, clicking elsewhere finishes it and starts the next. Segoe UI Semibold. A toggle puts it on a box (white, or near-black behind light colours) outlined in the text colour |
 | Eraser | E | Click or drag across marks; each mark touched is removed whole (empty rectangles only by their outline) |
-| Dimension | D | Like SolidWorks' smart dimension; see below |
+| Dimension | D | Like SolidWorks' smart dimension; see below. Shift snaps the second point to 0°, 45° or 90° from the first |
 | Crop | X | Drag a box, then Enter |
 
 - **Moving, not restyling:** marks can be moved (the Move tool) but not recoloured, resized or edited after drawing; the eraser and undo fix mistakes.
@@ -105,6 +105,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 **Dimensions**
 
 - Click the two points to measure between (or drag from one to the other), then move the pointer to place the dimension line and click. Where the pointer is picks what it measures: above or below the points, the horizontal distance; to the left or right, the vertical distance; anywhere else, the true (aligned) distance. A label beside the pointer shows which, and the length in pixels.
+- Holding Shift snaps the second point to 0°, 45° or 90° from the first, as for a line, whether it's clicked or dragged to; the guide line from the first point shows where it will go. Shift doesn't change the third click: the dimension line's direction is already set by what it measures.
 - The third click opens a text box on the dimension, holding the measured length (e.g. `214 px`) selected, so typing replaces it. Enter (or clicking elsewhere) finishes it; if the text is deleted the dimension is kept without text. Esc drops the whole dimension at any stage.
 - Drawn in the current colour: extension lines from just off each point to a little past the dimension line, and a dimension line with slim arrowheads. The lines are half the thickness slider's value (at least 1 px) and the text is four times it, like the text tool.
 - The text sits in a gap in the middle of the dimension line. If it's too long to fit between the arrowheads, it moves just outside the line instead. When the extension lines are too close together for the arrows, the arrows go outside, pointing in.

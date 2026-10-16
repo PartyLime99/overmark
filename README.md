@@ -46,7 +46,7 @@ Everything for drawing is in the dock along the bottom: undo and redo, the tools
 | D | Dimension |
 | V | Move: select a mark and drag it; arrow keys nudge it, Delete removes it |
 | E / X | Eraser (removes whole marks) / Crop (drag a box, then Enter) |
-| Shift (while drawing) | Straight angles for lines, arrows and curves; squares and circles; straight highlighter |
+| Shift (while drawing) | Straight angles for lines, arrows, curves and a dimension's two points; squares and circles; straight highlighter |
 | 1–8, 9 | The palette colours; your custom colour |
 | [ / ] | Thinner / thicker (Shift: by 5) |
 | Enter / Esc | Finish a curve, crop, text or dimension / drop it |
@@ -58,7 +58,7 @@ To draw a **curve**, drag a straight line, then drag the round handle in its mid
 
 To add **text**, pick the text tool (T), click where it should go and type. Enter finishes it, Shift+Enter starts a new line, and clicking somewhere else finishes it and starts another there. The thickness slider sets the size (the default gives 20 px text), and the **Box behind text** switch in the pill above the picture puts the text on a box so it stands out on a busy background. The colour, size and box can still be changed while you're typing.
 
-To add a **dimension** (like SolidWorks' smart dimension), pick the dimension tool (D) and click the two points to measure between. Then move the pointer: above or below the points gives a horizontal dimension, to the left or right a vertical one, and anywhere else an aligned one (the true distance). Click to place it, type the text (it starts as the length in pixels, selected so typing replaces it) and press Enter. Text too long for the gap moves just outside the line by itself.
+To add a **dimension** (like SolidWorks' smart dimension), pick the dimension tool (D) and click the two points to measure between (hold Shift to keep them level, upright or at 45°). Then move the pointer: above or below the points gives a horizontal dimension, to the left or right a vertical one, and anywhere else an aligned one (the true distance). Click to place it, type the text (it starts as the length in pixels, selected so typing replaces it) and press Enter. Text too long for the gap moves just outside the line by itself.
 
 To **move** marks, pick the move tool (V). Click a mark to select it and drag it; the arrow keys nudge it and Delete removes it. For a dimension, drag its text to put it anywhere (near the line it snaps on; elsewhere it gets a leader line), drag the round handle above the text to turn it (Shift turns it freely), drag the dimension line to move it in or out, or drag an extension line to move the whole thing. Other tools never move marks, so you can draw on top of them.
 

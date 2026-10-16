@@ -37,7 +37,7 @@ internal partial class EditorWindow : Window
         [ToolKind.Ellipse] = ("Circle", "drag · Shift makes a perfect circle"),
         [ToolKind.Highlighter] = ("Highlighter", "four times as wide, see-through · Shift keeps it straight"),
         [ToolKind.Text] = ("Text", "click and type · Shift+Enter for a new line · size is 4 × thickness"),
-        [ToolKind.Dimension] = ("Dimension", "click two points, move to pick H, V or aligned, click to place"),
+        [ToolKind.Dimension] = ("Dimension", "click two points (Shift snaps 0°, 45°, 90°), move to pick H, V or aligned, click to place"),
         [ToolKind.Eraser] = ("Eraser", "click or drag across marks to remove them"),
         [ToolKind.Crop] = ("Crop", "drag a box, then press Enter"),
     };

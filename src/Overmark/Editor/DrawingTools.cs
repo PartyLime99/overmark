@@ -20,8 +20,8 @@ internal sealed record TypingState(string Text, Point Origin, double FontSize, C
 /// The text tool starts typing where it's clicked (<see cref="Typing"/>); the editor's text box feeds in what's typed
 /// (<see cref="SetText"/>), and Enter or clicking elsewhere finishes it.
 /// The dimension tool takes three clicks: the two points to measure between, then where the dimension line goes
-/// (which also picks horizontal, vertical or aligned). Then its text is typed like the text tool's, starting with the
-/// measured length in pixels.
+/// (which also picks horizontal, vertical or aligned). Shift snaps the second point to 0°, 45° or 90° from the first,
+/// like a line. Then its text is typed like the text tool's, starting with the measured length in pixels.
 /// The eraser and move tool make no marks; the editor handles them.
 /// </remarks>
 internal sealed class DrawingTools
@@ -43,6 +43,7 @@ internal sealed class DrawingTools
     private TextMark? _text;
     private DimensionMark? _dimension;
     private Point _pointer;
+    private bool _shift;
     private bool _pressingDimension;
     private double _dragThreshold;
     private StrokeStyle _style;
@@ -147,8 +148,11 @@ internal sealed class DrawingTools
     /// <summary>The points picked so far for a dimension that hasn't been placed yet (none, one or two).</summary>
     public IReadOnlyList<Point> DimensionPoints => _dimensionPoints;
 
-    /// <summary>After a dimension's first point, where the pointer is: a guide line runs to it from the first point.</summary>
-    public Point? DimensionGuide => _dimensionPoints.Count == 1 ? _pointer : null;
+    /// <summary>
+    /// After a dimension's first point, where the second would go: the pointer, or with Shift, snapped to 0°, 45° or
+    /// 90°. A guide line runs to it from the first point.
+    /// </summary>
+    public Point? DimensionGuide => _dimensionPoints.Count == 1 ? SecondDimensionPoint(_pointer, _shift) : null;
 
     /// <summary>While a dimension is being placed: what it will measure, shown beside the pointer.</summary>
     public (string Text, Point At)? DimensionHint =>
@@ -189,7 +193,7 @@ internal sealed class DrawingTools
                 ShowTyping("");
                 return;
             case ToolKind.Dimension when !wasDimension:
-                PickDimensionPoint(point);
+                PickDimensionPoint(point, shift);
                 return;
             case ToolKind.Dimension or ToolKind.Eraser or ToolKind.Move:
                 return;
@@ -215,6 +219,7 @@ internal sealed class DrawingTools
         if (_dimensionPoints.Count > 0)
         {
             _pointer = point;
+            _shift = shift;
             ShowPlacingDimension();
             return;
         }
@@ -248,7 +253,7 @@ internal sealed class DrawingTools
             if (_dimensionPoints.Count == 1 && (point - _dimensionPoints[0]).Length > _dragThreshold)
             {
                 _pointer = point;
-                _dimensionPoints.Add(point);
+                _dimensionPoints.Add(SecondDimensionPoint(point, shift));
                 ShowPlacingDimension();
             }
 
@@ -289,12 +294,17 @@ internal sealed class DrawingTools
         Commit(mark);
     }
 
-    /// <summary>Redraws the mark in progress when Shift is pressed or released without the mouse moving.</summary>
+    /// <summary>Redraws the mark in progress, or a dimension's guide line, when Shift is pressed or released without the mouse moving.</summary>
     public void ShiftChanged(bool shift)
     {
+        _shift = shift;
         if (_drawing)
         {
             ShowDrawing(shift);
+        }
+        else if (_dimensionPoints.Count == 1)
+        {
+            PreviewChanged?.Invoke();
         }
     }
 
@@ -391,7 +401,7 @@ internal sealed class DrawingTools
     }
 
     /// <summary>Picks a dimension's first point, or its second, which must be somewhere else.</summary>
-    private void PickDimensionPoint(Point point)
+    private void PickDimensionPoint(Point point, bool shift)
     {
         _pointer = point;
         switch (_dimensionPoints.Count)
@@ -400,8 +410,13 @@ internal sealed class DrawingTools
                 _dimensionPoints.Add(point);
                 _pressingDimension = true;
                 break;
-            case 1 when (point - _dimensionPoints[0]).Length >= MinimumSize:
-                _dimensionPoints.Add(point);
+            case 1:
+                var second = SecondDimensionPoint(point, shift);
+                if ((second - _dimensionPoints[0]).Length >= MinimumSize)
+                {
+                    _dimensionPoints.Add(second);
+                }
+
                 break;
             case 2:
                 // The third click places the dimension line; then its text is typed, starting with the measured length.
@@ -413,6 +428,14 @@ internal sealed class DrawingTools
 
         ShowPlacingDimension();
     }
+
+    /// <summary>
+    /// Where a dimension's second point goes for the pointer at <paramref name="point"/>: right there, or with Shift,
+    /// snapped to 0°, 45° or 90° from the first point. Shift doesn't affect the third click, as the dimension line's
+    /// direction is already set by what it measures.
+    /// </summary>
+    private Point SecondDimensionPoint(Point point, bool shift) =>
+        shift ? MarkGeometry.SnapAngle(_dimensionPoints[0], point) : point;
 
     private DimensionMark PlacingDimension(Point through)
     {
