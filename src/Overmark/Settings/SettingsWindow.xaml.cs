@@ -25,6 +25,9 @@ internal partial class SettingsWindow : Window
     private readonly DispatcherTimer _recordingTimeout = new() { Interval = TimeSpan.FromSeconds(10) };
     private HotkeyAction? _recording;
 
+    // True when the key being recorded is added to the action's hotkeys rather than replacing them.
+    private bool _recordingExtra;
+
     public SettingsWindow(AppSettings settings, IHotkeyRecorder hotkeys, Action<AppSettings> save, Action openSettingsFile)
     {
         InitializeComponent();
@@ -42,8 +45,13 @@ internal partial class SettingsWindow : Window
 
         foreach (var (action, box) in _hotkeyBoxes)
         {
-            box.Click += (_, _) => StartRecording(action);
+            box.Click += (_, _) => StartRecording(action, extra: false);
         }
+
+        RegionCaptureAdd.Click += (_, _) => StartRecording(HotkeyAction.RegionCapture, extra: true);
+        LastRegionAdd.Click += (_, _) => StartRecording(HotkeyAction.LastRegion, extra: true);
+        FullScreenAdd.Click += (_, _) => StartRecording(HotkeyAction.FullScreen, extra: true);
+        RecordAdd.Click += (_, _) => StartRecording(HotkeyAction.Record, extra: true);
 
         RegionCaptureClear.Click += (_, _) => ClearHotkey(HotkeyAction.RegionCapture);
         LastRegionClear.Click += (_, _) => ClearHotkey(HotkeyAction.LastRegion);
@@ -82,11 +90,12 @@ internal partial class SettingsWindow : Window
         ShowPrintScreenStatus();
     }
 
-    private void StartRecording(HotkeyAction action)
+    private void StartRecording(HotkeyAction action, bool extra)
     {
         StopRecording();
         _recording = action;
-        _hotkeyBoxes[action].Content = "Press the keys…";
+        _recordingExtra = extra;
+        _hotkeyBoxes[action].Content = extra ? "Press the extra keys…" : "Press the keys…";
         _hotkeyBoxes[action].BorderBrush = RecordingBrush;
         _hotkeys.StartRecording(OnKeyRecorded);
         _recordingTimeout.Start();
@@ -102,7 +111,13 @@ internal partial class SettingsWindow : Window
         // Esc on its own keeps the old hotkey.
         if (!(hotkey.Modifiers == ModifierKeys.None && KeyInterop.KeyFromVirtualKey(hotkey.VirtualKey) == Key.Escape))
         {
-            _settings.Hotkeys.Set(action, hotkey.ToString());
+            var hotkeys = _recordingExtra ? ValidHotkeys(action) : new List<Hotkey>();
+            if (!hotkeys.Contains(hotkey))
+            {
+                hotkeys.Add(hotkey);
+            }
+
+            _settings.Hotkeys.Set(action, HotkeyBindings.Join(hotkeys));
         }
 
         StopRecording();
@@ -127,14 +142,29 @@ internal partial class SettingsWindow : Window
     {
         foreach (var (action, box) in _hotkeyBoxes)
         {
-            var text = _settings.Hotkeys.Get(action);
-            box.Content = Hotkey.TryParse(text, out var hotkey) ? hotkey.DisplayText : "None";
+            var hotkeys = ValidHotkeys(action);
+            box.Content = hotkeys.Count > 0 ? HotkeyBindings.Describe(hotkeys) : "None";
             box.BorderBrush = NormalBorderBrush;
         }
 
         HotkeyBindings.FromSettings(_settings.Hotkeys, out var problems);
         HotkeyProblems.Text = string.Join(Environment.NewLine, problems);
         HotkeyProblems.Visibility = problems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>The action's hotkeys as written in the settings, leaving out any that aren't valid.</summary>
+    private List<Hotkey> ValidHotkeys(HotkeyAction action)
+    {
+        var hotkeys = new List<Hotkey>();
+        foreach (var entry in HotkeyBindings.Split(_settings.Hotkeys.Get(action)))
+        {
+            if (Hotkey.TryParse(entry, out var hotkey) && !hotkeys.Contains(hotkey))
+            {
+                hotkeys.Add(hotkey);
+            }
+        }
+
+        return hotkeys;
     }
 
     private void BrowseForFolder()

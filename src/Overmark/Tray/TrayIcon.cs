@@ -49,11 +49,11 @@ internal sealed class TrayIcon : IDisposable
     }
 
     /// <summary>Shows each action's hotkey beside it in the menu.</summary>
-    public void ShowHotkeys(IReadOnlyDictionary<HotkeyAction, Hotkey> bindings)
+    public void ShowHotkeys(IReadOnlyDictionary<HotkeyAction, IReadOnlyList<Hotkey>> bindings)
     {
         foreach (var (action, item) in _actionItems)
         {
-            item.ShortcutKeyDisplayString = bindings.TryGetValue(action, out var hotkey) ? hotkey.DisplayText : "";
+            item.ShortcutKeyDisplayString = bindings.TryGetValue(action, out var hotkeys) ? HotkeyBindings.Describe(hotkeys) : "";
         }
     }
 

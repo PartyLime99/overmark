@@ -61,19 +61,19 @@ internal sealed class HotkeyService : IHotkeyRecorder, IDisposable
     public bool HookActive => _hook != IntPtr.Zero;
 
     /// <summary>
-    /// Replaces the hotkeys. Returns the actions RegisterHotKey also accepted, i.e. the ones that keep working
+    /// Replaces the hotkeys. Returns the hotkeys RegisterHotKey also accepted, i.e. the ones that keep working
     /// while an admin window is focused.
     /// </summary>
-    public IReadOnlySet<HotkeyAction> Apply(IReadOnlyDictionary<HotkeyAction, Hotkey> bindings)
+    public IReadOnlySet<Hotkey> Apply(IReadOnlyDictionary<HotkeyAction, IReadOnlyList<Hotkey>> bindings)
     {
         lock (_matcherLock)
         {
             _matcher.SetBindings(bindings);
         }
 
-        var registered = new TaskCompletionSource<IReadOnlySet<HotkeyAction>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var registered = new TaskCompletionSource<IReadOnlySet<Hotkey>>(TaskCreationOptions.RunContinuationsAsynchronously);
         Post(() => registered.SetResult(RegisterAll(bindings)));
-        return registered.Task.Wait(TimeSpan.FromSeconds(2)) ? registered.Task.Result : new HashSet<HotkeyAction>();
+        return registered.Task.Wait(TimeSpan.FromSeconds(2)) ? registered.Task.Result : new HashSet<Hotkey>();
     }
 
     /// <summary>
@@ -222,21 +222,26 @@ internal sealed class HotkeyService : IHotkeyRecorder, IDisposable
         _dispatcher.InvokeAsync(() => Triggered?.Invoke(action));
     }
 
-    private HashSet<HotkeyAction> RegisterAll(IReadOnlyDictionary<HotkeyAction, Hotkey> bindings)
+    private HashSet<Hotkey> RegisterAll(IReadOnlyDictionary<HotkeyAction, IReadOnlyList<Hotkey>> bindings)
     {
         UnregisterAll();
+        var registered = new HashSet<Hotkey>();
         var id = 1;
-        foreach (var (action, hotkey) in bindings)
+        foreach (var (action, hotkeys) in bindings)
         {
-            if (RegisterHotKey(IntPtr.Zero, id, (uint)hotkey.Modifiers | MOD_NOREPEAT, (uint)hotkey.VirtualKey))
+            foreach (var hotkey in hotkeys)
             {
-                _registeredIds[id] = action;
-            }
+                if (RegisterHotKey(IntPtr.Zero, id, (uint)hotkey.Modifiers | MOD_NOREPEAT, (uint)hotkey.VirtualKey))
+                {
+                    _registeredIds[id] = action;
+                    registered.Add(hotkey);
+                }
 
-            id++;
+                id++;
+            }
         }
 
-        return [.. _registeredIds.Values];
+        return registered;
     }
 
     private void UnregisterAll()

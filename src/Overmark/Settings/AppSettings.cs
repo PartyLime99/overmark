@@ -54,7 +54,10 @@ internal sealed class AppSettings
     public bool SnippingKeyPromptDismissed { get; set; }
 }
 
-/// <summary>Hotkeys as text, e.g. "Shift+PrintScreen". An empty value or "None" turns a hotkey off.</summary>
+/// <summary>
+/// Hotkeys as text, e.g. "Shift+PrintScreen". Several for one action are separated by commas, e.g.
+/// "PrintScreen, Win+Shift+S". An empty value or "None" turns an action's hotkey off.
+/// </summary>
 internal sealed class HotkeySettings
 {
     public string? RegionCapture { get; set; } = "PrintScreen";

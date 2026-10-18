@@ -7,14 +7,15 @@ public class HotkeyMatcherTests
 {
     private const int PrintScreen = 0x2C;
     private const int LetterA = 0x41;
+    private const int LetterS = 0x53;
 
     private static HotkeyMatcher CreateMatcher()
     {
         var matcher = new HotkeyMatcher();
-        matcher.SetBindings(new Dictionary<HotkeyAction, Hotkey>
+        matcher.SetBindings(new Dictionary<HotkeyAction, IReadOnlyList<Hotkey>>
         {
-            [HotkeyAction.RegionCapture] = new(ModifierKeys.None, PrintScreen),
-            [HotkeyAction.LastRegion] = new(ModifierKeys.Shift, PrintScreen),
+            [HotkeyAction.RegionCapture] = [new(ModifierKeys.None, PrintScreen), new(ModifierKeys.Windows | ModifierKeys.Shift, LetterS)],
+            [HotkeyAction.LastRegion] = [new(ModifierKeys.Shift, PrintScreen)],
         });
         return matcher;
     }
@@ -26,6 +27,18 @@ public class HotkeyMatcherTests
 
         Assert.Equal(new KeyDecision(true, HotkeyAction.RegionCapture), matcher.KeyDown(PrintScreen, ModifierKeys.None));
         Assert.Equal(new KeyDecision(true, null), matcher.KeyUp(PrintScreen, ModifierKeys.None));
+    }
+
+    [Fact]
+    public void Each_of_an_actions_hotkeys_fires_it()
+    {
+        var matcher = CreateMatcher();
+
+        Assert.Equal(HotkeyAction.RegionCapture, matcher.KeyDown(PrintScreen, ModifierKeys.None).Fire);
+        matcher.KeyUp(PrintScreen, ModifierKeys.None);
+        Assert.Equal(HotkeyAction.RegionCapture, matcher.KeyDown(LetterS, ModifierKeys.Windows | ModifierKeys.Shift).Fire);
+        Assert.Equal(new KeyDecision(true, null), matcher.KeyUp(LetterS, ModifierKeys.Windows | ModifierKeys.Shift));
+        Assert.Equal(KeyDecision.PassThrough, matcher.KeyDown(LetterS, ModifierKeys.None));
     }
 
     [Fact]
