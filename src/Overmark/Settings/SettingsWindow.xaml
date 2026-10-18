@@ -318,6 +318,7 @@
                                 <ColumnDefinition Width="124" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
                                 <RowDefinition />
@@ -333,12 +334,16 @@
                             <Button x:Name="LastRegionBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,2" />
                             <Button x:Name="FullScreenBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,2" />
                             <Button x:Name="RecordBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,2" />
-                            <Button x:Name="RegionCaptureClear" Grid.Row="0" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
-                            <Button x:Name="LastRegionClear" Grid.Row="1" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
-                            <Button x:Name="FullScreenClear" Grid.Row="2" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
-                            <Button x:Name="RecordClear" Grid.Row="3" Grid.Column="2" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                            <Button x:Name="RegionCaptureAdd" Grid.Row="0" Grid.Column="2" Style="{StaticResource Action}" Content="Add" Margin="8,2,0,2" />
+                            <Button x:Name="LastRegionAdd" Grid.Row="1" Grid.Column="2" Style="{StaticResource Action}" Content="Add" Margin="8,2,0,2" />
+                            <Button x:Name="FullScreenAdd" Grid.Row="2" Grid.Column="2" Style="{StaticResource Action}" Content="Add" Margin="8,2,0,2" />
+                            <Button x:Name="RecordAdd" Grid.Row="3" Grid.Column="2" Style="{StaticResource Action}" Content="Add" Margin="8,2,0,2" />
+                            <Button x:Name="RegionCaptureClear" Grid.Row="0" Grid.Column="3" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                            <Button x:Name="LastRegionClear" Grid.Row="1" Grid.Column="3" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                            <Button x:Name="FullScreenClear" Grid.Row="2" Grid.Column="3" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
+                            <Button x:Name="RecordClear" Grid.Row="3" Grid.Column="3" Style="{StaticResource Action}" Content="Clear" Margin="8,2,0,2" />
                         </Grid>
-                        <TextBlock Style="{StaticResource Hint}" Text="Click a box, then press the keys you want. Esc keeps the old one." Margin="0,7,0,0" />
+                        <TextBlock Style="{StaticResource Hint}" Text="Click a box, then press the keys you want. Add gives the same action another key as well. Esc keeps the old one." Margin="0,7,0,0" />
                         <TextBlock x:Name="HotkeyProblems" Style="{StaticResource Hint}" Foreground="#B42318" Visibility="Collapsed" />
                     </StackPanel>
                 </Border>
