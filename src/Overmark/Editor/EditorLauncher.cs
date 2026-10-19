@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Overmark.Capture;
+using Overmark.Hotkeys;
 using Overmark.Pinning;
 using Overmark.Platform;
 using Overmark.Settings;
@@ -12,6 +13,9 @@ namespace Overmark.Editor;
 internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSettings> rememberSettings, PinBoard pins, CaptureHistory history, TrayIcon tray)
 {
     private readonly Dictionary<string, EditorWindow> _open = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Every editor window, including one with no capture open (which isn't in <see cref="_open"/>).</summary>
+    private readonly List<EditorWindow> _windows = [];
     private readonly EditStore _edits = CreateEditStore();
 
     /// <summary>The editor window used last, which captures open in.</summary>
@@ -51,6 +55,25 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
     }
 
     /// <summary>
+    /// Brings up the editor (double-clicking the tray icon, or starting Overmark from its shortcut): the editor that's
+    /// open comes to the front as it is; otherwise one opens on today's newest screenshot, or with no capture, where a
+    /// note says how to take one.
+    /// </summary>
+    public void OpenEditor()
+    {
+        if (_latest is { } open)
+        {
+            Activate(open);
+            return;
+        }
+
+        var newest = history.TakenOn(DateTime.Today).FirstOrDefault(r => !r.IsVideo);
+        var window = (newest is null ? null : Create(newest.Path)) ?? Create(null, null, null);
+        window.Show();
+        ForegroundWindow.Activate(window);
+    }
+
+    /// <summary>
     /// Shows another capture in <paramref name="current"/>'s window, as when it's picked from the list of today's
     /// captures. Unsaved marks aren't asked about: they're kept as a draft, and come back (still unsaved) when that
     /// capture is opened again within a day. A capture that's already open elsewhere is just brought to the front.
@@ -76,9 +99,7 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         if (string.Equals(current.CapturePath, path, StringComparison.OrdinalIgnoreCase))
         {
             // Picked before closing, while this one is still on the list to count from.
-            var screenshots = history.TakenOn(DateTime.Today).Where(r => !r.IsVideo).Select(r => r.Path).ToList();
-            var index = screenshots.FindIndex(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
-            var next = index + 1 < screenshots.Count ? screenshots[index + 1] : index > 0 ? screenshots[index - 1] : null;
+            var next = NextAfter(path);
             if (!current.ConfirmLeave())
             {
                 return;
@@ -125,6 +146,47 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         history.Close(path);
     }
 
+    /// <summary>
+    /// The bin button, once it's asked: sends the capture being edited to the Recycle Bin, unsaved changes and all
+    /// (its editable copy goes too), and moves on to the next one in the list, as its x does. Rather than closing,
+    /// the editor stays open with no capture if there's nothing left to show.
+    /// </summary>
+    public void DeleteCapture(EditorWindow current, string path)
+    {
+        // Picked before deleting, while it's still on the list to count from.
+        var next = NextAfter(path);
+        if (!RecycleBin.TrySend(path, out var problem))
+        {
+            Log.Warn($"Couldn't delete {path}: {problem}");
+            MessageBox.Show(current, $"Couldn't delete {Path.GetFileName(path)}:\n\n{problem}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        Log.Info($"Deleted {path} from the editor");
+        _edits.Forget(path);
+        if (next is not null && TryActivate(next))
+        {
+            // The next one is open in another window, which has come to the front.
+            current.CloseWithoutAsking();
+        }
+        else if (next is null || !ShowIn(current, next))
+        {
+            _open.Remove(path);
+            current.ShowNoCapture();
+        }
+    }
+
+    /// <summary>
+    /// The screenshot to move on to when <paramref name="path"/> is closed or deleted: the next one down today's list
+    /// (the one taken before it), or the one above if it's at the bottom. Null if it's the only one.
+    /// </summary>
+    private string? NextAfter(string path)
+    {
+        var screenshots = history.TakenOn(DateTime.Today).Where(r => !r.IsVideo).Select(r => r.Path).ToList();
+        var index = screenshots.FindIndex(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+        return index + 1 < screenshots.Count ? screenshots[index + 1] : index > 0 ? screenshots[index - 1] : null;
+    }
+
     /// <summary>Shows <paramref name="path"/> in <paramref name="window"/>, in place of its capture. False if it couldn't be read.</summary>
     private bool ShowIn(EditorWindow window, string path)
     {
@@ -133,7 +195,11 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
             return false;
         }
 
-        _open.Remove(window.CapturePath);
+        if (window.CapturePath is { } showing)
+        {
+            _open.Remove(showing);
+        }
+
         window.ShowCapture(path, capture.Image, capture.Kept);
         _open[path] = window;
         return true;
@@ -142,12 +208,12 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
     /// <summary>Asks every open editor to close. Returns false if the user kept one open (to save it first).</summary>
     public bool CloseAll()
     {
-        foreach (var window in _open.Values.ToList())
+        foreach (var window in _windows.ToList())
         {
             window.Close();
         }
 
-        return _open.Count == 0;
+        return _windows.Count == 0;
     }
 
     private bool TryActivate(string path)
@@ -157,37 +223,51 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
             return false;
         }
 
-        if (existing.WindowState == WindowState.Minimized)
-        {
-            existing.WindowState = WindowState.Normal;
-        }
-
-        ForegroundWindow.Activate(existing);
+        Activate(existing);
         return true;
     }
 
-    private EditorWindow? Create(string path)
+    private static void Activate(EditorWindow window)
     {
-        if (Prepare(path) is not { } capture)
+        if (window.WindowState == WindowState.Minimized)
         {
-            return null;
+            window.WindowState = WindowState.Normal;
         }
 
+        ForegroundWindow.Activate(window);
+    }
+
+    /// <summary>An editor window for <paramref name="path"/>, or null (after saying why) if it can't be read.</summary>
+    private EditorWindow? Create(string path) => Prepare(path) is { } capture ? Create(path, capture.Image, capture.Kept) : null;
+
+    /// <summary>An editor window showing <paramref name="path"/>, or no capture if it's null.</summary>
+    private EditorWindow Create(string? path, BitmapSource? image, EditorDocument? kept)
+    {
         EditorWindow? window = null;
         window = new EditorWindow(
-            path, capture.Image, settings().Editor, rememberSettings, Pin, history, other => SwitchTo(window!, other), _edits,
-            capture.Kept, other => CloseCapture(window!, other));
-        _open[path] = window;
+            path, image, settings().Editor, rememberSettings, Pin, history, other => SwitchTo(window!, other), _edits,
+            kept, other => CloseCapture(window!, other), other => DeleteCapture(window!, other), HowToCapture);
+        if (path is not null)
+        {
+            _open[path] = window;
+        }
+
+        _windows.Add(window);
         _latest = window;
         window.Activated += (_, _) => _latest = window;
 
-        // The window may have moved on to other captures by the time it closes.
+        // The window may have moved on to other captures (or none) by the time it closes.
         window.Closed += (_, _) =>
         {
-            _open.Remove(window.CapturePath);
+            if (window.CapturePath is { } showing)
+            {
+                _open.Remove(showing);
+            }
+
+            _windows.Remove(window);
             if (_latest == window)
             {
-                _latest = _open.Values.LastOrDefault();
+                _latest = _windows.LastOrDefault();
             }
         };
         return window;
@@ -195,10 +275,18 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         // Editing the pin later reopens the capture that was pinned, wherever the window has got to since.
         void Pin(BitmapSource rendered)
         {
-            var pinned = window!.CapturePath;
-            pins.Open(rendered, edit: () => Open(pinned));
+            if (window!.CapturePath is { } pinned)
+            {
+                pins.Open(rendered, edit: () => Open(pinned));
+            }
         }
     }
+
+    /// <summary>What the editor says when no capture is open: how to take one, with the hotkey if there is one.</summary>
+    private string HowToCapture() =>
+        HotkeyBindings.FromSettings(settings().Hotkeys, out _).TryGetValue(HotkeyAction.RegionCapture, out var hotkeys)
+            ? $"Take a screenshot to start editing: press {HotkeyBindings.Describe(hotkeys)}, and it opens here."
+            : "Take a screenshot to start editing: right-click Overmark in the notification area and pick a capture, and it opens here.";
 
     /// <summary>
     /// The capture's picture, read for editing. If it was edited in the last day (and the file hasn't changed since),

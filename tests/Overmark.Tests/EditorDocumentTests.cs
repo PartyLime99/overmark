@@ -167,6 +167,30 @@ public class EditorDocumentTests
     }
 
     [Fact]
+    public void Replacing_a_mark_keeps_its_place_and_undoes_in_one_step()
+    {
+        var document = new EditorDocument(WhiteImage(4, 4));
+        var middle = new TextMark(Red, new Point(1, 1), "Old", Boxed: false);
+        document.Add(Line(1));
+        document.Add(middle);
+        document.Add(Line(3));
+        var changed = middle with { Text = "New" };
+
+        document.Replace(middle, changed);
+        Assert.Equal([Line(1), changed, Line(3)], document.Marks);
+        document.Undo();
+        Assert.Equal([Line(1), middle, Line(3)], document.Marks);
+
+        // With nothing left to say, it goes; a mark that's gone already is left alone.
+        document.Replace(middle, null);
+        Assert.Equal([Line(1), Line(3)], document.Marks);
+        document.Replace(middle, changed);
+        Assert.Equal([Line(1), Line(3)], document.Marks);
+        document.Undo();
+        Assert.Equal([Line(1), middle, Line(3)], document.Marks);
+    }
+
+    [Fact]
     public void Touching_anywhere_on_text_erases_it()
     {
         var text = new TextMark(new StrokeStyle(Palette.Colours[0], 20), new Point(100, 100), "Label", Boxed: false);

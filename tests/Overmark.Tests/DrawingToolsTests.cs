@@ -507,4 +507,116 @@ public class DrawingToolsTests
 
         Assert.True(Assert.IsType<CurveMark>(Assert.Single(_committed)).Arrowhead);
     }
+
+    [Fact]
+    public void Text_already_drawn_has_its_words_changed_in_its_own_style()
+    {
+        var edits = new List<(Mark Before, Mark? After)>();
+        _tools.Edited += (before, after) => edits.Add((before, after));
+        _tools.Tool = ToolKind.Move;
+        _tools.Width = 2; // the pen differs from the text
+        var text = new TextMark(new StrokeStyle(Palette.Colours[4], 32), new Point(40, 30), "Helo", Boxed: true);
+
+        _tools.EditText(text);
+        Assert.Same(text, _tools.Editing);
+        Assert.Equal("Helo", _tools.Typing?.Text);
+        Assert.Equal(text.Position, _tools.Typing?.Origin);
+        Assert.Equal(32, _tools.Typing?.FontSize);
+
+        _tools.SetText("Hello  ");
+        _tools.Finish();
+
+        var (before, after) = Assert.Single(edits);
+        Assert.Same(text, before);
+        Assert.Equal(text with { Text = "Hello" }, after);
+        Assert.Empty(_committed);
+        Assert.Null(_tools.Editing);
+        Assert.Null(_tools.Typing);
+    }
+
+    [Fact]
+    public void Escape_leaves_text_as_it_was_and_deleting_its_words_removes_it()
+    {
+        var edits = new List<(Mark Before, Mark? After)>();
+        _tools.Edited += (before, after) => edits.Add((before, after));
+        _tools.Tool = ToolKind.Move;
+        var text = new TextMark(new StrokeStyle(Palette.Colours[0], 20), new Point(40, 30), "Note", Boxed: false);
+
+        _tools.EditText(text);
+        _tools.SetText("Changed");
+        _tools.Cancel();
+        Assert.Empty(edits);
+        Assert.Null(_tools.Editing);
+
+        _tools.EditText(text);
+        _tools.SetText(" ");
+        _tools.Finish();
+        Assert.Equal((text, null), Assert.Single(edits));
+    }
+
+    [Fact]
+    public void Changing_the_pen_while_changing_words_changes_only_what_was_picked()
+    {
+        Mark? after = null;
+        _tools.Edited += (_, changed) => after = changed;
+        _tools.Tool = ToolKind.Move;
+        var text = new TextMark(new StrokeStyle(Palette.Colours[0], 32), new Point(40, 30), "Note", Boxed: false);
+
+        _tools.EditText(text);
+        _tools.Colour = Palette.Colours[4];
+        _tools.Finish();
+
+        Assert.Equal(text with { Style = new StrokeStyle(Palette.Colours[4], 32) }, after);
+    }
+
+    [Fact]
+    public void A_dimensions_words_can_be_changed_and_it_stays_without_any()
+    {
+        Mark? after = null;
+        _tools.Edited += (_, changed) => after = changed;
+        _tools.Tool = ToolKind.Move;
+        var dimension = new DimensionMark(
+            new StrokeStyle(Palette.Colours[0], 5), new Point(10, 100), new Point(210, 100), new Point(110, 60), DimensionKind.Horizontal,
+            "200 px", TextAngle: 90);
+
+        _tools.EditText(dimension);
+        Assert.Equal("200 px", _tools.Typing?.Text);
+        Assert.Equal(90, _tools.Typing?.Angle);
+        _tools.SetText("");
+        _tools.Finish();
+
+        Assert.Equal(dimension with { Text = "" }, after);
+    }
+
+    [Fact]
+    public void Other_marks_have_no_words_to_change()
+    {
+        _tools.Tool = ToolKind.Move;
+        _tools.EditText(new LineMark(new StrokeStyle(Palette.Colours[0], 4), new Point(0, 0), new Point(50, 50)));
+
+        Assert.Null(_tools.Editing);
+        Assert.Null(_tools.Typing);
+    }
+
+    [Fact]
+    public void A_marks_thickness_is_the_sliders_value_it_was_drawn_at()
+    {
+        var style = new StrokeStyle(Palette.Colours[0], 6);
+        var line = new LineMark(style, new Point(0, 0), new Point(50, 50));
+        Assert.Equal(6, line.Thickness);
+        Assert.Equal(line with { Style = style with { Width = 9 } }, line.WithThickness(9));
+
+        var highlighter = new HighlighterMark(style with { Width = 24 }, [new Point(0, 0), new Point(50, 0)]);
+        Assert.Equal(6, highlighter.Thickness);
+        Assert.Equal(36, highlighter.WithThickness(9).Style.Width);
+
+        // Text keeps the middle of its first line where it was.
+        var text = new TextMark(style with { Width = 20 }, new Point(10, 10), "Note", Boxed: false);
+        Assert.Equal(5, text.Thickness);
+        var bigger = Assert.IsType<TextMark>(text.WithThickness(10));
+        Assert.Equal(40, bigger.FontSize);
+        Assert.Equal(10, bigger.Position.X);
+        Assert.Equal(10 + TextMark.LineHeight(20) / 2, bigger.Position.Y + TextMark.LineHeight(40) / 2, 6);
+        Assert.Same(text, text.WithThickness(5));
+    }
 }

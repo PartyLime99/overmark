@@ -175,6 +175,14 @@
             </Setter>
         </Style>
 
+        <!-- The dots either side of the thickness slider, which make it 1 px thinner or thicker. -->
+        <Style x:Key="StepButton" TargetType="Button" BasedOn="{StaticResource DockButton}">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Foreground" Value="#8A929C" />
+        </Style>
+
         <!-- A tool in a flyout: icon, name and key. -->
         <Style x:Key="FlyoutTool" TargetType="RadioButton">
             <Setter Property="Focusable" Value="False" />
@@ -594,7 +602,7 @@
         <Border x:Name="TitleBar" Background="White" BorderBrush="#DADFE5" BorderThickness="0,0,0,1">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button x:Name="DeleteButton" Style="{StaticResource DangerButton}" ToolTip="Delete this capture: asks first, then moves the file to the Recycle Bin and closes the editor">
+                    <Button x:Name="DeleteButton" Style="{StaticResource DangerButton}" ToolTip="Delete this capture: asks first, then moves the file to the Recycle Bin and shows the next capture">
                         <Path Style="{StaticResource SmallIcon}" Data="M3,5 H15 M7,5 V3 H11 V5 M4.5,5 L5.5,16 H12.5 L13.5,5 M7.5,8 V13 M10.5,8 V13" />
                     </Button>
                     <Button x:Name="PinButton" Style="{StaticResource BarButton}" ToolTip="Pin to the screen: keep it on top of everything">
@@ -694,7 +702,7 @@
             </ScrollViewer>
 
             <!-- What the selected tool does, with its on/off options. -->
-            <Border Style="{StaticResource FloatCard}" CornerRadius="17" Height="34" HorizontalAlignment="Center" VerticalAlignment="Top"
+            <Border x:Name="ToolPill" Style="{StaticResource FloatCard}" CornerRadius="17" Height="34" HorizontalAlignment="Center" VerticalAlignment="Top"
                     Margin="130,14,130,0" Padding="14,0,4,0">
                 <DockPanel VerticalAlignment="Center">
                     <TextBlock x:Name="ToolNameText" DockPanel.Dock="Left" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
@@ -707,7 +715,7 @@
                 </DockPanel>
             </Border>
 
-            <Border Style="{StaticResource FloatCard}" CornerRadius="12" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,16,0" Padding="2">
+            <Border x:Name="ZoomPill" Style="{StaticResource FloatCard}" CornerRadius="12" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,16,0" Padding="2">
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="FitButton" Style="{StaticResource PillButton}" Content="Fit" ToolTip="Fit to the window (Ctrl+0)" />
                     <Button x:Name="ActualSizeButton" Style="{StaticResource PillButton}" ToolTip="Actual size (Ctrl+1). Ctrl+scroll to zoom.">
@@ -728,8 +736,8 @@
                         </Button>
                         <Rectangle Style="{StaticResource DockDivider}" />
 
-                        <RadioButton x:Name="MoveButton" Style="{StaticResource DockTool}" ToolTip="Move (V). Click a mark to select it, then drag it; the arrow keys nudge it and Delete removes it. For a dimension, drag its text, its round handle to turn the text, its line to move it in or out, or an extension line to move it all.">
-                            <Path Style="{StaticResource Icon}" Data="M9,2 V16 M2,9 H16 M7,4 L9,2 L11,4 M7,14 L9,16 L11,14 M4,7 L2,9 L4,11 M14,7 L16,9 L14,11" />
+                        <RadioButton x:Name="MoveButton" Style="{StaticResource DockTool}" ToolTip="Move (V). Click a mark to select it, then drag it; the arrow keys nudge it and Delete removes it. Picking a colour or thickness changes the selected mark, and double-clicking text or a dimension changes its words. For a dimension, drag its text, its round handle to turn the text, its line to move it in or out, or an extension line to move it all.">
+                            <Path Style="{StaticResource Icon}" Data="M3,3 L15,7.6 L9.8,9.8 L7.6,15 Z M9.8,9.8 L14.8,14.8" />
                         </RadioButton>
                         <RadioButton x:Name="FreehandTool" Style="{StaticResource DockTool}" ToolTip="Freehand (P)">
                             <Path Style="{StaticResource Icon}" Data="M3,13 C5,5 8,15 10,9 C11,6 13,5 15,4" />
@@ -800,13 +808,30 @@
                         </Button>
 
                         <Rectangle Style="{StaticResource DockDivider}" />
-                        <Ellipse Width="4" Height="4" Fill="#8A929C" VerticalAlignment="Center" />
-                        <Slider x:Name="ThicknessSlider" Style="{StaticResource ThicknessSliderStyle}" Width="128" Margin="8,0" VerticalAlignment="Center"
+                        <Button x:Name="ThinnerButton" Style="{StaticResource StepButton}" ToolTip="Thinner by 1 px ([; Shift+[ by 5)">
+                            <Ellipse Width="4" Height="4" Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+                        </Button>
+                        <Slider x:Name="ThicknessSlider" Style="{StaticResource ThicknessSliderStyle}" Width="128" Margin="2,0" VerticalAlignment="Center"
                                 Minimum="1" Maximum="30" SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True"
-                                ToolTip="Thickness. [ and ] change it too (Shift: by 5)." />
-                        <Ellipse Width="12" Height="12" Fill="#8A929C" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                ToolTip="Thickness, for the next mark and the selected one. [ and ] change it too (Shift: by 5)." />
+                        <Button x:Name="ThickerButton" Style="{StaticResource StepButton}" Margin="0,0,2,0" ToolTip="Thicker by 1 px (]; Shift+] by 5)">
+                            <Ellipse Width="12" Height="12" Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+                        </Button>
                     </StackPanel>
                 </WrapPanel>
+            </Border>
+
+            <!-- In the picture's place when no capture is open. -->
+            <Border x:Name="NoCaptureNote" Grid.RowSpan="2" Style="{StaticResource FloatCard}" CornerRadius="18" Padding="32,26,32,28" Width="360"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                <StackPanel>
+                    <Border Width="52" Height="52" CornerRadius="16" Background="#F4F6F8" HorizontalAlignment="Center">
+                        <Path Style="{StaticResource Icon}" Width="24" Height="24" Stretch="Uniform" TextElement.Foreground="#5A626D"
+                              Data="M2,6 V2 H6 M12,2 H16 V6 M16,12 V16 H12 M6,16 H2 V12" />
+                    </Border>
+                    <TextBlock Text="No screenshot open" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                    <TextBlock x:Name="NoCaptureHint" FontSize="13" Foreground="#4A525C" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0" />
+                </StackPanel>
             </Border>
 
             <!-- Flyouts for the dock's grouped tools. -->

@@ -31,7 +31,7 @@ internal partial class EditorWindow : Window
     /// <summary>The tool's name and a one-line reminder of how it works, for the pill above the picture.</summary>
     private static readonly Dictionary<ToolKind, (string Name, string Hint)> ToolHints = new()
     {
-        [ToolKind.Move] = ("Move", "drag a mark to move it · arrow keys nudge · Delete removes"),
+        [ToolKind.Move] = ("Move", "drag a mark to move it · double-click text to change it · arrow keys nudge · Delete removes"),
         [ToolKind.Freehand] = ("Freehand", "drag to draw · a click makes a dot"),
         [ToolKind.Line] = ("Line", "drag from start to end · Shift snaps to 0°, 45° or 90°"),
         [ToolKind.Arrow] = ("Arrow", "drag from tail to tip · Shift snaps to 0°, 45° or 90°"),
@@ -45,8 +45,12 @@ internal partial class EditorWindow : Window
         [ToolKind.Crop] = ("Crop", "drag a box, then press Enter"),
     };
 
-    // The capture being edited. All three change when another capture is shown in this window.
-    private string _path;
+    /// <summary>Stands in for the picture while no capture is open; it isn't shown.</summary>
+    private static readonly BitmapSource NoPicture = MakeNoPicture();
+
+    // The capture being edited, or none (null) with a note in its place. All three change when another capture is
+    // shown in this window.
+    private string? _path;
     private EditorDocument _document;
     private readonly DrawingTools _tools = new();
     private MoveTool _move;
@@ -65,7 +69,6 @@ internal partial class EditorWindow : Window
     private double _zoom = 1;
     private bool _fitToWindow = true;
     private bool _applyingSettings;
-    private bool _deleted;
     private bool _leaving;
     private Point? _erasingFrom;
 
@@ -73,6 +76,8 @@ internal partial class EditorWindow : Window
     private readonly CaptureHistory? _history;
     private readonly Action<string>? _switchTo;
     private readonly Action<string>? _closeCapture;
+    private readonly Action<string>? _deleteCapture;
+    private readonly Func<string>? _howToCapture;
 
     // Keeps the marks editable for a day after the editor closes; null leaves them flattened, as before.
     private readonly EditStore? _edits;
@@ -83,11 +88,14 @@ internal partial class EditorWindow : Window
     /// <param name="switchTo">Opens another capture in place of this one, when it's picked from the list.</param>
     /// <param name="edits">Where marks are kept editable between editors; null flattens them for good on save.</param>
     /// <param name="document">The capture with its marks still editable (from <paramref name="edits"/>); null starts from <paramref name="image"/>.</param>
+    /// <param name="path">The capture to edit, or null to open with none (a note says how to take one).</param>
     /// <param name="closeCapture">Takes a capture off the list, when its x is clicked (asking about unsaved marks first).</param>
+    /// <param name="deleteCapture">Deletes the capture being edited, once the bin button has asked; null leaves the button out.</param>
+    /// <param name="howToCapture">What the note says when no capture is open.</param>
     public EditorWindow(
-        string path, BitmapSource image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin,
+        string? path, BitmapSource? image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin,
         CaptureHistory? history = null, Action<string>? switchTo = null, EditStore? edits = null, EditorDocument? document = null,
-        Action<string>? closeCapture = null)
+        Action<string>? closeCapture = null, Action<string>? deleteCapture = null, Func<string>? howToCapture = null)
     {
         InitializeComponent();
         _path = path;
@@ -96,8 +104,10 @@ internal partial class EditorWindow : Window
         _history = history;
         _switchTo = switchTo;
         _closeCapture = closeCapture;
+        _deleteCapture = deleteCapture;
+        _howToCapture = howToCapture;
         _edits = edits;
-        _document = document ?? new EditorDocument(image);
+        _document = document ?? new EditorDocument(image ?? NoPicture);
         _move = new MoveTool(_document);
         AttachDocument();
 
@@ -132,6 +142,9 @@ internal partial class EditorWindow : Window
 
         _customSwatch = BuildSwatches();
         ThicknessSlider.ValueChanged += (_, e) => SetThickness(e.NewValue);
+        ThicknessSlider.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler((_, _) => _document.FinishChanging()), handledEventsToo: true);
+        ThinnerButton.Click += (_, _) => StepThickness(-1);
+        ThickerButton.Click += (_, _) => StepThickness(1);
         ArrowheadToggle.Checked += (_, _) => SetCurveArrowhead(true);
         ArrowheadToggle.Unchecked += (_, _) => SetCurveArrowhead(false);
         TextBoxToggle.Checked += (_, _) => SetTextBoxed(true);
@@ -180,7 +193,9 @@ internal partial class EditorWindow : Window
         // Lambdas rather than method groups, so they reach whichever capture is showing now.
         _tools.Committed += mark => _document.Add(mark);
         _tools.CropApplied += area => _document.CropTo(area);
+        _tools.Edited += (mark, changed) => _document.Replace(mark, changed);
         _tools.PreviewChanged += ShowTypingBox;
+        _tools.PreviewChanged += () => CommittedLayer.Hidden = _tools.Editing;
         _statusTimer.Tick += (_, _) =>
         {
             _statusTimer.Stop();
@@ -224,6 +239,7 @@ internal partial class EditorWindow : Window
         }
 
         ApplySettings(settings);
+        ShowWhetherCaptureOpen();
         UpdateCommands();
         if (document is not null)
         {
@@ -240,13 +256,19 @@ internal partial class EditorWindow : Window
 
     /// <summary>
     /// Opens big enough to show the capture at actual size when it fits, up to most of the screen, and at least
-    /// wide enough for the dock to sit on one row.
+    /// wide enough for the dock to sit on one row. With no capture, it opens at its usual size.
     /// </summary>
-    private void SizeToImage(BitmapSource image)
+    private void SizeToImage(BitmapSource? image)
     {
         var monitor = Displays.GetMonitors().FirstOrDefault(m => m.Bounds.Contains(Pointer.Position));
         var scale = (monitor?.Dpi ?? 96) / 96.0;
         var workArea = SystemParameters.WorkArea;
+        if (image is null)
+        {
+            Width = Math.Max(MinWidth, Math.Min(Width, workArea.Width * 0.9));
+            Height = Math.Max(MinHeight, Math.Min(Height, workArea.Height * 0.85));
+            return;
+        }
 
         // Measured with unlimited width, the dock's wrap panel reports its one-row size (margins included).
         Dock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -471,11 +493,35 @@ internal partial class EditorWindow : Window
         _move.Recolour(colour);
     }
 
+    /// <summary>The slider's thickness goes to the pen, and to the move tool's selected mark, if any.</summary>
     private void SetThickness(double thickness)
     {
         _tools.Width = thickness;
         ShowPen();
         RememberChoices();
+
+        // Dragging the slider's thumb changes the selected mark as it goes, as one undo step when it's let go.
+        _move.SetThickness(thickness, finished: !ThicknessSlider.IsMouseCaptureWithin);
+    }
+
+    /// <summary>
+    /// The dots either side of the slider, and [ and ]: thinner or thicker by <paramref name="by"/>, stepping from the
+    /// thickness of what's being changed (text being typed, or the selected mark) if there is one, else the pen's.
+    /// </summary>
+    private void StepThickness(double by)
+    {
+        var changing = _tools.Typing is not null ? _tools.Preview : _move.SelectedMark;
+        var from = changing is null ? ThicknessSlider.Value : Math.Round(changing.Thickness);
+        var thickness = Math.Clamp(from + by, ThicknessSlider.Minimum, ThicknessSlider.Maximum);
+        if (ThicknessSlider.Value == thickness)
+        {
+            // The pen is already there, but what's being changed isn't.
+            SetThickness(thickness);
+        }
+        else
+        {
+            ThicknessSlider.Value = thickness;
+        }
     }
 
     /// <summary>
@@ -553,8 +599,16 @@ internal partial class EditorWindow : Window
         // Where the box draws its first letter, which isn't quite its top-left corner.
         var first = TypingBox.GetRectFromCharacterIndex(0);
         var inset = first.IsEmpty ? new Vector() : (Vector)first.TopLeft;
-        Canvas.SetLeft(TypingBox, typing.Origin.X - inset.X);
-        Canvas.SetTop(TypingBox, typing.Origin.Y - inset.Y);
+        var left = typing.Origin.X - inset.X;
+        var top = typing.Origin.Y - inset.Y;
+        Canvas.SetLeft(TypingBox, left);
+        Canvas.SetTop(TypingBox, top);
+
+        // A dimension's text may have been turned: the box turns with it, about its centre, so the caret stays on the letters.
+        var frame = typing.Frame;
+        TypingBox.RenderTransform = typing.Angle == 0
+            ? Transform.Identity
+            : new RotateTransform(typing.Angle, frame.X + frame.Width / 2 - left, frame.Y + frame.Height / 2 - top);
     }
 
     private void PickCustomColour()
@@ -654,7 +708,18 @@ internal partial class EditorWindow : Window
                 _document.EraseAt(point, DrawingLayer.EraserRadius);
                 break;
             case ToolKind.Move:
-                _move.PointerDown(point);
+                // A click away from text whose words are being changed finishes it; double-clicking text starts changing them.
+                _tools.Finish();
+                if (e.ClickCount == 2 && _move.TextAt(point) is { } text)
+                {
+                    _move.ClearSelection();
+                    _tools.EditText(text);
+                }
+                else
+                {
+                    _move.PointerDown(point);
+                }
+
                 break;
             default:
                 _tools.PointerDown(point, IsShiftDown, DrawingLayer.HandleRadius * 1.5);
@@ -733,6 +798,13 @@ internal partial class EditorWindow : Window
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         var step = IsShiftDown ? 5 : 1;
         e.Handled = true;
+        if (_path is null)
+        {
+            // No capture open: nothing to draw on, copy or save.
+            e.Handled = false;
+            return;
+        }
+
         if (_tools.Typing is not null)
         {
             // While typing, keys go to the text box (Ctrl+C copies text, Ctrl+Z undoes typing, and so on), apart from these.
@@ -836,10 +908,10 @@ internal partial class EditorWindow : Window
                 _tools.Cancel();
                 break;
             case Key.OemOpenBrackets:
-                ThicknessSlider.Value -= step;
+                StepThickness(-step);
                 break;
             case Key.OemCloseBrackets:
-                ThicknessSlider.Value += step;
+                StepThickness(step);
                 break;
             case Key.P when !ctrl:
                 FreehandTool.IsChecked = true;
@@ -912,8 +984,9 @@ internal partial class EditorWindow : Window
     {
         UndoButton.IsEnabled = _document.CanUndo;
         RedoButton.IsEnabled = _document.CanRedo;
-        Title = $"{(_document.HasUnsavedChanges ? "*" : "")}{Path.GetFileName(_path)} - Overmark";
-        FileNameText.Text = Path.GetFileName(_path);
+        var name = _path is null ? null : Path.GetFileName(_path);
+        Title = name is null ? "Overmark" : $"{(_document.HasUnsavedChanges ? "*" : "")}{name} - Overmark";
+        FileNameText.Text = name ?? "Overmark";
         UnsavedPill.Visibility = _document.HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -967,55 +1040,52 @@ internal partial class EditorWindow : Window
     private bool Save()
     {
         _tools.Finish();
+        if (_path is not { } path)
+        {
+            return false;
+        }
+
         try
         {
             // Write next to the file and swap it in, so a failed save never leaves a half-written capture.
-            var temporary = _path + ".saving";
+            var temporary = path + ".saving";
             File.WriteAllBytes(temporary, CaptureOutput.EncodePng(_document.Render()));
-            File.Move(temporary, _path, overwrite: true);
+            File.Move(temporary, path, overwrite: true);
             _document.MarkSaved();
             ShowStatus("Saved");
-            KeepEditable();
+            KeepEditable(path);
 
             // Its thumbnail in the list now shows the marks.
-            _thumbnails.Remove(_path);
+            _thumbnails.Remove(path);
             ListRecentCaptures();
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Log.Error($"Couldn't save {_path}", ex);
-            MessageBox.Show(this, $"Couldn't save {Path.GetFileName(_path)}:\n\n{ex.Message}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
+            Log.Error($"Couldn't save {path}", ex);
+            MessageBox.Show(this, $"Couldn't save {Path.GetFileName(path)}:\n\n{ex.Message}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
     }
 
     /// <summary>
-    /// Throws the capture away, after asking: the file goes to the Recycle Bin (so it can be put back) and the editor
-    /// closes, without asking about unsaved changes.
+    /// Throws the capture away, after asking: the file goes to the Recycle Bin (so it can be put back), unsaved changes
+    /// and all, and the editor moves on to the next capture (see <see cref="EditorLauncher.DeleteCapture"/>).
     /// </summary>
     private void DeleteCapture()
     {
-        var name = Path.GetFileName(_path);
+        if (_path is not { } path || _deleteCapture is not { } delete)
+        {
+            return;
+        }
+
         var answer = MessageBox.Show(
-            this, $"Delete {name}?\n\nIt goes to the Recycle Bin, so you can put it back from there.", "Overmark",
+            this, $"Delete {Path.GetFileName(path)}?\n\nIt goes to the Recycle Bin, so you can put it back from there.", "Overmark",
             MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
-        if (answer != MessageBoxResult.Yes)
+        if (answer == MessageBoxResult.Yes)
         {
-            return;
+            delete(path);
         }
-
-        if (!RecycleBin.TrySend(_path, out var problem))
-        {
-            Log.Warn($"Couldn't delete {_path}: {problem}");
-            MessageBox.Show(this, $"Couldn't delete {name}:\n\n{problem}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        Log.Info($"Deleted {_path} from the editor");
-        _deleted = true;
-        _edits?.Forget(_path);
-        Close();
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
@@ -1032,23 +1102,18 @@ internal partial class EditorWindow : Window
     /// </summary>
     public bool ConfirmLeave()
     {
-        if (_deleted)
-        {
-            return true;
-        }
-
         _tools.Finish();
-        if (!_document.HasUnsavedChanges)
+        if (_path is not { } path || !_document.HasUnsavedChanges)
         {
             return true;
         }
 
         var answer = MessageBox.Show(
-            this, $"Save your changes to {Path.GetFileName(_path)}?", "Overmark", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            this, $"Save your changes to {Path.GetFileName(path)}?", "Overmark", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (answer == MessageBoxResult.No)
         {
             // Not saving means the unsaved marks go, including any kept from switching away earlier.
-            _edits?.DiscardDraft(_path);
+            _edits?.DiscardDraft(path);
             return true;
         }
 
@@ -1062,7 +1127,7 @@ internal partial class EditorWindow : Window
     public void KeepDraft()
     {
         _tools.Finish();
-        if (_document.HasUnsavedChanges)
+        if (_path is not null && _document.HasUnsavedChanges)
         {
             _edits?.KeepDraft(_path, _document);
         }
@@ -1079,7 +1144,7 @@ internal partial class EditorWindow : Window
     /// After a save, which flattened the marks into the file: keeps them editable for a day, or forgets the editable
     /// copy if there's nothing on the capture left to edit.
     /// </summary>
-    private void KeepEditable()
+    private void KeepEditable(string path)
     {
         if (_edits is null)
         {
@@ -1090,11 +1155,11 @@ internal partial class EditorWindow : Window
         var image = _document.Image;
         if (_document.Marks.Count == 0 && crop.X == 0 && crop.Y == 0 && crop.Width == image.PixelWidth && crop.Height == image.PixelHeight)
         {
-            _edits.Forget(_path);
+            _edits.Forget(path);
         }
         else
         {
-            _edits.KeepSaved(_path, _document);
+            _edits.KeepSaved(path, _document);
         }
     }
 
@@ -1324,8 +1389,8 @@ internal partial class EditorWindow : Window
         return (item, thumbnail);
     }
 
-    /// <summary>The capture this window is editing.</summary>
-    public string CapturePath => _path;
+    /// <summary>The capture this window is editing, or null if none is open.</summary>
+    public string? CapturePath => _path;
 
     /// <summary>
     /// Whether a dialog is open over this window (a question such as whether to save or delete, or the colour
@@ -1345,19 +1410,25 @@ internal partial class EditorWindow : Window
     /// open and the old one closed. The current one's unsaved changes must already be dealt with (kept as a draft,
     /// saved or thrown away). <paramref name="document"/> brings back a capture whose marks are still editable.
     /// </summary>
-    public void ShowCapture(string path, BitmapSource image, EditorDocument? document)
+    public void ShowCapture(string path, BitmapSource image, EditorDocument? document) =>
+        Show(path, document ?? new EditorDocument(image), kept: document is not null);
+
+    /// <summary>Shows no capture, with a note in the picture's place saying how to take one (as when the last one is deleted).</summary>
+    public void ShowNoCapture() => Show(null, new EditorDocument(NoPicture), kept: false);
+
+    private void Show(string? path, EditorDocument document, bool kept)
     {
         _tools.Cancel();
         _document.Changed -= OnDocumentChanged;
         _path = path;
-        _document = document ?? new EditorDocument(image);
+        _document = document;
         _move = new MoveTool(_document);
-        _deleted = false;
         _leaving = false;
         _erasingFrom = null;
         DrawingLayer.EraserAt = null;
         AttachDocument();
 
+        ShowWhetherCaptureOpen();
         UpdateCommands();
         ListRecentCaptures();
         _fitToWindow = true;
@@ -1372,9 +1443,33 @@ internal partial class EditorWindow : Window
 
         _statusTimer.Stop();
         StatusText.Text = "";
-        if (document is not null)
+        if (kept)
         {
             ShowStatus("Marks still editable");
+        }
+    }
+
+    /// <summary>
+    /// With a capture open, the picture and everything for drawing on it; without one, a note in the picture's place
+    /// saying how to take one, and nothing to copy, save or delete.
+    /// </summary>
+    private void ShowWhetherCaptureOpen()
+    {
+        var open = _path is not null;
+        var appearing = open && Scroller.Visibility != Visibility.Visible;
+        foreach (var element in new UIElement[] { Scroller, ToolPill, ZoomPill, Dock, PinButton, CopyButton, SaveButton, OpenFolderButton })
+        {
+            element.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        DeleteButton.Visibility = open && _deleteCapture is not null ? Visibility.Visible : Visibility.Collapsed;
+        NoCaptureNote.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
+        NoCaptureHint.Text = _howToCapture?.Invoke() ?? "Take a screenshot to start editing, and it opens here.";
+
+        // The picture's area has only just appeared, so fit the picture to it once the layout has caught up.
+        if (appearing && IsLoaded)
+        {
+            Dispatcher.InvokeAsync(FitToWindow, DispatcherPriority.Loaded);
         }
     }
 
@@ -1450,6 +1545,11 @@ internal partial class EditorWindow : Window
     /// <summary>Opens the capture's folder in File Explorer, with the capture selected.</summary>
     private void ShowInExplorer()
     {
+        if (_path is null)
+        {
+            return;
+        }
+
         try
         {
             Process.Start("explorer.exe", $"/select,\"{_path}\"");
@@ -1548,6 +1648,13 @@ internal partial class EditorWindow : Window
     }
 
     private static string Hex(Color colour) => $"#{colour.R:X2}{colour.G:X2}{colour.B:X2}";
+
+    private static BitmapSource MakeNoPicture()
+    {
+        var picture = BitmapSource.Create(1, 1, 96, 96, PixelFormats.Bgr32, null, new byte[4], 4);
+        picture.Freeze();
+        return picture;
+    }
 
     /// <summary>Lets the Windows Forms colour dialog sit on top of this window.</summary>
     private sealed class Win32Owner(Window window) : System.Windows.Forms.IWin32Window

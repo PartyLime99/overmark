@@ -46,9 +46,16 @@ public class UiSnapshotTests
             bar.Show(TimeSpan.FromSeconds(83), paused: true);
             Save((FrameworkElement)bar.Content, new Size(double.PositiveInfinity, double.PositiveInfinity), "recording-bar-paused.png");
 
-            var editor = new EditorWindow(@"C:\x.png", capture, new EditorSettings(), _ => { }, _ => { });
+            var editor = new EditorWindow(@"C:\x.png", capture, new EditorSettings(), _ => { }, _ => { }, deleteCapture: _ => { });
             Save((FrameworkElement)editor.Content, new Size(1180, 760), "editor.png");
             editor.Close();
+
+            var empty = new EditorWindow(null, null, new EditorSettings(), _ => { }, _ => { }, deleteCapture: _ => { },
+                howToCapture: () => "Take a screenshot to start editing: press PrtScn, and it opens here.");
+            var emptyContent = (FrameworkElement)empty.Content;
+            (emptyContent.Width, emptyContent.Height) = (1000, 640); // as the window would be; the note alone is small
+            Save(emptyContent, new Size(1000, 640), "editor-empty.png");
+            empty.Close();
 
             SaveTyping();
             SaveTextMarks();

@@ -12,7 +12,8 @@ internal sealed class TrayIcon : IDisposable
     private readonly Dictionary<HotkeyAction, ToolStripMenuItem> _actionItems = [];
     private Action? _notificationClicked;
 
-    public TrayIcon(Action<HotkeyAction> runAction, Action editLastCapture, Action showDisplayInfo, Action openSettings, Action quit)
+    /// <param name="openEditor">Brings up the editor: double-clicking the icon does this.</param>
+    public TrayIcon(Action<HotkeyAction> runAction, Action openEditor, Action editLastCapture, Action showDisplayInfo, Action openSettings, Action quit)
     {
         var menu = new ContextMenuStrip();
         foreach (var action in Enum.GetValues<HotkeyAction>())
@@ -23,6 +24,11 @@ internal sealed class TrayIcon : IDisposable
         }
 
         menu.Items.Add(new ToolStripSeparator());
+
+        // Bold, as Windows shows the item that double-clicking the icon does.
+        var open = new ToolStripMenuItem("Open editor", null, (_, _) => openEditor());
+        open.Font = new Font(open.Font, FontStyle.Bold);
+        menu.Items.Add(open);
         menu.Items.Add("Edit last capture", null, (_, _) => editLastCapture());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Display info…", null, (_, _) => showDisplayInfo());
@@ -42,7 +48,7 @@ internal sealed class TrayIcon : IDisposable
         {
             if (e.Button == MouseButtons.Left)
             {
-                runAction(HotkeyAction.RegionCapture);
+                openEditor();
             }
         };
         _notifyIcon.BalloonTipClicked += (_, _) => _notificationClicked?.Invoke();
