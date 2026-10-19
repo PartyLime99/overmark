@@ -29,8 +29,8 @@ internal sealed class OvermarkHost : IDisposable
     private readonly FileSystemWatcher _settingsWatcher;
     private readonly DispatcherTimer _reloadTimer;
     private AppSettings _settings;
-    private IReadOnlyDictionary<HotkeyAction, Hotkey> _bindings = new Dictionary<HotkeyAction, Hotkey>();
-    private IReadOnlySet<HotkeyAction> _registered = new HashSet<HotkeyAction>();
+    private IReadOnlyDictionary<HotkeyAction, IReadOnlyList<Hotkey>> _bindings = new Dictionary<HotkeyAction, IReadOnlyList<Hotkey>>();
+    private IReadOnlySet<Hotkey> _registered = new HashSet<Hotkey>();
     private SettingsWindow? _settingsWindow;
 
     /// <param name="quiet">True when started at sign-in: no "Overmark is running" notification.</param>
@@ -47,7 +47,7 @@ internal sealed class OvermarkHost : IDisposable
         _tray = new TrayIcon(RunFromMenu, EditLastCapture, ShowDisplayInfo, OpenSettings, Quit);
         _editors = new EditorLauncher(() => _settings, RememberEditorSettings, _pins, _history, _tray);
         _recordings = new RecordingController(
-            () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop : null, _history, _tray);
+            () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop[0] : null, _history, _tray);
         _captures = new CaptureController(() => _settings, RememberLastRegion, RememberFromCentre, _editors.Open, OpenSettings, _pins, _recordings, _history, _tray);
         _hotkeys = new HotkeyService(dispatcher);
         _hotkeys.Triggered += Run;
@@ -317,15 +317,16 @@ internal sealed class OvermarkHost : IDisposable
     }
 
     private string HowToCapture() =>
-        _bindings.TryGetValue(HotkeyAction.RegionCapture, out var hotkey)
-            ? $"Press {hotkey.DisplayText} to capture."
+        _bindings.TryGetValue(HotkeyAction.RegionCapture, out var hotkeys)
+            ? $"Press {HotkeyBindings.Describe(hotkeys)} to capture."
             : "Right-click the tray icon to capture.";
 
     private string DescribeBindings() =>
-        string.Join(", ", _bindings.Select(b => $"{b.Value.DisplayText}: {b.Key.DisplayName()}"));
+        string.Join(", ", _bindings.Select(b => $"{HotkeyBindings.Describe(b.Value)}: {b.Key.DisplayName()}"));
 
-    private static bool SameBindings(IReadOnlyDictionary<HotkeyAction, Hotkey> a, IReadOnlyDictionary<HotkeyAction, Hotkey> b) =>
-        a.Count == b.Count && a.All(pair => b.TryGetValue(pair.Key, out var other) && other == pair.Value);
+    private static bool SameBindings(
+        IReadOnlyDictionary<HotkeyAction, IReadOnlyList<Hotkey>> a, IReadOnlyDictionary<HotkeyAction, IReadOnlyList<Hotkey>> b) =>
+        a.Count == b.Count && a.All(pair => b.TryGetValue(pair.Key, out var other) && other.SequenceEqual(pair.Value));
 
     private string BuildReport()
     {
@@ -349,16 +350,19 @@ internal sealed class OvermarkHost : IDisposable
         report.AppendLine($"Hotkeys (keyboard hook {(_hotkeys.HookActive ? "active" : "NOT active")})");
         foreach (var action in Enum.GetValues<HotkeyAction>())
         {
-            if (!_bindings.TryGetValue(action, out var hotkey))
+            if (!_bindings.TryGetValue(action, out var hotkeys))
             {
                 report.AppendLine($"  {action.DisplayName()}: off");
                 continue;
             }
 
-            var note = _registered.Contains(action)
-                ? ""
-                : " (another app or Windows also uses this key, so it won't work while an admin window is focused)";
-            report.AppendLine($"  {hotkey.DisplayText}: {action.DisplayName()}{note}");
+            foreach (var hotkey in hotkeys)
+            {
+                var note = _registered.Contains(hotkey)
+                    ? ""
+                    : " (another app or Windows also uses this key, so it won't work while an admin window is focused)";
+                report.AppendLine($"  {hotkey.DisplayText}: {action.DisplayName()}{note}");
+            }
         }
 
         report.AppendLine();

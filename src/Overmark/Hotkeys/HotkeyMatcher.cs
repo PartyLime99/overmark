@@ -20,12 +20,15 @@ internal sealed class HotkeyMatcher
     // see half a keystroke.
     private readonly HashSet<int> _held = [];
 
-    public void SetBindings(IReadOnlyDictionary<HotkeyAction, Hotkey> bindings)
+    public void SetBindings(IReadOnlyDictionary<HotkeyAction, IReadOnlyList<Hotkey>> bindings)
     {
         _bindings.Clear();
-        foreach (var (action, hotkey) in bindings)
+        foreach (var (action, hotkeys) in bindings)
         {
-            _bindings[hotkey] = action;
+            foreach (var hotkey in hotkeys)
+            {
+                _bindings[hotkey] = action;
+            }
         }
     }
 

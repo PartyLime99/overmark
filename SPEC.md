@@ -28,7 +28,7 @@ This document describes how Overmark behaves and why. The [README](README.md) is
 
 ## Hotkeys
 
-Changeable in Settings.
+Changeable in Settings. Each action can have more than one hotkey (e.g. PrtScn and Win+Shift+S, for laptops whose PrtScn key sends a Snipping Tool shortcut unless Fn is held).
 
 | Key | Action |
 |---|---|
@@ -166,7 +166,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 The settings window (tray menu → *Settings…*, or **Settings** on the capture toolbar) edits a copy; nothing changes until Save. It's light like the rest of Overmark: each group of settings is a white card on a pale grey background, and Save (dark) and Cancel sit in a white bar along the bottom.
 
-- **Hotkeys:** click a box and press the keys. While recording, Overmark's keyboard hook hands key presses to the window, so PrtScn can be recorded even though Overmark owns it. Recording stops as soon as the box loses focus, or after 10 seconds.
+- **Hotkeys:** click a box and press the keys; this replaces the action's hotkeys. **Add** records another hotkey for the same action, and **Clear** removes them all. In settings.json an action's hotkeys are separated by commas: `"regionCapture": "PrintScreen, Win+Shift+S"`. While recording, Overmark's keyboard hook hands key presses to the window, so PrtScn can be recorded even though Overmark owns it. Recording stops as soon as the box loses focus, or after 10 seconds.
 - **Capture on release**, or adjust the selection first.
 - **Drag a selection from its Corner** (default) **or Centre:** with Centre, the press is the middle of the selection and the drag pulls out a corner, so it grows evenly both ways (a small cross marks the centre while dragging). Near a screen edge the far side stops at the edge. Handles afterwards still move one edge at a time.
 - **Crosshair lines** and **magnifier** on or off.

@@ -79,7 +79,7 @@ A pin is a capture floating on top of everything; there's only ever one, so pinn
 
 Open **Settings…** from the tray menu (or Settings on the capture toolbar):
 
-- **Hotkeys:** click a box and press the keys you want.
+- **Hotkeys:** click a box and press the keys you want. **Add** gives the same action a second key as well, which helps on laptops whose PrtScn key sends Win+Shift+S unless Fn is held: add both and either works.
 - **Capture as soon as I let go of the mouse** (on by default); turn it off to adjust the selection with handles and press Enter.
 - **Drag a selection from its Corner or Centre:** with Centre, press on the middle of what you want and drag out to a corner, like a centre rectangle in CAD.
 - **Crosshair lines** and the **magnifier**, each of which can be turned off.
