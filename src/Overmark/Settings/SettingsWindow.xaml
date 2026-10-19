@@ -377,12 +377,19 @@
                             <Path Style="{StaticResource Icon}" Data="M2,5 A1,1 0 0 1 3,4 H7 L8.5,5.5 H15 A1,1 0 0 1 16,6.5 V13.5 A1,1 0 0 1 15,14.5 H3 A1,1 0 0 1 2,13.5 Z" />
                             <TextBlock Style="{StaticResource Heading}" Text="Saving" />
                         </StackPanel>
-                        <TextBlock Style="{StaticResource Label}" Text="Folder" Margin="0,0,0,5" />
+                        <TextBlock Style="{StaticResource Label}" Text="Screenshots folder" Margin="0,0,0,5" />
                         <DockPanel>
                             <Button x:Name="BrowseButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Browse…" Margin="8,0,0,0" />
                             <TextBox x:Name="SaveFolderBox" />
                         </DockPanel>
                         <TextBlock x:Name="SaveFolderHint" Style="{StaticResource Hint}" />
+
+                        <TextBlock Style="{StaticResource Label}" Text="Recordings folder" Margin="0,12,0,5" />
+                        <DockPanel>
+                            <Button x:Name="BrowseRecordingButton" DockPanel.Dock="Right" Style="{StaticResource Action}" Content="Browse…" Margin="8,0,0,0" />
+                            <TextBox x:Name="RecordingFolderBox" />
+                        </DockPanel>
+                        <TextBlock x:Name="RecordingFolderHint" Style="{StaticResource Hint}" />
 
                         <TextBlock Style="{StaticResource Label}" Text="File names" Margin="0,12,0,5" />
                         <TextBox x:Name="PatternBox" FontFamily="Cascadia Mono, Consolas" FontSize="12" />
@@ -410,7 +417,7 @@
                             </Border>
                         </DockPanel>
                         <CheckBox x:Name="RecordCursorBox" Content="Show the mouse pointer in recordings" Margin="0,12,0,0" />
-                        <TextBlock Style="{StaticResource Hint}" Text="Recordings are saved as MP4 videos (no sound) next to your screenshots. 30 frames a second suits most uses; 60 is smoother but makes bigger files." Margin="0,10,0,0" />
+                        <TextBlock Style="{StaticResource Hint}" Text="Recordings are saved as MP4 videos (no sound) in the recordings folder under Saving. 30 frames a second suits most uses; 60 is smoother but makes bigger files." Margin="0,10,0,0" />
                     </StackPanel>
                 </Border>
 

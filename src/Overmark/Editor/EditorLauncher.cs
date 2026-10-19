@@ -10,7 +10,8 @@ using Overmark.Tray;
 namespace Overmark.Editor;
 
 /// <summary>Opens captures in the editor, in the editor window that's already open if there is one.</summary>
-internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSettings> rememberSettings, PinBoard pins, CaptureHistory history, TrayIcon tray)
+internal sealed class EditorLauncher(
+    Func<AppSettings> settings, Action<EditorSettings> rememberSettings, Action openSettings, PinBoard pins, CaptureHistory history, TrayIcon tray)
 {
     private readonly Dictionary<string, EditorWindow> _open = new(StringComparer.OrdinalIgnoreCase);
 
@@ -246,7 +247,8 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         EditorWindow? window = null;
         window = new EditorWindow(
             path, image, settings().Editor, rememberSettings, Pin, history, other => SwitchTo(window!, other), _edits,
-            kept, other => CloseCapture(window!, other), other => DeleteCapture(window!, other), HowToCapture);
+            kept, other => CloseCapture(window!, other), other => DeleteCapture(window!, other), HowToCapture,
+            openSettings);
         if (path is not null)
         {
             _open[path] = window;

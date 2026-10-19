@@ -95,7 +95,8 @@ internal partial class EditorWindow : Window
     public EditorWindow(
         string? path, BitmapSource? image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin,
         CaptureHistory? history = null, Action<string>? switchTo = null, EditStore? edits = null, EditorDocument? document = null,
-        Action<string>? closeCapture = null, Action<string>? deleteCapture = null, Func<string>? howToCapture = null)
+        Action<string>? closeCapture = null, Action<string>? deleteCapture = null, Func<string>? howToCapture = null,
+        Action? openSettings = null)
     {
         InitializeComponent();
         _path = path;
@@ -160,6 +161,8 @@ internal partial class EditorWindow : Window
         SaveButton.Click += (_, _) => Save();
         PinButton.Click += (_, _) => Pin();
         DeleteButton.Click += (_, _) => DeleteCapture();
+        SettingsButton.Click += (_, _) => openSettings?.Invoke();
+        SettingsButton.Visibility = openSettings is null ? Visibility.Collapsed : Visibility.Visible;
         MinimiseButton.Click += (_, _) => SystemCommands.MinimizeWindow(this);
         MaximiseButton.Click += (_, _) =>
         {

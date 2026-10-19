@@ -591,6 +591,52 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- A thin scroll bar that floats in the list's right-hand gutter, so it doesn't push the captures over and hide their x. -->
+        <Style x:Key="PaneScrollBar" TargetType="ScrollBar">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="MinWidth" Value="6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="Bar" CornerRadius="3" Background="#C5CBD3" />
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bar" Property="Background" Value="#9AA2AD" />
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="Bar" Property="Background" Value="#7A828D" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PaneScroller" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <ScrollContentPresenter CanContentScroll="{TemplateBinding CanContentScroll}" />
+                            <ScrollBar x:Name="PART_VerticalScrollBar" Style="{StaticResource PaneScrollBar}" HorizontalAlignment="Right" Margin="0,0,1,0"
+                                       Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Value="{TemplateBinding VerticalOffset}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid x:Name="Root">
@@ -619,6 +665,9 @@
                     </Button>
                     <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" ToolTip="Save over the capture file (Ctrl+S)" Content="Save" />
                     <Rectangle Width="1" Height="22" Fill="#E3E7EC" Margin="10,0,4,0" VerticalAlignment="Center" />
+                    <Button x:Name="SettingsButton" Style="{StaticResource BarButton}" Padding="8,0" ToolTip="Settings: hotkeys, where screenshots and recordings are saved, and more">
+                        <Path Style="{StaticResource SmallIcon}" Data="M3,5 H15 M3,13 H15 M6.5,3 V7 M11.5,11 V15" />
+                    </Button>
                     <Button x:Name="MinimiseButton" Style="{StaticResource CaptionButton}" ToolTip="Minimise">
                         <TextBlock Style="{StaticResource CaptionGlyph}" Text="&#xE921;" />
                     </Button>
@@ -658,7 +707,7 @@
                         <TextBlock Text="Open folder" Margin="7,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <ScrollViewer Style="{StaticResource PaneScroller}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                     <StackPanel x:Name="RecentList" Margin="8,0,8,4" />
                 </ScrollViewer>
             </DockPanel>

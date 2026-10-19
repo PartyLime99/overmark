@@ -69,7 +69,10 @@ internal partial class SettingsWindow : Window
         RecordCursorBox.IsChecked = settings.RecordCursor;
         SaveFolderBox.Text = settings.SaveFolder ?? "";
         SaveFolderBox.TextChanged += (_, _) => ShowSaveFolderHint();
-        BrowseButton.Click += (_, _) => BrowseForFolder();
+        BrowseButton.Click += (_, _) => BrowseForFolder(SaveFolderBox, "Where should screenshots be saved?");
+        RecordingFolderBox.Text = settings.RecordingFolder ?? "";
+        RecordingFolderBox.TextChanged += (_, _) => ShowSaveFolderHint();
+        BrowseRecordingButton.Click += (_, _) => BrowseForFolder(RecordingFolderBox, "Where should recordings be saved?");
         PatternBox.Text = settings.FileNamePattern ?? "";
         PatternBox.TextChanged += (_, _) => ShowPatternExample();
         PopupSlider.Value = Math.Clamp(Math.Round(settings.PopupSeconds), PopupSlider.Minimum, PopupSlider.Maximum);
@@ -167,22 +170,27 @@ internal partial class SettingsWindow : Window
         return hotkeys;
     }
 
-    private void BrowseForFolder()
+    private void BrowseForFolder(TextBox box, string title)
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Where should captures be saved?",
-            InitialDirectory = string.IsNullOrWhiteSpace(SaveFolderBox.Text) ? FileNamer.DefaultFolder : SaveFolderBox.Text,
+            Title = title,
+            InitialDirectory = !string.IsNullOrWhiteSpace(box.Text) ? box.Text
+                : !string.IsNullOrWhiteSpace(SaveFolderBox.Text) ? SaveFolderBox.Text
+                : FileNamer.DefaultFolder,
         };
         if (dialog.ShowDialog(this) == true)
         {
-            SaveFolderBox.Text = dialog.FolderName;
+            box.Text = dialog.FolderName;
         }
     }
 
-    private void ShowSaveFolderHint() => SaveFolderHint.Text = string.IsNullOrWhiteSpace(SaveFolderBox.Text)
-        ? $"Empty, so captures go to {FileNamer.DefaultFolder}."
-        : "";
+    private void ShowSaveFolderHint()
+    {
+        var screenshots = string.IsNullOrWhiteSpace(SaveFolderBox.Text) ? FileNamer.DefaultFolder : SaveFolderBox.Text.Trim();
+        SaveFolderHint.Text = string.IsNullOrWhiteSpace(SaveFolderBox.Text) ? $"Empty, so screenshots go to {FileNamer.DefaultFolder}." : "";
+        RecordingFolderHint.Text = string.IsNullOrWhiteSpace(RecordingFolderBox.Text) ? $"Empty, so recordings go to {screenshots} too." : "";
+    }
 
     private void ShowPatternExample() =>
         PatternExample.Text = "Example: " + Path.GetFileName(FileNamer.NextPath("", PatternBox.Text, DateTime.Now, _ => false));
@@ -213,6 +221,7 @@ internal partial class SettingsWindow : Window
         _settings.RecordFrameRate = Fps15.IsChecked == true ? 15 : Fps60.IsChecked == true ? 60 : 30;
         _settings.RecordCursor = RecordCursorBox.IsChecked == true;
         _settings.SaveFolder = SaveFolderBox.Text.Trim();
+        _settings.RecordingFolder = RecordingFolderBox.Text.Trim();
         _settings.FileNamePattern = string.IsNullOrWhiteSpace(PatternBox.Text) ? FileNamer.DefaultPattern : PatternBox.Text;
         _settings.PopupSeconds = PopupSlider.Value;
         _settings.CheckForUpdates = CheckForUpdatesBox.IsChecked == true;
