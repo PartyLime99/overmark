@@ -13,7 +13,9 @@ This document describes how Overmark behaves and why. The [README](README.md) is
   - Per-user install: no admin rights needed.
   - Start menu shortcut and a normal uninstaller.
   - Automatic updates from GitHub Releases: checked one minute after starting and every 6 hours, downloaded quietly, and installed the next time Overmark starts. They can be turned off in Settings.
-- Runs in the notification area, one copy at a time. The tray menu has Region capture, Last region, Full screen, Edit last capture, Display info, Settings and Quit.
+- Runs in the notification area, one copy at a time. The tray menu has Region capture, Last region, Full screen, Open editor, Edit last capture, Display info, Settings and Quit.
+  - Double-clicking the icon brings up the editor, so *Open editor* is in bold (as Windows shows the double-click item). See *Opening* under Editor.
+  - Starting Overmark when it's already running (its Start menu shortcut, say) brings up the editor too, and so does starting it the first time, unless it was started at sign-in.
 - No telemetry or analytics. The update check is the only network traffic.
 - **Hotkey conflicts:** apps such as OneDrive, Dropbox, ShareX, Greenshot or Lightshot may already own PrtScn. Overmark watches the keyboard with a low-level hook, so it gets its hotkeys before those apps do and the key never reaches them.
   - While an admin window is focused, Windows hides keys from normal apps. As a backup, Overmark also registers each hotkey the standard way, which only works for keys no other app has claimed.
@@ -70,6 +72,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 **Layout:** light, with the picture on a dotted grey background.
 - **Title bar** (Overmark's own, white): icon, file name, an *Unsaved* pill while there are unsaved changes, and brief messages such as *Saved*; then Delete · Pin · Copy · **Save** and the minimise, maximise and close buttons. Windows still handles dragging, double-clicking to maximise, snapping to screen edges, resizing, the shadow and (on Windows 11) the rounded corners.
+- **No capture open** (the editor brought up before anything has been captured today, or after the last capture is deleted): the picture, the pills and the dock make way for a note on the dotted background, *No screenshot open*, saying how to take one (with the region capture hotkey). Delete, Pin, Copy, Save and Open folder are hidden and the editor's keys do nothing; today's captures still show. The next capture opens in it.
 - **Hint pill** above the picture: the selected tool's name and a one-line reminder of how it works, plus that tool's on/off options (Arrowhead for curves, Box behind text for text).
 - **Zoom pill** at the top right: Fit, and the zoom level, which goes to actual size when clicked.
 - **Today's captures** down the left side: every screenshot and recording Overmark has saved today, newest first, each a thumbnail with what kind it was (Region, Window, Last region, Full screen or Video) and the time. The one being edited has a dark ring. A video shows a play symbol and its length.
@@ -77,7 +80,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
   - The list updates as new captures come in, and a capture's thumbnail updates when it's saved with marks.
   - An **x** in a capture's corner (always shown on the one being edited, on the others while the pointer is over them) takes it off the list, like closing a tab. The file stays where it is, and opening the capture again (from the preview, the tray or `--edit`) puts it back on the list.
     - Unsaved changes are asked about first, as when closing the editor: *Yes* saves them into the file, *No* throws them away, *Cancel* keeps it. For a capture that isn't open, that means its draft; for one open in another editor window, that window closes as usual.
-    - Closing the capture being edited moves on to the next one down the list (or the one above, at the bottom), or closes the editor if no screenshots are left.
+    - Closing the capture being edited moves on to the next one down the list (or the one above, at the bottom), or closes the editor if no screenshots are left. Deleting it (the bin button) moves on in the same way, except that with none left the editor stays open, with no capture.
   - **Open folder** at the bottom shows the current capture in File Explorer.
   - The switch at the left of the title bar hides or shows the list; the choice is remembered.
   - Only what Overmark saved is listed (not other files in the folder), and anything since deleted or moved is left out. The list is kept in `%AppData%\Overmark\history.json`, which holds the last two weeks.
@@ -87,8 +90,8 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 **Colour and thickness**
 - 8 preset colours plus a custom colour picker. Keys 1–8 pick the presets, 9 the custom colour.
-- Thickness from 1 to 30 px on a slider (clicking anywhere on it jumps there), with the loaded pen showing the result. [ and ] change it by 1 (Shift: by 5). The highlighter draws four times as wide.
-- Picked **before** drawing and applied to the next mark only; marks already drawn never change. Text that's still being typed isn't drawn yet, so it does take colour, size and box changes.
+- Thickness from 1 to 30 px on a slider (clicking anywhere on it jumps there), with the loaded pen showing the result. [ and ] change it by 1 (Shift: by 5), as do the dots either side of the slider: the small one on the left makes it thinner, the large one on the right thicker. The highlighter draws four times as wide.
+- Picked **before** drawing and applied to the next mark only; marks already drawn keep theirs, unless one is selected with the Move tool. Then picking a colour or thickness changes that mark too (as well as the pen), and the dots, [ and ] step from the mark's own thickness rather than the pen's. Text that's still being typed isn't drawn yet, so it does take colour, size and box changes.
 - For the text tool, the thickness sets the text size: four times the thickness (minimum 10 px), so the default thickness of 5 gives 20 px text. The loaded pen shows the text size while the text tool is selected.
 - The last-used tool, colour and thickness are remembered.
 
@@ -96,7 +99,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 
 | Tool | Key | Behaviour |
 |---|---|---|
-| Move | V | Click a mark to select it (a dashed outline), drag to move it; the arrow keys nudge it 1 px (Shift: 10), Delete removes it, Esc lets go. Rectangles and circles are grabbed by their outline. For a dimension: drag its text to move just the text, the round handle above the text to turn it, its dimension line to move it in or out (the measured points stay put), or an extension line to move the whole dimension. Only this tool moves marks: with any other tool, pressing on a mark draws as usual |
+| Move | V | Click a mark to select it (a dashed outline), drag to move it; the arrow keys nudge it 1 px (Shift: 10), Delete removes it, Esc lets go. Picking a colour or thickness changes the selected mark. Double-clicking text, or a dimension, changes its words (see below). Rectangles and circles are grabbed by their outline. For a dimension: drag its text to move just the text, the round handle above the text to turn it, its dimension line to move it in or out (the measured points stay put), or an extension line to move the whole dimension. Only this tool moves marks: with any other tool, pressing on a mark draws as usual |
 | Freehand | P | Drag to draw; lightly smoothed. A click makes a dot |
 | Line | L | Drag from start to end. Shift snaps to 0°, 45° or 90° |
 | Arrow | A | Like Line, with an arrowhead that scales with thickness |
@@ -110,8 +113,9 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 | Crop | X | Drag a box, then Enter |
 | Remove white background | B | A button, not a tool. Pure white (#FFFFFF) connected to the edges of the cropped picture becomes see-through; white enclosed by the picture stays. Solid pixels touching the removed white are softened (white blended out as alpha) so anti-aliased edges leave no white fringe. Marks are untouched. The editor shows a checkerboard behind see-through parts; save, copy (PNG; the plain clipboard bitmap is flattened onto white) and pin keep the transparency |
 
-- **Moving, not restyling:** marks can be moved (the Move tool) but not recoloured, resized or edited after drawing; the eraser and undo fix mistakes.
-- **Undo/redo:** Ctrl+Z / Ctrl+Y, covering drawing, erasing (one step per eraser drag), moving (one step per drag or nudge), deleting, cropping and removing the white background.
+- **Changing marks:** with the Move tool, a mark can be moved, recoloured and given another thickness (for text, another size). Its shape can't be changed; the eraser and undo fix that.
+- **Changing words:** double-clicking text with the Move tool (or a dimension, anywhere on it) opens it for typing, as when it was drawn, starting with what it says (selected, so typing replaces it). It keeps its own colour and size unless they're changed while it's open. Enter or clicking elsewhere keeps the change, Esc leaves it as it was, and deleting all of a text's words removes it (a dimension stays, without text). A dimension's turned text is typed turned.
+- **Undo/redo:** Ctrl+Z / Ctrl+Y, covering drawing, erasing (one step per eraser drag), moving (one step per drag or nudge), recolouring, changing thickness (one step per drag of the slider), changing words, deleting, cropping and removing the white background.
 
 **Dimensions**
 
@@ -125,13 +129,14 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
 - **Zoom:** fits the window to start with; Ctrl+scroll zooms around the pointer; Ctrl+0 fits, Ctrl+1 is actual size.
 - **Saving:** only Save or Ctrl+S writes to disk, overwriting the capture file with the annotated version. Closing with unsaved changes asks first. The window title starts with `*` while there are unsaved changes.
 - **Copy** (Ctrl+C) and **Pin** use the current image, crop and marks included. Pinning minimises the editor. (A Drag button was tried and removed; dragging into other apps is done from the preview popup.)
-- **Delete** (the bin button in the title bar, red under the mouse) asks first (*No* is the default), then moves the capture file to the Recycle Bin and closes the editor without asking about unsaved changes. It has no keyboard shortcut, as Delete removes the selected mark with the Move tool.
+- **Delete** (the bin button in the title bar, red under the mouse) asks first (*No* is the default), then moves the capture file to the Recycle Bin, unsaved changes and all, and moves on to the next capture as closing it does (see *Today's captures*). If the next one is open in another editor window, that window comes to the front and this one closes; with none left, the editor stays open with no capture. It has no keyboard shortcut, as Delete removes the selected mark with the Move tool.
 - **Flatten:** marks are merged into the image when it's copied, saved or pinned. There are no project files; instead, captures stay editable for a day:
 - **Editable for a day:** alongside the flattened PNG, Overmark keeps an editable copy of each capture that has marks (or a crop): the original pixels, the marks and the crop, in `%AppData%\Overmark\edits`. Opening the capture again within 24 hours of its last edit brings the marks back as marks, so they can still be moved, erased and recoloured; the status reads *Marks still editable*. Undo history doesn't carry over.
   - Each capture can have a **saved** copy (matching what Save wrote to the file) and a **draft** (unsaved marks, kept when switching to another capture from today's captures). The draft wins while it lasts, and opens as unsaved.
   - Closing the window still asks about unsaved changes: *Yes* saves (replacing the draft), *No* throws the unsaved marks away, draft included.
   - A copy is only used while the capture file is exactly as Overmark left it (same time and size); a file changed by anything else opens as it is.
   - Copies are deleted 24 hours after the capture's last edit (checked when Overmark starts and whenever a copy is kept), when the capture is deleted, or when it's saved with nothing left to edit.
+- **Bringing up the editor:** double-clicking the tray icon, *Open editor* in the tray menu, or starting Overmark from its shortcut. The editor that's open comes to the front as it is (restored if minimised); otherwise one opens on today's newest screenshot, or with no capture if there's none today. *Edit last capture* with nothing to edit opens it with no capture too.
 - **Opening:** click the preview, pick it from today's captures, use *Edit last capture* in the tray menu (which remembers the last capture across restarts), or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it). If an editor is already open, the capture shows in it (as if picked from today's captures, so unsaved marks are kept as a draft) and the window comes to the front, rather than a second window opening. Only while that editor is waiting on a question (such as whether to save or delete) does the capture open in a window of its own.
 
 ## Pin to screen

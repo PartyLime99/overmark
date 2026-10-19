@@ -16,10 +16,19 @@ internal abstract record Mark(StrokeStyle Style)
     /// <summary>Roughly the area the mark covers, for the move tool's selection outline.</summary>
     public virtual Rect Extent => Inflated(Centreline().Bounds, Style.Width / 2);
 
+    /// <summary>
+    /// The thickness slider's value the mark is drawn at. For most marks it's the stroke width; the highlighter and
+    /// text are drawn four times as wide (see <see cref="Palette.StrokeWidth"/>).
+    /// </summary>
+    public virtual double Thickness => Style.Width;
+
     public abstract void Draw(DrawingContext dc);
 
     /// <summary>The same mark, shifted by <paramref name="offset"/>.</summary>
     public abstract Mark MovedBy(Vector offset);
+
+    /// <summary>The same mark drawn at the thickness slider's <paramref name="thickness"/>.</summary>
+    public virtual Mark WithThickness(double thickness) => this with { Style = Style with { Width = thickness } };
 
     /// <summary>True if a circle of <paramref name="radius"/> at <paramref name="point"/> touches the drawn stroke.</summary>
     public virtual bool IsTouchedBy(Point point, double radius)
@@ -93,7 +102,12 @@ internal sealed record HighlighterMark(StrokeStyle Style, IReadOnlyList<Point> P
     public override void Draw(DrawingContext dc) =>
         FreehandMark.DrawStroke(dc, Points, Style, Fill(Palette.HighlighterAlpha), RoundPen(Palette.HighlighterAlpha));
 
+    public override double Thickness => Style.Width / 4;
+
     public override Mark MovedBy(Vector offset) => this with { Points = [.. Points.Select(p => p + offset)] };
+
+    public override Mark WithThickness(double thickness) =>
+        this with { Style = Style with { Width = Palette.StrokeWidth(ToolKind.Highlighter, thickness) } };
 
     protected override Geometry Centreline() => FreehandMark.StrokeCentreline(Points);
 }
@@ -274,7 +288,22 @@ internal sealed record TextMark(StrokeStyle Style, Point Position, string Text, 
     public static FormattedText Format(string text, double fontSize, Brush brush) =>
         new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface, fontSize, brush, pixelsPerDip: 1);
 
+    public override double Thickness => FontSize / 4;
+
     public override Mark MovedBy(Vector offset) => this with { Position = Position + offset };
+
+    /// <summary>The text at the size the slider's <paramref name="thickness"/> gives, its first line staying centred where it was.</summary>
+    public override Mark WithThickness(double thickness)
+    {
+        var size = Palette.StrokeWidth(ToolKind.Text, thickness);
+        if (size == FontSize)
+        {
+            return this;
+        }
+
+        var middle = Position.Y + LineHeight(FontSize) / 2;
+        return this with { Style = Style with { Width = size }, Position = new Point(Position.X, middle - LineHeight(size) / 2) };
+    }
 
     public override void Draw(DrawingContext dc)
     {

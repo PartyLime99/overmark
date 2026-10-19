@@ -19,21 +19,28 @@ public partial class App : Application
         // Resolve a relative file path here, where it was typed, before it's passed on.
         string[] args = CommandLine.EditPath(e.Args) is { } editPath ? ["--edit", editPath] : [];
 
+        // Started at sign-in: Overmark waits quietly in the notification area. Started any other way (its shortcut,
+        // or "Open with"), it brings up the editor.
+        var quiet = e.Args.Contains(Platform.StartWithWindows.StartupArgument, StringComparer.OrdinalIgnoreCase);
+
         _singleInstance = SingleInstance.TryClaim();
         if (_singleInstance is null)
         {
-            SingleInstance.SendToRunningInstance(args);
+            if (!quiet)
+            {
+                SingleInstance.SendToRunningInstance(args);
+            }
+
             Shutdown();
             return;
         }
 
         System.Windows.Forms.Application.EnableVisualStyles();
         Log.Info($"Overmark {AppInfo.Version} starting");
-        var quiet = e.Args.Contains(Platform.StartWithWindows.StartupArgument, StringComparer.OrdinalIgnoreCase);
         var host = new OvermarkHost(new SettingsStore(AppInfo.SettingsFile), Dispatcher, Shutdown, quiet);
         _host = host;
         _singleInstance.CommandReceived += received => Dispatcher.InvokeAsync(() => host.HandleCommand(received));
-        if (args.Length > 0)
+        if (!quiet)
         {
             Dispatcher.InvokeAsync(() => host.HandleCommand(args), DispatcherPriority.ApplicationIdle);
         }

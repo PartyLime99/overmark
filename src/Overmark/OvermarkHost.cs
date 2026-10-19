@@ -44,7 +44,7 @@ internal sealed class OvermarkHost : IDisposable
         }
 
         _quit = quit;
-        _tray = new TrayIcon(RunFromMenu, EditLastCapture, ShowDisplayInfo, OpenSettings, Quit);
+        _tray = new TrayIcon(RunFromMenu, OpenEditor, EditLastCapture, ShowDisplayInfo, OpenSettings, Quit);
         _editors = new EditorLauncher(() => _settings, RememberEditorSettings, _pins, _history, _tray);
         _recordings = new RecordingController(
             () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop[0] : null, _history, _tray);
@@ -87,12 +87,15 @@ internal sealed class OvermarkHost : IDisposable
         dispatcher.InvokeAsync(DragOut.CleanUp, DispatcherPriority.ApplicationIdle);
     }
 
-    /// <summary>Handles a command line passed in at startup or from a later launch.</summary>
+    /// <summary>
+    /// Handles a command line passed in at startup or from a later launch. Without a file to edit (starting Overmark
+    /// from its shortcut), it brings up the editor.
+    /// </summary>
     public void HandleCommand(IReadOnlyList<string> args)
     {
         if (CommandLine.EditPath(args) is not { } path)
         {
-            _tray.Notify("Overmark is already running", $"It's in the notification area. {HowToCapture()}");
+            _editors.OpenEditor();
         }
         else if (File.Exists(path))
         {
@@ -183,6 +186,8 @@ internal sealed class OvermarkHost : IDisposable
         }
     }
 
+    private void OpenEditor() => _editors.OpenEditor();
+
     private void EditLastCapture()
     {
         // The history remembers the last capture across restarts.
@@ -192,7 +197,8 @@ internal sealed class OvermarkHost : IDisposable
         }
         else
         {
-            _tray.Notify("Nothing to edit yet", "Take a capture first, then it can be edited.");
+            // Nothing to edit yet: the editor opens empty, saying how to take a capture.
+            _editors.OpenEditor();
         }
     }
 

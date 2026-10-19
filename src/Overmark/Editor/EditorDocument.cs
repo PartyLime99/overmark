@@ -140,6 +140,28 @@ internal sealed class EditorDocument
         Do(edit);
     }
 
+    /// <summary>
+    /// Swaps <paramref name="mark"/> for <paramref name="changed"/> in the same place (its words changed), as one undo
+    /// step, or removes it if <paramref name="changed"/> is null. Does nothing if the mark is no longer there.
+    /// </summary>
+    public void Replace(Mark mark, Mark? changed)
+    {
+        var index = _marks.FindIndex(m => ReferenceEquals(m, mark));
+        if (index < 0)
+        {
+            return;
+        }
+
+        if (changed is null)
+        {
+            Remove(index);
+            return;
+        }
+
+        Change(index, changed);
+        FinishChanging();
+    }
+
     /// <summary>Crops to <paramref name="area"/> (image pixels), widened to whole pixels and kept inside the current crop.</summary>
     public void CropTo(Rect area)
     {

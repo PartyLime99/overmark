@@ -169,6 +169,51 @@ public class MoveToolTests
     }
 
     [Fact]
+    public void The_slider_changes_the_selections_thickness_and_a_drag_of_it_undoes_in_one_step()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _document.Add(line);
+        _document.MarkSaved();
+
+        _move.SetThickness(9); // nothing selected yet
+        Assert.Equal(line, _document.Marks[0]);
+
+        _move.PointerDown(new Point(50, 10));
+        _move.PointerUp();
+        _move.SetThickness(4); // already that thick: not an edit
+        Assert.False(_document.HasUnsavedChanges);
+
+        _move.SetThickness(6, finished: false);
+        _move.SetThickness(8, finished: false);
+        _move.SetThickness(9);
+        Assert.Equal(line with { Style = Red with { Width = 9 } }, _document.Marks[0]);
+        Assert.Equal(_document.Marks[0], _move.SelectedMark);
+
+        _document.Undo(); // straight back, not through 8 and 6
+        Assert.Equal(line, _document.Marks[0]);
+    }
+
+    [Fact]
+    public void Double_clicking_finds_text_and_dimensions_but_not_other_marks()
+    {
+        var text = new TextMark(Red with { Width = 20 }, new Point(300, 300), "Note", Boxed: false);
+        var dimension = Dimension();
+        _document.Add(new LineMark(Red, new Point(10, 10), new Point(100, 10)));
+        _document.Add(text);
+        _document.Add(dimension);
+
+        Assert.Null(_move.TextAt(new Point(50, 10)));
+        Assert.Same(text, _move.TextAt(text.Bounds.TopLeft + new Vector(5, 5)));
+        Assert.Same(dimension, _move.TextAt(dimension.Layout.TextCentre));
+        Assert.Same(dimension, _move.TextAt(new Point(100, 175))); // its extension line
+        Assert.Null(_move.TextAt(new Point(450, 50)));
+
+        // A mark on top of the text is the one that's found.
+        _document.Add(new RectangleMark(Red, new Rect(text.Bounds.TopLeft, new Size(10, 10))));
+        Assert.Null(_move.TextAt(text.Bounds.TopLeft + new Vector(5, 5)));
+    }
+
+    [Fact]
     public void Nudging_and_deleting_the_selection_can_be_undone()
     {
         var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));

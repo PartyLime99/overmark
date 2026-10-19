@@ -8,6 +8,21 @@ namespace Overmark.Editor;
 internal sealed class CommittedMarksLayer : FrameworkElement
 {
     private EditorDocument? _document;
+    private Mark? _hidden;
+
+    /// <summary>A mark left out, while its words are being changed and the preview layer draws it instead.</summary>
+    public Mark? Hidden
+    {
+        get => _hidden;
+        set
+        {
+            if (!ReferenceEquals(_hidden, value))
+            {
+                _hidden = value;
+                InvalidateVisual();
+            }
+        }
+    }
 
     /// <summary>Draws <paramref name="document"/>'s marks, instead of any document it drew before.</summary>
     public void Attach(EditorDocument document)
@@ -33,7 +48,10 @@ internal sealed class CommittedMarksLayer : FrameworkElement
         dc.PushClip(new RectangleGeometry(new Rect(RenderSize)));
         foreach (var mark in _document.Marks)
         {
-            mark.Draw(dc);
+            if (!ReferenceEquals(mark, _hidden))
+            {
+                mark.Draw(dc);
+            }
         }
 
         dc.Pop();
@@ -124,7 +142,8 @@ internal sealed class PreviewLayer : FrameworkElement
             // The text is drawn by the preview, exactly as it will be kept; the editor's text box on top only adds the caret.
             var frame = typing.Frame;
             frame.Inflate(4 * DipSize, 3 * DipSize);
-            DrawDashed(dc, new RectangleGeometry(frame));
+            var turn = new RotateTransform(typing.Angle, frame.X + frame.Width / 2, frame.Y + frame.Height / 2);
+            DrawDashed(dc, new RectangleGeometry(frame, 0, 0, turn));
         }
 
         DrawDimensionPicking(dc, area);

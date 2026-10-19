@@ -23,8 +23,9 @@ internal enum MoveGrip
 /// The move tool: click a mark to select it and drag to move it; the arrow keys nudge it and Delete removes it.
 /// For a dimension, dragging its text moves just the text (snapping onto the dimension line when it's close), the
 /// round handle above the text turns it, dragging the dimension line moves it in or out, and dragging an extension
-/// line moves the whole dimension. Picking a colour recolours the selection. Each drag, nudge or recolour is one undo
-/// step. No UI, so it can be unit tested.
+/// line moves the whole dimension. Picking a colour or thickness gives it to the selection. Double-clicking text (or a
+/// dimension) is for changing its words, which the editor does with <see cref="DrawingTools.EditText"/>. Each drag,
+/// nudge, recolour or change of thickness is one undo step. No UI, so it can be unit tested.
 /// </summary>
 internal sealed class MoveTool
 {
@@ -62,6 +63,13 @@ internal sealed class MoveTool
 
     /// <summary>What a press at <paramref name="point"/> would take hold of, for the pointer's shape; null if nothing.</summary>
     public MoveGrip? GripAt(Point point) => Find(point)?.Grip;
+
+    /// <summary>
+    /// The text, or dimension, whose words a double-click at <paramref name="point"/> would change: the top-most mark
+    /// there, if it's one of those. (Not the handle that turns a dimension's text, which a double-click just turns.)
+    /// </summary>
+    public Mark? TextAt(Point point) =>
+        Find(point) is { Grip: not MoveGrip.TextAngle } hit && _document.Marks[hit.Index] is (TextMark or DimensionMark) and var mark ? mark : null;
 
     /// <summary>Selects whatever is under the pointer (or nothing) and gets ready to drag it.</summary>
     public void PointerDown(Point point)
@@ -124,6 +132,28 @@ internal sealed class MoveTool
         if (Selected is { } index && SelectedMark is { } mark && mark.Style.Color != colour)
         {
             Change(index, mark with { Style = mark.Style with { Color = colour } });
+            _document.FinishChanging();
+        }
+    }
+
+    /// <summary>
+    /// Gives the selected mark the thickness slider's <paramref name="thickness"/>. Changes make one undo step once
+    /// <paramref name="finished"/>, so dragging the slider undoes in one go.
+    /// </summary>
+    public void SetThickness(double thickness, bool finished = true)
+    {
+        if (Selected is not { } index || SelectedMark is not { } mark)
+        {
+            return;
+        }
+
+        if (mark.WithThickness(thickness) is var changed && changed != mark)
+        {
+            Change(index, changed);
+        }
+
+        if (finished)
+        {
             _document.FinishChanging();
         }
     }

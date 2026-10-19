@@ -85,6 +85,81 @@ public class EditorSwitchingTests
         }
     });
 
+    [Fact]
+    public void With_no_capture_a_note_takes_the_pictures_place() => RunOnUiThread(() =>
+    {
+        var editor = new EditorWindow(null, null, new EditorSettings(), _ => { }, _ => { }, deleteCapture: _ => { }, howToCapture: () => "Press it");
+        var note = (FrameworkElement)editor.FindName("NoCaptureNote");
+        Visibility Shown(string name) => ((FrameworkElement)editor.FindName(name)).Visibility;
+
+        Assert.Null(editor.CapturePath);
+        Assert.Equal("Overmark", editor.Title);
+        Assert.Equal(Visibility.Visible, note.Visibility);
+        Assert.Equal("Press it", ((System.Windows.Controls.TextBlock)editor.FindName("NoCaptureHint")).Text);
+        Assert.All(["Scroller", "Dock", "SaveButton", "DeleteButton"], name => Assert.Equal(Visibility.Collapsed, Shown(name)));
+
+        editor.ShowCapture(@"C:\first.png", Image(200, 100), null);
+        Assert.Equal(Visibility.Collapsed, note.Visibility);
+        Assert.All(["Scroller", "Dock", "SaveButton", "DeleteButton"], name => Assert.Equal(Visibility.Visible, Shown(name)));
+
+        editor.ShowNoCapture();
+        Assert.Null(editor.CapturePath);
+        Assert.Equal(Visibility.Visible, note.Visibility);
+        Assert.True(editor.ConfirmLeave()); // nothing to ask about
+        CloseQuietly(editor);
+    });
+
+    [Fact]
+    public void Texts_new_words_go_back_in_its_place_and_its_old_copy_is_hidden_meanwhile() => RunOnUiThread(() =>
+    {
+        var editor = new EditorWindow(@"C:\first.png", Image(200, 100), new EditorSettings(), _ => { }, _ => { });
+        ((System.Windows.Controls.RadioButton)editor.FindName("MoveButton")).IsChecked = true;
+        var text = new TextMark(new StrokeStyle(Colors.Red, 20), new Point(10, 10), "Helo", Boxed: false);
+        var line = new LineMark(new StrokeStyle(Colors.Red, 4), new Point(1, 1), new Point(9, 9));
+        Document(editor).Add(text);
+        Document(editor).Add(line);
+        var tools = Field<DrawingTools>(editor, "_tools");
+        var committed = (CommittedMarksLayer)editor.FindName("CommittedLayer");
+
+        tools.EditText(text);
+        Assert.Same(text, committed.Hidden);
+        Assert.Equal(Visibility.Visible, ((FrameworkElement)editor.FindName("TypingBox")).Visibility);
+        tools.SetText("Hello");
+        tools.Finish();
+
+        Assert.Equal([text with { Text = "Hello" }, line], Document(editor).Marks);
+        Assert.Null(committed.Hidden);
+        CloseQuietly(editor);
+    });
+
+    [Fact]
+    public void The_dots_by_the_slider_step_the_selected_marks_thickness_from_where_it_is() => RunOnUiThread(() =>
+    {
+        var editor = new EditorWindow(@"C:\first.png", Image(200, 100), new EditorSettings { StrokeWidth = 12 }, _ => { }, _ => { });
+        ((System.Windows.Controls.RadioButton)editor.FindName("MoveButton")).IsChecked = true;
+        var line = new LineMark(new StrokeStyle(Colors.Red, 4), new Point(10, 50), new Point(190, 50));
+        Document(editor).Add(line);
+        var move = Field<MoveTool>(editor, "_move");
+        move.PointerDown(new Point(100, 50));
+        move.PointerUp();
+        void Click(string name)
+        {
+            var button = (System.Windows.Controls.Button)editor.FindName(name);
+            button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, button));
+        }
+
+        Click("ThickerButton");
+        Assert.Equal(5, Document(editor).Marks[0].Style.Width); // from the line's 4, not the pen's 12
+        Click("ThinnerButton");
+        Click("ThinnerButton");
+        Assert.Equal(3, Document(editor).Marks[0].Style.Width);
+        Assert.Equal(3, ((System.Windows.Controls.Slider)editor.FindName("ThicknessSlider")).Value);
+
+        Document(editor).Undo();
+        Assert.Equal(4, Document(editor).Marks[0].Style.Width);
+        CloseQuietly(editor);
+    });
+
     private static EditorDocument Document(EditorWindow editor) => Field<EditorDocument>(editor, "_document");
 
     private static void Draw(EditorWindow editor, Point from, Point to)
