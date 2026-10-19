@@ -132,7 +132,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
   - Closing the window still asks about unsaved changes: *Yes* saves (replacing the draft), *No* throws the unsaved marks away, draft included.
   - A copy is only used while the capture file is exactly as Overmark left it (same time and size); a file changed by anything else opens as it is.
   - Copies are deleted 24 hours after the capture's last edit (checked when Overmark starts and whenever a copy is kept), when the capture is deleted, or when it's saved with nothing left to edit.
-- **Opening:** click the preview, pick it from today's captures, use *Edit last capture* in the tray menu (which remembers the last capture across restarts), or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it).
+- **Opening:** click the preview, pick it from today's captures, use *Edit last capture* in the tray menu (which remembers the last capture across restarts), or run `Overmark.exe --edit <file>` (a lone file path also works, as Windows' "Open with" passes it). If an editor is already open, the capture shows in it (as if picked from today's captures, so unsaved marks are kept as a draft) and the window comes to the front, rather than a second window opening. Only while that editor is waiting on a question (such as whether to save or delete) does the capture open in a window of its own.
 
 ## Pin to screen
 

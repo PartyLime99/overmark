@@ -1328,6 +1328,19 @@ internal partial class EditorWindow : Window
     public string CapturePath => _path;
 
     /// <summary>
+    /// Whether a dialog is open over this window (a question such as whether to save or delete, or the colour
+    /// picker), which Windows shows by disabling the window until it's answered.
+    /// </summary>
+    public bool IsShowingDialog
+    {
+        get
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            return handle != IntPtr.Zero && !NativeMethods.IsWindowEnabled(handle);
+        }
+    }
+
+    /// <summary>
     /// Shows another capture in this window, in place of the current one, so switching doesn't flash a new window
     /// open and the old one closed. The current one's unsaved changes must already be dealt with (kept as a draft,
     /// saved or thrown away). <paramref name="document"/> brings back a capture whose marks are still editable.

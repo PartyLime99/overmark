@@ -286,6 +286,9 @@ internal static class NativeMethods
     public static extern bool BringWindowToTop(IntPtr hwnd);
 
     [DllImport("user32.dll")]
+    public static extern bool IsWindowEnabled(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
     public static extern bool AttachThreadInput(uint attachThread, uint attachToThread, bool attach);
 
     [DllImport("dwmapi.dll")]

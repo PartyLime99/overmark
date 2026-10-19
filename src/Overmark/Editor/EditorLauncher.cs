@@ -8,15 +8,40 @@ using Overmark.Tray;
 
 namespace Overmark.Editor;
 
-/// <summary>Opens captures in editor windows, one window per file.</summary>
+/// <summary>Opens captures in the editor, in the editor window that's already open if there is one.</summary>
 internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSettings> rememberSettings, PinBoard pins, CaptureHistory history, TrayIcon tray)
 {
     private readonly Dictionary<string, EditorWindow> _open = new(StringComparer.OrdinalIgnoreCase);
     private readonly EditStore _edits = CreateEditStore();
 
+    /// <summary>The editor window used last, which captures open in.</summary>
+    private EditorWindow? _latest;
+
+    /// <summary>
+    /// Opens a capture (from the preview, a pin, the tray or the command line). An editor that's already open shows
+    /// it in place of its capture and comes to the front, as when it's picked from the list of today's captures,
+    /// rather than a second window opening. Only if that editor is waiting on a question (such as whether to delete
+    /// its capture) does the capture get a window of its own, so the answer can't land on the wrong capture.
+    /// </summary>
     public void Open(string path)
     {
-        if (TryActivate(path) || Create(path) is not { } window)
+        if (TryActivate(path))
+        {
+            return;
+        }
+
+        if (_latest is { IsShowingDialog: false } current)
+        {
+            current.KeepDraft();
+            if (ShowIn(current, path))
+            {
+                ForegroundWindow.Activate(current);
+            }
+
+            return;
+        }
+
+        if (Create(path) is not { } window)
         {
             return;
         }
@@ -153,9 +178,18 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
             path, capture.Image, settings().Editor, rememberSettings, Pin, history, other => SwitchTo(window!, other), _edits,
             capture.Kept, other => CloseCapture(window!, other));
         _open[path] = window;
+        _latest = window;
+        window.Activated += (_, _) => _latest = window;
 
         // The window may have moved on to other captures by the time it closes.
-        window.Closed += (_, _) => _open.Remove(window.CapturePath);
+        window.Closed += (_, _) =>
+        {
+            _open.Remove(window.CapturePath);
+            if (_latest == window)
+            {
+                _latest = _open.Values.LastOrDefault();
+            }
+        };
         return window;
 
         // Editing the pin later reopens the capture that was pinned, wherever the window has got to since.
