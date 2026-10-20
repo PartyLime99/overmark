@@ -57,7 +57,7 @@ Everything for drawing is in the dock along the bottom: undo and redo, the tools
 | Shift (while drawing) | Straight angles for lines, arrows, curves and a dimension's two points; squares and circles; straight highlighter |
 | 1–8, 9 | The palette colours; your custom colour |
 | [ / ] | Thinner / thicker (Shift: by 5), like the dots either side of the slider |
-| Enter / Esc | Finish a curve, crop, text or dimension / drop it |
+| Enter / Esc | Finish a curve, crop, text or dimension / drop it and go back to the move tool |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
 | Ctrl+C / Ctrl+S | Copy / save over the capture file |
 | Ctrl+O / Ctrl+V | Open an image / paste one |

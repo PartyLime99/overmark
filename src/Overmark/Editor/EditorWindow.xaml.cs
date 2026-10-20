@@ -888,7 +888,7 @@ internal partial class EditorWindow : Window
                     _tools.Finish();
                     break;
                 case Key.Escape:
-                    _tools.Cancel();
+                    Escape();
                     break;
                 case Key.Tab:
                     // Would move the keyboard away from the text box, with nowhere useful to go.
@@ -979,7 +979,7 @@ internal partial class EditorWindow : Window
                 CloseFlyouts();
                 break;
             case Key.Escape:
-                _tools.Cancel();
+                Escape();
                 break;
             case Key.OemOpenBrackets:
                 StepThickness(-step);
@@ -1073,6 +1073,17 @@ internal partial class EditorWindow : Window
         _tools.Scale = scale;
         ScaleText.Text = scale?.Describe() ?? "";
         ScaleChip.Visibility = scale is not null && _tools.Tool == ToolKind.Dimension ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Esc: drops anything part-done (a mark being drawn, a crop box, text being typed, a dimension being placed) and
+    /// goes back to the move tool. Text whose words were being changed is left as it was.
+    /// </summary>
+    private void Escape()
+    {
+        // Dropped first: switching tools would keep text being typed or a curve being bent.
+        _tools.Cancel();
+        MoveButton.IsChecked = true;
     }
 
     /// <summary>Undo drops a part-drawn mark or crop box first, then works back through finished edits.</summary>
