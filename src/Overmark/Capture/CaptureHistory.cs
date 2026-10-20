@@ -14,8 +14,8 @@ internal sealed record CaptureRecord(string Path, CaptureKind Kind, DateTime Tak
 
 /// <summary>
 /// The captures Overmark has saved recently, kept in history.json next to the settings so the list survives
-/// restarts. Only what Overmark itself saved is listed; files that have since been deleted or moved are left out
-/// when it's read. Used on the UI thread only.
+/// restarts. Only what Overmark itself saved, or opened in the editor, is listed; files that have since been deleted
+/// or moved are left out when it's read. Used on the UI thread only.
 /// </summary>
 internal sealed class CaptureHistory(string filePath)
 {
@@ -82,9 +82,12 @@ internal sealed class CaptureHistory(string filePath)
         Changed?.Invoke();
     }
 
-    /// <summary>The most recent screenshot (not recording) whose file is still there.</summary>
+    /// <summary>True if <paramref name="path"/> is in the history (even if it's been closed, or its file has gone).</summary>
+    public bool Knows(string path) => Records().Any(r => string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The most recent screenshot (not a recording, or an image opened from elsewhere) whose file is still there.</summary>
     public CaptureRecord? LatestScreenshot() =>
-        Records().Where(r => !r.IsVideo && File.Exists(r.Path)).MaxBy(r => r.TakenAt);
+        Records().Where(r => !r.IsVideo && r.Kind != CaptureKind.Opened && File.Exists(r.Path)).MaxBy(r => r.TakenAt);
 
     private List<CaptureRecord> Records() => _records ??= Read();
 

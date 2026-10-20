@@ -117,7 +117,7 @@ internal sealed class EditStore(string folder, Func<DateTime>? utcNow = null)
         {
             // Write next to the file and swap it in, so a failed save never leaves a half-written capture.
             var temporary = capture + ".saving";
-            File.WriteAllBytes(temporary, CaptureOutput.EncodePng(document.Render()));
+            File.WriteAllBytes(temporary, ImageFiles.Encode(document.Render(), capture));
             File.Move(temporary, capture, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

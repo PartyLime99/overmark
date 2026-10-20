@@ -45,7 +45,7 @@ internal sealed class OvermarkHost : IDisposable
 
         _quit = quit;
         _tray = new TrayIcon(RunFromMenu, OpenEditor, EditLastCapture, ShowDisplayInfo, OpenSettings, Quit);
-        _editors = new EditorLauncher(() => _settings, RememberEditorSettings, _pins, _history, _tray);
+        _editors = new EditorLauncher(() => _settings, RememberEditorSettings, OpenSettings, _pins, _history, _tray);
         _recordings = new RecordingController(
             () => _settings, () => _bindings.TryGetValue(HotkeyAction.Record, out var stop) ? stop[0] : null, _history, _tray);
         _captures = new CaptureController(() => _settings, RememberLastRegion, RememberFromCentre, _editors.Open, OpenSettings, _pins, _recordings, _history, _tray);

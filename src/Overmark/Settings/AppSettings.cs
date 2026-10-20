@@ -8,8 +8,11 @@ internal sealed class AppSettings
 {
     public HotkeySettings Hotkeys { get; set; } = new();
 
-    /// <summary>Where captures are saved. Empty means Pictures\Screenshots.</summary>
+    /// <summary>Where screenshots are saved. Empty means Pictures\Screenshots.</summary>
     public string? SaveFolder { get; set; } = "";
+
+    /// <summary>Where screen recordings are saved. Empty means the same folder as screenshots.</summary>
+    public string? RecordingFolder { get; set; } = "";
 
     /// <summary>File names as a .NET date/time format, without the .png extension.</summary>
     public string? FileNamePattern { get; set; } = "yyyy-MM-dd_HH-mm-ss";
@@ -103,7 +106,7 @@ internal sealed class HotkeySettings
 /// <summary>The editor's choices, remembered between captures.</summary>
 internal sealed class EditorSettings
 {
-    /// <summary>Freehand, Line, Arrow, Curve, Rectangle, Ellipse, Highlighter, Text or Dimension.</summary>
+    /// <summary>Freehand, Line, Arrow, Curve, Rectangle, Ellipse, Highlighter, Redact (a solid box), Pixelate, Text or Dimension.</summary>
     public string? Tool { get; set; } = "Arrow";
 
     /// <summary>A colour like "#E53935".</summary>

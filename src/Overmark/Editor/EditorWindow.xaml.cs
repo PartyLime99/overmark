@@ -27,11 +27,12 @@ internal partial class EditorWindow : Window
 
     private static readonly ToolKind[] LineTools = [ToolKind.Line, ToolKind.Arrow, ToolKind.Curve];
     private static readonly ToolKind[] ShapeTools = [ToolKind.Rectangle, ToolKind.Ellipse];
+    private static readonly ToolKind[] RedactTools = [ToolKind.Redact, ToolKind.Pixelate];
 
     /// <summary>The tool's name and a one-line reminder of how it works, for the pill above the picture.</summary>
     private static readonly Dictionary<ToolKind, (string Name, string Hint)> ToolHints = new()
     {
-        [ToolKind.Move] = ("Move", "drag a mark to move it · double-click text to change it · arrow keys nudge · Delete removes"),
+        [ToolKind.Move] = ("Move", "drag a mark to move it, or its handles to reshape it · double-click text to change it · arrow keys nudge · Delete removes"),
         [ToolKind.Freehand] = ("Freehand", "drag to draw · a click makes a dot"),
         [ToolKind.Line] = ("Line", "drag from start to end · Shift snaps to 0°, 45° or 90°"),
         [ToolKind.Arrow] = ("Arrow", "drag from tail to tip · Shift snaps to 0°, 45° or 90°"),
@@ -39,8 +40,10 @@ internal partial class EditorWindow : Window
         [ToolKind.Rectangle] = ("Rectangle", "drag a box · Shift makes a square"),
         [ToolKind.Ellipse] = ("Circle", "drag · Shift makes a perfect circle"),
         [ToolKind.Highlighter] = ("Highlighter", "four times as wide, see-through · Shift keeps it straight"),
+        [ToolKind.Redact] = ("Solid box", "drag a box over what to hide, to cover it in the pen's colour · Shift makes a square"),
+        [ToolKind.Pixelate] = ("Pixelate", "drag a box over what to hide, to blur it into blocks · thickness sets the block size · Shift makes a square"),
         [ToolKind.Text] = ("Text", "click and type · Shift+Enter for a new line · size is 4 × thickness"),
-        [ToolKind.Dimension] = ("Dimension", "click two points (Shift snaps 0°, 45°, 90°), move to pick H, V or aligned, click to place"),
+        [ToolKind.Dimension] = ("Dimension", "click two points, then move to pick H, V or aligned and click · type a length (50 mm) to set the scale"),
         [ToolKind.Eraser] = ("Eraser", "click or drag across marks to remove them"),
         [ToolKind.Crop] = ("Crop", "drag a box, then press Enter"),
     };
@@ -64,6 +67,7 @@ internal partial class EditorWindow : Window
     private ToolKind _lastDrawingTool = ToolKind.Arrow;
     private ToolKind _lastLineTool = ToolKind.Arrow;
     private ToolKind _lastShapeTool = ToolKind.Rectangle;
+    private ToolKind _lastRedactTool = ToolKind.Redact;
     private bool _syncingTools;
     private Color? _customColour;
     private double _zoom = 1;
@@ -79,6 +83,10 @@ internal partial class EditorWindow : Window
     private readonly Action<string>? _deleteCapture;
     private readonly Func<string>? _howToCapture;
 
+    // Opening images from elsewhere: a file (picked with Open, dropped, or pasted), or a picture pasted or dropped.
+    private readonly Action<string>? _openFile;
+    private readonly Action<BitmapSource>? _openPicture;
+
     // Keeps the marks editable for a day after the editor closes; null leaves them flattened, as before.
     private readonly EditStore? _edits;
     private readonly Dictionary<string, (DateTime Written, BitmapSource Image)> _thumbnails = new(StringComparer.OrdinalIgnoreCase);
@@ -92,10 +100,13 @@ internal partial class EditorWindow : Window
     /// <param name="closeCapture">Takes a capture off the list, when its x is clicked (asking about unsaved marks first).</param>
     /// <param name="deleteCapture">Deletes the capture being edited, once the bin button has asked; null leaves the button out.</param>
     /// <param name="howToCapture">What the note says when no capture is open.</param>
+    /// <param name="openFile">Opens an image file from elsewhere in place of this capture; null leaves out opening, pasting and dropping images.</param>
+    /// <param name="openPicture">Saves a pasted (or dropped) picture as a capture and opens it in place of this one.</param>
     public EditorWindow(
         string? path, BitmapSource? image, EditorSettings settings, Action<EditorSettings> rememberSettings, Action<BitmapSource> pin,
         CaptureHistory? history = null, Action<string>? switchTo = null, EditStore? edits = null, EditorDocument? document = null,
-        Action<string>? closeCapture = null, Action<string>? deleteCapture = null, Func<string>? howToCapture = null)
+        Action<string>? closeCapture = null, Action<string>? deleteCapture = null, Func<string>? howToCapture = null,
+        Action? openSettings = null, Action<string>? openFile = null, Action<BitmapSource>? openPicture = null)
     {
         InitializeComponent();
         _path = path;
@@ -106,6 +117,8 @@ internal partial class EditorWindow : Window
         _closeCapture = closeCapture;
         _deleteCapture = deleteCapture;
         _howToCapture = howToCapture;
+        _openFile = openFile;
+        _openPicture = openPicture;
         _edits = edits;
         _document = document ?? new EditorDocument(image ?? NoPicture);
         _move = new MoveTool(_document);
@@ -121,6 +134,8 @@ internal partial class EditorWindow : Window
             [ToolKind.Rectangle] = RectangleTool,
             [ToolKind.Ellipse] = EllipseTool,
             [ToolKind.Highlighter] = HighlighterTool,
+            [ToolKind.Redact] = RedactTool,
+            [ToolKind.Pixelate] = PixelateTool,
             [ToolKind.Text] = TextTool,
             [ToolKind.Dimension] = DimensionTool,
             [ToolKind.Eraser] = EraserTool,
@@ -139,6 +154,7 @@ internal partial class EditorWindow : Window
 
         SetUpFlyout(LinesGroup, LinesFlyout, LineTools, () => _lastLineTool);
         SetUpFlyout(ShapesGroup, ShapesFlyout, ShapeTools, () => _lastShapeTool);
+        SetUpFlyout(RedactGroup, RedactFlyout, RedactTools, () => _lastRedactTool);
 
         _customSwatch = BuildSwatches();
         ThicknessSlider.ValueChanged += (_, e) => SetThickness(e.NewValue);
@@ -160,6 +176,8 @@ internal partial class EditorWindow : Window
         SaveButton.Click += (_, _) => Save();
         PinButton.Click += (_, _) => Pin();
         DeleteButton.Click += (_, _) => DeleteCapture();
+        SettingsButton.Click += (_, _) => openSettings?.Invoke();
+        SettingsButton.Visibility = openSettings is null ? Visibility.Collapsed : Visibility.Visible;
         MinimiseButton.Click += (_, _) => SystemCommands.MinimizeWindow(this);
         MaximiseButton.Click += (_, _) =>
         {
@@ -191,9 +209,9 @@ internal partial class EditorWindow : Window
         };
 
         // Lambdas rather than method groups, so they reach whichever capture is showing now.
-        _tools.Committed += mark => _document.Add(mark);
+        _tools.Committed += mark => SayIfScaleChanges(() => _document.Add(mark));
         _tools.CropApplied += area => _document.CropTo(area);
-        _tools.Edited += (mark, changed) => _document.Replace(mark, changed);
+        _tools.Edited += (mark, changed) => SayIfScaleChanges(() => _document.Replace(mark, changed));
         _tools.PreviewChanged += ShowTypingBox;
         _tools.PreviewChanged += () => CommittedLayer.Hidden = _tools.Editing;
         _statusTimer.Tick += (_, _) =>
@@ -226,6 +244,20 @@ internal partial class EditorWindow : Window
         RecentToggle.Checked += (_, _) => ShowRecentPane(true);
         RecentToggle.Unchecked += (_, _) => ShowRecentPane(false);
         OpenFolderButton.Click += (_, _) => ShowInExplorer();
+        OpenImageButton.Click += (_, _) => OpenImage();
+        NoCaptureOpenButton.Click += (_, _) => OpenImage();
+        if (openFile is null || openPicture is null)
+        {
+            OpenImageButton.Visibility = Visibility.Collapsed;
+            NoCaptureOpenPanel.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            AllowDrop = true;
+            PreviewDragEnter += OnDragOver;
+            PreviewDragOver += OnDragOver;
+            PreviewDrop += OnDrop;
+        }
         if (history is null)
         {
             RecentToggle.Visibility = Visibility.Collapsed;
@@ -325,6 +357,10 @@ internal partial class EditorWindow : Window
         {
             _lastShapeTool = tool;
         }
+        else if (RedactTools.Contains(tool))
+        {
+            _lastRedactTool = tool;
+        }
 
         _syncingTools = true;
         try
@@ -337,6 +373,7 @@ internal partial class EditorWindow : Window
 
             LinesGroup.IsChecked = LineTools.Contains(tool);
             ShapesGroup.IsChecked = ShapeTools.Contains(tool);
+            RedactGroup.IsChecked = RedactTools.Contains(tool);
         }
         finally
         {
@@ -345,6 +382,11 @@ internal partial class EditorWindow : Window
 
         LinesIcon.Data = ToolIcon(_lastLineTool);
         ShapesIcon.Data = ToolIcon(_lastShapeTool);
+
+        // The redact icons are more than one shape, so both are there and one shows.
+        var pixelate = _lastRedactTool == ToolKind.Pixelate;
+        RedactSolidIcon.Visibility = pixelate ? Visibility.Collapsed : Visibility.Visible;
+        RedactPixelateIcon.Visibility = pixelate ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>The icon of the tool's button, borrowed for its group's button in the dock.</summary>
@@ -355,6 +397,7 @@ internal partial class EditorWindow : Window
     {
         LinesFlyout.IsOpen = false;
         ShapesFlyout.IsOpen = false;
+        RedactFlyout.IsOpen = false;
     }
 
     /// <summary>Windows 11 rounds the corners of normal windows; a window with its own title bar has to ask.</summary>
@@ -450,6 +493,7 @@ internal partial class EditorWindow : Window
         _tools.Tool = tool;
         ArrowheadToggle.Visibility = tool == ToolKind.Curve ? Visibility.Visible : Visibility.Collapsed;
         TextBoxToggle.Visibility = tool == ToolKind.Text ? Visibility.Visible : Visibility.Collapsed;
+        ShowScale();
         ToolNameText.Text = ToolHints[tool].Name;
         HintText.Text = ToolHints[tool].Hint;
         ShowToolButtons();
@@ -526,7 +570,8 @@ internal partial class EditorWindow : Window
 
     /// <summary>
     /// The loaded pen in the dock: a sample in the pen's colour and thickness (or "Aa" at the text size for the text
-    /// tool), the colour's name, and the thickness, or for the text tool the text size it gives.
+    /// tool, or a box for the redact tool), the colour's name, and the thickness, or for the text tool the text size it
+    /// gives, and for pixelating the block size.
     /// </summary>
     private void ShowPen()
     {
@@ -535,9 +580,13 @@ internal partial class EditorWindow : Window
         brush.Freeze();
         var tool = _tools.Tool;
         var text = tool == ToolKind.Text;
+        var redact = RedactTools.Contains(tool);
+        var pixelate = tool == ToolKind.Pixelate;
 
-        PenSample.Visibility = text ? Visibility.Collapsed : Visibility.Visible;
+        PenSample.Visibility = text || redact ? Visibility.Collapsed : Visibility.Visible;
         PenSampleText.Visibility = text ? Visibility.Visible : Visibility.Collapsed;
+        PenSampleBox.Visibility = redact ? Visibility.Visible : Visibility.Collapsed;
+        PenSampleBox.Background = pixelate ? (Brush)FindResource("MosaicBrush") : brush;
         PenSample.Stroke = brush;
         PenSampleText.Foreground = brush;
         PenSampleText.FontSize = Math.Min(Palette.StrokeWidth(ToolKind.Text, _tools.Width), 22);
@@ -549,8 +598,11 @@ internal partial class EditorWindow : Window
         PenSample.StrokeStartLineCap = PenSample.StrokeEndLineCap = highlighter ? PenLineCap.Flat : PenLineCap.Round;
 
         var index = Palette.Colours.ToList().IndexOf(colour);
-        PenColourText.Text = index >= 0 ? Palette.ColourNames[index] : "Custom";
-        ThicknessText.Text = text ? $"{Palette.StrokeWidth(ToolKind.Text, _tools.Width):0} px text" : $"{_tools.Width:0} px";
+        PenColourText.Text = pixelate ? "Pixelate" : index >= 0 ? Palette.ColourNames[index] : "Custom";
+        ThicknessText.Text = text ? $"{Palette.StrokeWidth(ToolKind.Text, _tools.Width):0} px text"
+            : pixelate ? $"{Palette.BlockSize(_tools.Width)} px blocks"
+            : redact ? "solid box"
+            : $"{_tools.Width:0} px";
     }
 
     private void SetCurveArrowhead(bool on)
@@ -743,6 +795,14 @@ internal partial class EditorWindow : Window
                 DrawingLayer.Cursor = _move.GripAt(point) switch
                 {
                     MoveGrip.TextAngle => Cursors.Hand,
+                    MoveGrip.Handle => _move.HandleAt(point) switch
+                    {
+                        ShapeHandle.TopLeft or ShapeHandle.BottomRight => Cursors.SizeNWSE,
+                        ShapeHandle.TopRight or ShapeHandle.BottomLeft => Cursors.SizeNESW,
+                        ShapeHandle.Top or ShapeHandle.Bottom => Cursors.SizeNS,
+                        ShapeHandle.Left or ShapeHandle.Right => Cursors.SizeWE,
+                        _ => Cursors.Cross,
+                    },
                     null => Cursors.Arrow,
                     _ => Cursors.SizeAll,
                 };
@@ -798,6 +858,20 @@ internal partial class EditorWindow : Window
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         var step = IsShiftDown ? 5 : 1;
         e.Handled = true;
+
+        // Opening or pasting an image works with or without a capture open (while typing, Ctrl+V pastes text).
+        if (ctrl && key == Key.O && _openFile is not null)
+        {
+            OpenImage();
+            return;
+        }
+
+        if (ctrl && key == Key.V && _tools.Typing is null && _openFile is not null)
+        {
+            Paste();
+            return;
+        }
+
         if (_path is null)
         {
             // No capture open: nothing to draw on, copy or save.
@@ -814,7 +888,7 @@ internal partial class EditorWindow : Window
                     _tools.Finish();
                     break;
                 case Key.Escape:
-                    _tools.Cancel();
+                    Escape();
                     break;
                 case Key.Tab:
                     // Would move the keyboard away from the text box, with nowhere useful to go.
@@ -901,11 +975,11 @@ internal partial class EditorWindow : Window
             case Key.Enter:
                 _tools.Finish();
                 break;
-            case Key.Escape when LinesFlyout.IsOpen || ShapesFlyout.IsOpen:
+            case Key.Escape when LinesFlyout.IsOpen || ShapesFlyout.IsOpen || RedactFlyout.IsOpen:
                 CloseFlyouts();
                 break;
             case Key.Escape:
-                _tools.Cancel();
+                Escape();
                 break;
             case Key.OemOpenBrackets:
                 StepThickness(-step);
@@ -933,6 +1007,12 @@ internal partial class EditorWindow : Window
                 break;
             case Key.H when !ctrl:
                 HighlighterTool.IsChecked = true;
+                break;
+            case Key.M when !ctrl && IsShiftDown:
+                PixelateTool.IsChecked = true;
+                break;
+            case Key.M when !ctrl:
+                RedactTool.IsChecked = true;
                 break;
             case Key.T when !ctrl:
                 TextTool.IsChecked = true;
@@ -965,6 +1045,45 @@ internal partial class EditorWindow : Window
                 e.Handled = false;
                 break;
         }
+    }
+
+    /// <summary>
+    /// Makes a change to the marks, and if it set the scale dimensions measure in (a length was typed into one) or took
+    /// it away, says so.
+    /// </summary>
+    private void SayIfScaleChanges(Action change)
+    {
+        var before = _document.Scale;
+        change();
+        var after = _document.Scale;
+        if (after is not null && after != before)
+        {
+            ShowStatus($"Scale set: {after.Describe()}");
+        }
+        else if (after is null && before is not null)
+        {
+            ShowStatus("Dimensions measure in pixels again");
+        }
+    }
+
+    /// <summary>The scale dimensions measure in, for the dimension tool and in its pill; nothing while it's pixels.</summary>
+    private void ShowScale()
+    {
+        var scale = _path is null ? null : _document.Scale;
+        _tools.Scale = scale;
+        ScaleText.Text = scale?.Describe() ?? "";
+        ScaleChip.Visibility = scale is not null && _tools.Tool == ToolKind.Dimension ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Esc: drops anything part-done (a mark being drawn, a crop box, text being typed, a dimension being placed) and
+    /// goes back to the move tool. Text whose words were being changed is left as it was.
+    /// </summary>
+    private void Escape()
+    {
+        // Dropped first: switching tools would keep text being typed or a curve being bent.
+        _tools.Cancel();
+        MoveButton.IsChecked = true;
     }
 
     /// <summary>Undo drops a part-drawn mark or crop box first, then works back through finished edits.</summary>
@@ -1012,6 +1131,7 @@ internal partial class EditorWindow : Window
     private void ShowPicture()
     {
         Picture.Source = _document.Image;
+        DrawingLayer.Picture = _document.Image;
         Checkerboard.Visibility = _document.IsSeeThrough ? Visibility.Visible : Visibility.Collapsed;
         Surface.Background = _document.IsSeeThrough ? Brushes.Transparent : Brushes.White;
     }
@@ -1047,9 +1167,10 @@ internal partial class EditorWindow : Window
 
         try
         {
-            // Write next to the file and swap it in, so a failed save never leaves a half-written capture.
+            // Write next to the file and swap it in, so a failed save never leaves a half-written capture. An image
+            // opened from elsewhere keeps its format (a JPEG stays a JPEG).
             var temporary = path + ".saving";
-            File.WriteAllBytes(temporary, CaptureOutput.EncodePng(_document.Render()));
+            File.WriteAllBytes(temporary, ImageFiles.Encode(_document.Render(), path));
             File.Move(temporary, path, overwrite: true);
             _document.MarkSaved();
             ShowStatus("Saved");
@@ -1066,6 +1187,84 @@ internal partial class EditorWindow : Window
             MessageBox.Show(this, $"Couldn't save {Path.GetFileName(path)}:\n\n{ex.Message}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
+    }
+
+    /// <summary>Ctrl+O, or the open buttons: picks an image file to mark up, which opens in place of this capture.</summary>
+    private void OpenImage()
+    {
+        if (_openFile is null)
+        {
+            return;
+        }
+
+        _tools.Finish();
+        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Open an image to mark up", Filter = ImageFiles.DialogFilter };
+        if (dialog.ShowDialog(this) == true)
+        {
+            _openFile(dialog.FileName);
+        }
+    }
+
+    /// <summary>
+    /// Ctrl+V: a picture on the clipboard is saved as a new capture and opens in place of this one; an image file
+    /// copied in File Explorer opens as it is.
+    /// </summary>
+    private void Paste()
+    {
+        var (file, picture) = ImageFiles.FromClipboard();
+        if (file is not null)
+        {
+            _openFile?.Invoke(file);
+        }
+        else if (picture is not null)
+        {
+            _openPicture?.Invoke(picture);
+        }
+        else
+        {
+            ShowStatus("Nothing to paste: copy a picture, or an image file, first");
+        }
+    }
+
+    /// <summary>An image file, or a picture, dragged over the editor can be dropped on it to open.</summary>
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        if (ImageFiles.HasImage(e.Data))
+        {
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            // Files, but not images: not here (text dragged into text being typed is left to the text box).
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+        }
+    }
+
+    private void OnDrop(object sender, DragEventArgs e)
+    {
+        if (!ImageFiles.HasImage(e.Data))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var (file, picture) = ImageFiles.Read(e.Data);
+
+        // Opening it may ask questions, which shouldn't hold up the app the image was dragged from.
+        Dispatcher.InvokeAsync(() =>
+        {
+            Activate();
+            if (file is not null)
+            {
+                _openFile?.Invoke(file);
+            }
+            else if (picture is not null)
+            {
+                _openPicture?.Invoke(picture);
+            }
+        });
     }
 
     /// <summary>
@@ -1488,6 +1687,7 @@ internal partial class EditorWindow : Window
         _document.Changed += OnDocumentChanged;
         ShowCrop();
         ShowPicture();
+        ShowScale();
     }
 
     private void OnDocumentChanged()
@@ -1495,6 +1695,7 @@ internal partial class EditorWindow : Window
         UpdateCommands();
         ShowCrop();
         ShowPicture();
+        ShowScale();
     }
 
     private static string KindName(CaptureRecord record) => record.IsVideo
@@ -1504,6 +1705,8 @@ internal partial class EditorWindow : Window
             CaptureKind.Window => "Window",
             CaptureKind.LastRegion => "Last region",
             CaptureKind.FullScreen => "Full screen",
+            CaptureKind.Pasted => "Pasted",
+            CaptureKind.Opened => "Opened",
             _ => "Region",
         };
 
@@ -1530,6 +1733,7 @@ internal partial class EditorWindow : Window
             image.CacheOption = BitmapCacheOption.OnLoad;
             image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
             image.DecodePixelWidth = 288; // twice the tile's width, so it's sharp on high-DPI screens
+            image.Rotation = ImageFiles.ThumbnailRotation(path); // a photo opened from elsewhere, the right way up
             image.UriSource = new Uri(path);
             image.EndInit();
             image.Freeze();

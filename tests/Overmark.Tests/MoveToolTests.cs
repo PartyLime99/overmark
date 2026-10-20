@@ -232,4 +232,143 @@ public class MoveToolTests
         _document.Undo();
         Assert.Equal(line, Assert.Single(_document.Marks));
     }
+
+    private void Select(Point on)
+    {
+        _move.PointerDown(on);
+        _move.PointerUp();
+    }
+
+    [Fact]
+    public void A_selected_line_shows_handles_at_its_ends_and_one_drags_just_that_end()
+    {
+        var arrow = new ArrowMark(Red, new Point(10, 10), new Point(100, 10));
+        _document.Add(arrow);
+        Assert.Empty(_move.Handles); // nothing selected yet
+
+        Select(new Point(50, 10));
+        Assert.Equal([(ShapeHandle.Start, new Point(10, 10)), (ShapeHandle.End, new Point(100, 10))], _move.Handles);
+        Assert.Equal(MoveGrip.Handle, _move.GripAt(new Point(102, 12)));
+        Assert.Equal(ShapeHandle.End, _move.HandleAt(new Point(102, 12)));
+
+        Drag(new Point(102, 12), new Point(152, 62)); // grabbed a little off the handle: the end keeps that offset
+        Assert.Equal(arrow with { End = new Point(150, 60) }, _document.Marks[0]);
+
+        _document.Undo();
+        Assert.Equal(arrow, _document.Marks[0]);
+    }
+
+    [Fact]
+    public void Pressing_the_end_of_a_mark_that_isnt_selected_moves_all_of_it()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _document.Add(line);
+
+        Drag(new Point(100, 10), new Point(120, 30));
+
+        Assert.Equal(line.MovedBy(new Vector(20, 20)), _document.Marks[0]);
+    }
+
+    [Fact]
+    public void Shift_snaps_a_dragged_end_to_straight_angles()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _document.Add(line);
+        Select(new Point(50, 10));
+
+        Drag(new Point(100, 10), new Point(200, 18), shift: true);
+
+        Assert.Equal(line with { End = new Point(200, 10) }, _document.Marks[0]);
+    }
+
+    [Fact]
+    public void A_boxs_corners_and_sides_resize_it()
+    {
+        var box = new RectangleMark(Red, new Rect(100, 100, 100, 50));
+        _document.Add(box);
+        Select(new Point(150, 100));
+        Assert.Equal(8, _move.Handles.Count);
+
+        Drag(new Point(200, 150), new Point(260, 170)); // bottom-right corner
+        Assert.Equal(new Rect(100, 100, 160, 70), ((RectangleMark)_document.Marks[0]).Bounds);
+
+        Drag(new Point(100, 135), new Point(80, 300)); // left side: only across
+        Assert.Equal(new Rect(80, 100, 180, 70), ((RectangleMark)_document.Marks[0]).Bounds);
+
+        Drag(new Point(80, 100), new Point(40, 90), shift: true); // top-left corner, square
+        Assert.Equal(new Rect(40, -50, 220, 220), ((RectangleMark)_document.Marks[0]).Bounds);
+
+        _document.Undo();
+        _document.Undo();
+        _document.Undo();
+        Assert.Equal(box, _document.Marks[0]);
+    }
+
+    [Fact]
+    public void A_circle_resizes_by_the_box_round_it()
+    {
+        _document.Add(new EllipseMark(Red, new Rect(100, 100, 100, 50)));
+        Select(new Point(100, 125)); // its left edge
+
+        Drag(new Point(150, 150), new Point(150, 200)); // bottom handle
+
+        Assert.Equal(new Rect(100, 100, 100, 100), ((EllipseMark)_document.Marks[0]).Bounds);
+    }
+
+    [Fact]
+    public void A_curves_middle_handle_bends_it()
+    {
+        var curve = new CurveMark(Red, new Point(10, 100), new Point(60, 100), new Point(110, 100), Arrowhead: false);
+        _document.Add(curve);
+        Select(new Point(30, 100));
+        Assert.Equal(ShapeHandle.Through, _move.HandleAt(new Point(60, 100)));
+
+        Drag(new Point(60, 100), new Point(60, 40));
+
+        Assert.Equal(curve with { Through = new Point(60, 40) }, _document.Marks[0]);
+    }
+
+    [Fact]
+    public void Text_and_freehand_have_no_handles()
+    {
+        var text = new TextMark(new StrokeStyle(Palette.Colours[0], 20), new Point(100, 100), "Label", Boxed: false);
+        _document.Add(text);
+        Select(text.Bounds.TopLeft + new Vector(5, 5));
+        Assert.Empty(_move.Handles);
+
+        _document.Add(new FreehandMark(Red, [new Point(300, 300), new Point(320, 310), new Point(340, 300)]));
+        Select(new Point(320, 308));
+        Assert.Equal(1, _move.Selected);
+        Assert.Empty(_move.Handles);
+    }
+
+    [Fact]
+    public void Moving_a_dimensions_point_measures_it_again_unless_its_text_was_typed()
+    {
+        var measured = new DimensionMark(Red, new Point(100, 200), new Point(300, 200), new Point(200, 150), DimensionKind.Horizontal, "200 px");
+        _document.Add(measured);
+        Select(new Point(200, 150)); // its dimension line
+        Assert.Equal([(ShapeHandle.Start, new Point(100, 200)), (ShapeHandle.End, new Point(300, 200))], _move.Handles);
+
+        Drag(new Point(300, 200), new Point(350, 230));
+        var moved = Assert.IsType<DimensionMark>(_document.Marks[0]);
+        Assert.Equal((new Point(350, 230), "250 px", new Point(200, 150)), (moved.B, moved.Text, moved.Through));
+
+        _document.Undo();
+        _document.Replace(_document.Marks[0], measured with { Text = "Gap" });
+        Select(new Point(200, 150));
+        Drag(new Point(300, 200), new Point(350, 230));
+        Assert.Equal("Gap", Assert.IsType<DimensionMark>(_document.Marks[0]).Text);
+    }
+
+    [Fact]
+    public void Double_clicking_a_dimensions_handle_doesnt_start_changing_its_words()
+    {
+        var dimension = Dimension();
+        _document.Add(dimension);
+        Select(new Point(200, 150));
+
+        Assert.Null(_move.TextAt(new Point(300, 200))); // its point B
+        Assert.Same(dimension, _move.TextAt(new Point(300, 175))); // its extension line, further along
+    }
 }

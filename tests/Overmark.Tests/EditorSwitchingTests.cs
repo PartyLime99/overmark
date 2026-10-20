@@ -81,7 +81,19 @@ public class EditorSwitchingTests
         }
         finally
         {
-            Directory.Delete(folder, recursive: true);
+            // The list reads thumbnails in the background, which can still have a file open for a moment.
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    Directory.Delete(folder, recursive: true);
+                    break;
+                }
+                catch (IOException) when (attempt < 40)
+                {
+                    Thread.Sleep(50);
+                }
+            }
         }
     });
 

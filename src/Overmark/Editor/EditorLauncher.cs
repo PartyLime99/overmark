@@ -10,7 +10,8 @@ using Overmark.Tray;
 namespace Overmark.Editor;
 
 /// <summary>Opens captures in the editor, in the editor window that's already open if there is one.</summary>
-internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSettings> rememberSettings, PinBoard pins, CaptureHistory history, TrayIcon tray)
+internal sealed class EditorLauncher(
+    Func<AppSettings> settings, Action<EditorSettings> rememberSettings, Action openSettings, PinBoard pins, CaptureHistory history, TrayIcon tray)
 {
     private readonly Dictionary<string, EditorWindow> _open = new(StringComparer.OrdinalIgnoreCase);
 
@@ -87,6 +88,66 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
 
         current.KeepDraft();
         ShowIn(current, path);
+    }
+
+    /// <summary>
+    /// Opens an image from elsewhere (picked with Open, or dropped on the editor or pasted as a file) in
+    /// <paramref name="current"/>, as if it were picked from the list, and puts it on the list. Save writes back over
+    /// it. One Save can't write back in its own format (a GIF or WebP, say) opens as a PNG copy in the screenshots
+    /// folder instead, and the original is left alone.
+    /// </summary>
+    public void OpenFile(EditorWindow current, string path)
+    {
+        if (ImageFiles.CanSave(path))
+        {
+            if (!TryActivate(path))
+            {
+                current.KeepDraft();
+                ShowIn(current, path, owner: current);
+            }
+
+            return;
+        }
+
+        BitmapSource picture;
+        try
+        {
+            picture = ImageFiles.Load(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Couldn't open {path} in the editor", ex);
+            SayCouldntOpen(current, path, ex.Message);
+            return;
+        }
+
+        OpenPicture(current, picture, CaptureKind.Opened);
+    }
+
+    /// <summary>
+    /// A picture pasted into <paramref name="current"/>: saved as a new PNG in the screenshots folder, as a capture
+    /// would be, put on the list, and opened.
+    /// </summary>
+    public void OpenPicture(EditorWindow current, BitmapSource picture) => OpenPicture(current, picture, CaptureKind.Pasted);
+
+    private void OpenPicture(EditorWindow current, BitmapSource picture, CaptureKind kind)
+    {
+        string path;
+        try
+        {
+            path = CaptureOutput.SaveNew(picture, FileNamer.FolderFor(settings()), settings().FileNamePattern);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            Log.Error("Couldn't save a picture to edit", ex);
+            MessageBox.Show(current, $"Couldn't save the picture to edit it:\n\n{ex.Message}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        Log.Info($"Saved a {kind.ToString().ToLowerInvariant()} picture as {path}");
+        history.Add(new CaptureRecord(path, kind, DateTime.Now, picture.PixelWidth, picture.PixelHeight));
+        current.KeepDraft();
+        ShowIn(current, path, owner: current);
     }
 
     /// <summary>
@@ -187,10 +248,13 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         return index + 1 < screenshots.Count ? screenshots[index + 1] : index > 0 ? screenshots[index - 1] : null;
     }
 
-    /// <summary>Shows <paramref name="path"/> in <paramref name="window"/>, in place of its capture. False if it couldn't be read.</summary>
-    private bool ShowIn(EditorWindow window, string path)
+    /// <summary>
+    /// Shows <paramref name="path"/> in <paramref name="window"/>, in place of its capture. False if it couldn't be
+    /// read, which <paramref name="owner"/> says (or else a notification does).
+    /// </summary>
+    private bool ShowIn(EditorWindow window, string path, Window? owner = null)
     {
-        if (Prepare(path) is not { } capture)
+        if (Prepare(path, owner) is not { } capture)
         {
             return false;
         }
@@ -246,7 +310,8 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         EditorWindow? window = null;
         window = new EditorWindow(
             path, image, settings().Editor, rememberSettings, Pin, history, other => SwitchTo(window!, other), _edits,
-            kept, other => CloseCapture(window!, other), other => DeleteCapture(window!, other), HowToCapture);
+            kept, other => CloseCapture(window!, other), other => DeleteCapture(window!, other), HowToCapture,
+            openSettings, file => OpenFile(window!, file), picture => OpenPicture(window!, picture));
         if (path is not null)
         {
             _open[path] = window;
@@ -291,27 +356,47 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
     /// <summary>
     /// The capture's picture, read for editing. If it was edited in the last day (and the file hasn't changed since),
     /// <c>Kept</c> brings back its marks, still editable, from the editable copy, rather than flattened into the
-    /// picture. Null, after saying why, if it can't be read.
+    /// picture. Null, after saying why, if it can't be read: in a message over <paramref name="owner"/> if there is one,
+    /// otherwise in a notification.
     /// </summary>
-    private (BitmapSource Image, EditorDocument? Kept)? Prepare(string path)
+    private (BitmapSource Image, EditorDocument? Kept)? Prepare(string path, Window? owner = null)
     {
         var kept = _edits.Find(path);
         BitmapSource image;
         try
         {
-            image = kept?.Original ?? Load(path);
+            image = kept?.Original ?? ImageFiles.Load(path);
         }
         catch (Exception ex)
         {
             Log.Error($"Couldn't open {path} in the editor", ex);
-            tray.Notify("Couldn't open the capture", ex.Message);
+            if (owner is null)
+            {
+                tray.Notify("Couldn't open the capture", ex.Message);
+            }
+            else
+            {
+                SayCouldntOpen(owner, path, ex.Message);
+            }
+
             return null;
         }
 
-        // Opening a capture that was closed off the list puts it back on.
-        history.Reopen(path);
+        // Opening a capture that was closed off the list puts it back on; an image from elsewhere goes on it.
+        if (history.Knows(path))
+        {
+            history.Reopen(path);
+        }
+        else
+        {
+            history.Add(new CaptureRecord(path, CaptureKind.Opened, DateTime.Now, image.PixelWidth, image.PixelHeight));
+        }
+
         return (image, kept is null ? null : new EditorDocument(kept.Original, kept.Crop, kept.Marks, unsaved: kept.Draft));
     }
+
+    private static void SayCouldntOpen(Window owner, string path, string problem) =>
+        MessageBox.Show(owner, $"Couldn't open {Path.GetFileName(path)}:\n\n{problem}", "Overmark", MessageBoxButton.OK, MessageBoxImage.Error);
 
     /// <summary>The store of editable copies, with anything over a day old cleared out.</summary>
     private static EditStore CreateEditStore()
@@ -321,17 +406,4 @@ internal sealed class EditorLauncher(Func<AppSettings> settings, Action<EditorSe
         return store;
     }
 
-    private static BitmapSource Load(string path)
-    {
-        var image = new BitmapImage();
-        image.BeginInit();
-
-        // Read the whole file now, so it isn't kept locked and can be saved over.
-        image.CacheOption = BitmapCacheOption.OnLoad;
-        image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-        image.UriSource = new Uri(path);
-        image.EndInit();
-        image.Freeze();
-        return image;
-    }
 }

@@ -42,7 +42,7 @@ internal sealed class RecordingController(Func<AppSettings> settings, Func<Hotke
         _region = region with { Width = Math.Max(2, region.Width / 2 * 2), Height = Math.Max(2, region.Height / 2 * 2) };
         try
         {
-            var folder = FileNamer.FolderFor(current);
+            var folder = FileNamer.RecordingFolderFor(current);
             Directory.CreateDirectory(folder);
             _path = FileNamer.NextPath(folder, current.FileNamePattern, DateTime.Now, File.Exists, ".mp4");
             var frameRate = current.RecordFrameRate is 15 or 30 or 60 ? current.RecordFrameRate : 30;

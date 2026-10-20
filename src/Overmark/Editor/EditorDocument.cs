@@ -4,7 +4,11 @@ using System.Windows.Media.Imaging;
 
 namespace Overmark.Editor;
 
-/// <summary>A capture being edited: the original image, the marks on it, the crop, and undo/redo history.</summary>
+/// <summary>
+/// A capture being edited: the original image, the marks on it, the crop, and undo/redo history.
+/// Dimensions are kept in step with the picture's <see cref="Scale"/>: when it changes, those that say what they
+/// measured say it in the new scale, as part of the same undo step as the change that caused it.
+/// </summary>
 internal sealed class EditorDocument
 {
     private readonly List<Mark> _marks = [];
@@ -14,11 +18,13 @@ internal sealed class EditorDocument
     // The edit on top of the undo stack when the document was last saved (null: the untouched original).
     private Edit? _savedAt;
 
-    // Marks erased so far in the current eraser drag; they undo together.
+    // Marks erased so far in the current eraser drag; they undo together. The scale as it was before the drag.
     private EraseMarks? _erasing;
+    private DimensionScale? _erasingScale;
 
-    // The mark being moved by the current drag, which undoes in one step.
+    // The mark being moved by the current drag, which undoes in one step. The scale as it was before the drag.
     private ReplaceMark? _changing;
+    private DimensionScale? _changingScale;
 
     public EditorDocument(BitmapSource image)
     {
@@ -60,7 +66,22 @@ internal sealed class EditorDocument
 
     public bool HasUnsavedChanges => (_undo.TryPeek(out var top) ? top : null) != _savedAt;
 
-    public void Add(Mark mark) => Do(new AddMark(mark));
+    /// <summary>
+    /// What the picture's pixels measure in real units, from the dimension that had a length typed into it last
+    /// (<see cref="DimensionMark.SetsScale"/>); null while dimensions measure in pixels.
+    /// </summary>
+    public DimensionScale? Scale =>
+        _marks.OfType<DimensionMark>().Where(d => d.SetsScale).Select(d => DimensionScale.FromText(d.Text, d.Layout.Measured)).LastOrDefault(s => s is not null);
+
+    /// <summary>
+    /// True if <paramref name="dimension"/> says what it measures, in the current scale: its text hasn't been typed
+    /// over, so it follows when the scale changes or its points move.
+    /// </summary>
+    public bool ShowsMeasurement(DimensionMark dimension) =>
+        !dimension.SetsScale && dimension.Text == DimensionScale.Measured(dimension.Layout.Measured, Scale);
+
+    /// <summary>Adds a mark. A dimension that had a length typed into it sets the scale (see <see cref="DimensionMark.SetsScale"/>).</summary>
+    public void Add(Mark mark) => Do(new AddMark(mark), mark);
 
     /// <summary>Removes every mark touching a circle of <paramref name="radius"/> at <paramref name="point"/>.</summary>
     public void EraseAt(Point point, double radius)
@@ -70,7 +91,13 @@ internal sealed class EditorDocument
         {
             if (_marks[i].IsTouchedBy(point, radius))
             {
-                (_erasing ??= new EraseMarks()).Removed.Add((i, _marks[i]));
+                if (_erasing is null)
+                {
+                    _erasingScale = Scale;
+                    _erasing = new EraseMarks();
+                }
+
+                _erasing.Removed.Add((i, _marks[i]));
                 _marks.RemoveAt(i);
                 erased = true;
             }
@@ -82,7 +109,7 @@ internal sealed class EditorDocument
         }
     }
 
-    /// <summary>Ends an eraser drag, making everything it erased one undo step.</summary>
+    /// <summary>Ends an eraser drag, making everything it erased one undo step (erasing the dimension that set the scale takes the scale away).</summary>
     public void FinishErasing()
     {
         if (_erasing is not { } edit)
@@ -91,7 +118,7 @@ internal sealed class EditorDocument
         }
 
         _erasing = null;
-        _undo.Push(edit);
+        _undo.Push(WithScaleFollowed(edit, _erasingScale, null));
         _redo.Clear();
         Changed?.Invoke();
     }
@@ -106,6 +133,7 @@ internal sealed class EditorDocument
         if (_changing?.Index != index)
         {
             FinishChanging();
+            _changingScale = Scale;
             _changing = new ReplaceMark(index, _marks[index]);
         }
 
@@ -114,7 +142,10 @@ internal sealed class EditorDocument
         Changed?.Invoke();
     }
 
-    /// <summary>Ends a drag, making the change one undo step (none if the mark ended up where it started).</summary>
+    /// <summary>
+    /// Ends a drag, making the change one undo step (none if the mark ended up where it started). Moving the points of
+    /// the dimension that sets the scale changes the scale, and the other dimensions follow now.
+    /// </summary>
     public void FinishChanging()
     {
         if (_changing is not { } edit)
@@ -125,7 +156,7 @@ internal sealed class EditorDocument
         _changing = null;
         if (edit.After != edit.Before)
         {
-            _undo.Push(edit);
+            _undo.Push(WithScaleFollowed(edit, _changingScale, null));
             _redo.Clear();
         }
 
@@ -142,7 +173,8 @@ internal sealed class EditorDocument
 
     /// <summary>
     /// Swaps <paramref name="mark"/> for <paramref name="changed"/> in the same place (its words changed), as one undo
-    /// step, or removes it if <paramref name="changed"/> is null. Does nothing if the mark is no longer there.
+    /// step, or removes it if <paramref name="changed"/> is null. Does nothing if the mark is no longer there, or
+    /// hasn't changed. A dimension that's had a length typed into it sets the scale.
     /// </summary>
     public void Replace(Mark mark, Mark? changed)
     {
@@ -158,8 +190,10 @@ internal sealed class EditorDocument
             return;
         }
 
-        Change(index, changed);
-        FinishChanging();
+        if (changed != mark)
+        {
+            Do(new ReplaceMark(index, mark) { After = changed }, changed);
+        }
     }
 
     /// <summary>Crops to <paramref name="area"/> (image pixels), widened to whole pixels and kept inside the current crop.</summary>
@@ -236,7 +270,7 @@ internal sealed class EditorDocument
             dc.DrawImage(Image, new Rect(0, 0, Image.PixelWidth, Image.PixelHeight));
             foreach (var mark in _marks)
             {
-                mark.Draw(dc);
+                mark.Draw(dc, Image);
             }
 
             dc.Pop();
@@ -251,14 +285,53 @@ internal sealed class EditorDocument
         return result;
     }
 
-    private void Do(Edit edit)
+    /// <summary>Makes an edit, as one undo step. <paramref name="mark"/> is the mark it adds or changes, if any.</summary>
+    private void Do(Edit edit, Mark? mark = null)
     {
         FinishErasing();
         FinishChanging();
+        var scale = Scale;
         edit.Apply(this);
-        _undo.Push(edit);
+        _undo.Push(WithScaleFollowed(edit, scale, mark));
         _redo.Clear();
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// After <paramref name="edit"/> has been made, keeps the dimensions in step with the scale, returning the edit
+    /// together with what that changed, to undo as one. If <paramref name="mark"/> is a dimension that's just had a
+    /// length typed into it, it becomes the only one setting the scale: any other keeps what it says, but no longer
+    /// sets it. Then, if the scale isn't what it was (<paramref name="before"/>), the dimensions that said what they
+    /// measured in it say what they measure in the new one.
+    /// </summary>
+    private Edit WithScaleFollowed(Edit edit, DimensionScale? before, Mark? mark)
+    {
+        var follow = new ReplaceMarks();
+        if (mark is DimensionMark { SetsScale: true })
+        {
+            for (var i = 0; i < _marks.Count; i++)
+            {
+                if (_marks[i] is DimensionMark { SetsScale: true } other && !ReferenceEquals(other, mark))
+                {
+                    follow.Replace(this, i, other with { SetsScale = false });
+                }
+            }
+        }
+
+        var after = Scale;
+        if (after != before)
+        {
+            for (var i = 0; i < _marks.Count; i++)
+            {
+                if (_marks[i] is DimensionMark { SetsScale: false } dimension && !follow.Changes(i)
+                    && dimension.Text == DimensionScale.Measured(dimension.Layout.Measured, before))
+                {
+                    follow.Replace(this, i, dimension with { Text = DimensionScale.Measured(dimension.Layout.Measured, after) });
+                }
+            }
+        }
+
+        return follow.IsEmpty ? edit : new Together(edit, follow);
     }
 
     /// <summary>Stands for a save that never happened, so a document brought back with unsaved marks reads as unsaved.</summary>
@@ -324,6 +397,59 @@ internal sealed class EditorDocument
         public override void Apply(EditorDocument document) => document._marks[Index] = After;
 
         public override void Revert(EditorDocument document) => document._marks[Index] = Before;
+    }
+
+    /// <summary>Several marks swapped for changed copies in their places, e.g. dimensions following a new scale.</summary>
+    private sealed class ReplaceMarks : Edit
+    {
+        private readonly List<(int Index, Mark Before, Mark After)> _changes = [];
+
+        public bool IsEmpty => _changes.Count == 0;
+
+        public bool Changes(int index) => _changes.Any(change => change.Index == index);
+
+        /// <summary>Makes a change now, and keeps it to undo and redo.</summary>
+        public void Replace(EditorDocument document, int index, Mark after)
+        {
+            _changes.Add((index, document._marks[index], after));
+            document._marks[index] = after;
+        }
+
+        public override void Apply(EditorDocument document)
+        {
+            foreach (var (index, _, after) in _changes)
+            {
+                document._marks[index] = after;
+            }
+        }
+
+        public override void Revert(EditorDocument document)
+        {
+            for (var i = _changes.Count - 1; i >= 0; i--)
+            {
+                document._marks[_changes[i].Index] = _changes[i].Before;
+            }
+        }
+    }
+
+    /// <summary>Edits made one after another and undone as one, the last first.</summary>
+    private sealed class Together(params Edit[] edits) : Edit
+    {
+        public override void Apply(EditorDocument document)
+        {
+            foreach (var edit in edits)
+            {
+                edit.Apply(document);
+            }
+        }
+
+        public override void Revert(EditorDocument document)
+        {
+            for (var i = edits.Length - 1; i >= 0; i--)
+            {
+                edits[i].Revert(document);
+            }
+        }
     }
 
     /// <summary>The picture swapped for a changed copy, e.g. with its background made see-through.</summary>

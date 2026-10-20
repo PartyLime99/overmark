@@ -10,10 +10,15 @@ internal static class FileNamer
     public static string DefaultFolder { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Screenshots");
 
-    /// <summary>Where captures and recordings are saved.</summary>
+    /// <summary>Where screenshots are saved.</summary>
     public static string FolderFor(AppSettings settings) => string.IsNullOrWhiteSpace(settings.SaveFolder)
         ? DefaultFolder
         : Environment.ExpandEnvironmentVariables(settings.SaveFolder);
+
+    /// <summary>Where recordings are saved: their own folder if one is set, otherwise the screenshots folder.</summary>
+    public static string RecordingFolderFor(AppSettings settings) => string.IsNullOrWhiteSpace(settings.RecordingFolder)
+        ? FolderFor(settings)
+        : Environment.ExpandEnvironmentVariables(settings.RecordingFolder);
 
     /// <summary>
     /// A path in <paramref name="folder"/> for a new capture, named from <paramref name="pattern"/> (a .NET

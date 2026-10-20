@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Overmark.Editor;
 
@@ -24,8 +25,26 @@ internal abstract record Mark(StrokeStyle Style)
 
     public abstract void Draw(DrawingContext dc);
 
+    /// <summary>
+    /// Draws the mark over <paramref name="picture"/>, the capture it's on. Only the redact tool's pixelated boxes need
+    /// to see the picture; the rest draw as <see cref="Draw(DrawingContext)"/> does.
+    /// </summary>
+    public virtual void Draw(DrawingContext dc, BitmapSource? picture) => Draw(dc);
+
     /// <summary>The same mark, shifted by <paramref name="offset"/>.</summary>
     public abstract Mark MovedBy(Vector offset);
+
+    /// <summary>
+    /// Where the move tool's handles go on the mark, to reshape it: the ends of a line, the corners and sides of a box.
+    /// None for marks that can only be moved (freehand, the highlighter, text).
+    /// </summary>
+    public virtual IReadOnlyList<(ShapeHandle Handle, Point At)> Handles => [];
+
+    /// <summary>
+    /// The mark with <paramref name="handle"/> dragged to <paramref name="to"/>. <paramref name="shift"/> snaps as it
+    /// does when drawing: lines to 0°, 45° or 90°, boxes to squares.
+    /// </summary>
+    public virtual Mark Reshaped(ShapeHandle handle, Point to, bool shift) => this;
 
     /// <summary>The same mark drawn at the thickness slider's <paramref name="thickness"/>.</summary>
     public virtual Mark WithThickness(double thickness) => this with { Style = Style with { Width = thickness } };
@@ -118,6 +137,15 @@ internal sealed record LineMark(StrokeStyle Style, Point Start, Point End) : Mar
 
     public override Mark MovedBy(Vector offset) => this with { Start = Start + offset, End = End + offset };
 
+    public override IReadOnlyList<(ShapeHandle Handle, Point At)> Handles => [(ShapeHandle.Start, Start), (ShapeHandle.End, End)];
+
+    public override Mark Reshaped(ShapeHandle handle, Point to, bool shift) => handle switch
+    {
+        ShapeHandle.Start => this with { Start = shift ? MarkGeometry.SnapAngle(End, to) : to },
+        ShapeHandle.End => this with { End = shift ? MarkGeometry.SnapAngle(Start, to) : to },
+        _ => this,
+    };
+
     protected override Geometry Centreline() => new LineGeometry(Start, End);
 }
 
@@ -126,6 +154,15 @@ internal sealed record ArrowMark(StrokeStyle Style, Point Start, Point End) : Ma
     public override Rect Extent => Inflated(Centreline().Bounds, Math.Max(Style.Width / 2, MarkGeometry.HeadLength(Style.Width) * 0.45));
 
     public override Mark MovedBy(Vector offset) => this with { Start = Start + offset, End = End + offset };
+
+    public override IReadOnlyList<(ShapeHandle Handle, Point At)> Handles => [(ShapeHandle.Start, Start), (ShapeHandle.End, End)];
+
+    public override Mark Reshaped(ShapeHandle handle, Point to, bool shift) => handle switch
+    {
+        ShapeHandle.Start => this with { Start = shift ? MarkGeometry.SnapAngle(End, to) : to },
+        ShapeHandle.End => this with { End = shift ? MarkGeometry.SnapAngle(Start, to) : to },
+        _ => this,
+    };
 
     public override void Draw(DrawingContext dc)
     {
@@ -149,6 +186,19 @@ internal sealed record CurveMark(StrokeStyle Style, Point Start, Point Through, 
         Inflated(Centreline().Bounds, Arrowhead ? Math.Max(Style.Width / 2, MarkGeometry.HeadLength(Style.Width) * 0.45) : Style.Width / 2);
 
     public override Mark MovedBy(Vector offset) => this with { Start = Start + offset, Through = Through + offset, End = End + offset };
+
+    /// <summary>Its ends, and the bend handle it had while it was drawn, halfway along.</summary>
+    public override IReadOnlyList<(ShapeHandle Handle, Point At)> Handles =>
+        [(ShapeHandle.Start, Start), (ShapeHandle.Through, Through), (ShapeHandle.End, End)];
+
+    /// <summary>Moving an end keeps the curve passing through the same point halfway along.</summary>
+    public override Mark Reshaped(ShapeHandle handle, Point to, bool shift) => handle switch
+    {
+        ShapeHandle.Start => this with { Start = shift ? MarkGeometry.SnapAngle(End, to) : to },
+        ShapeHandle.End => this with { End = shift ? MarkGeometry.SnapAngle(Start, to) : to },
+        ShapeHandle.Through => this with { Through = to },
+        _ => this,
+    };
 
     public override void Draw(DrawingContext dc)
     {
@@ -221,6 +271,11 @@ internal sealed record EllipseMark(StrokeStyle Style, Rect Bounds) : Mark(Style)
 
     public override Mark MovedBy(Vector offset) => this with { Bounds = Rect.Offset(Bounds, offset) };
 
+    public override IReadOnlyList<(ShapeHandle Handle, Point At)> Handles => MarkGeometry.BoxHandles(Bounds);
+
+    /// <summary>Resized by the box round it; Shift on a corner makes it a circle.</summary>
+    public override Mark Reshaped(ShapeHandle handle, Point to, bool shift) => this with { Bounds = MarkGeometry.Resized(Bounds, handle, to, shift) };
+
     // Only the outline counts, as with rectangles.
     protected override Geometry Centreline() => new EllipseGeometry(Bounds);
 }
@@ -235,6 +290,11 @@ internal sealed record RectangleMark(StrokeStyle Style, Rect Bounds) : Mark(Styl
     }
 
     public override Mark MovedBy(Vector offset) => this with { Bounds = Rect.Offset(Bounds, offset) };
+
+    public override IReadOnlyList<(ShapeHandle Handle, Point At)> Handles => MarkGeometry.BoxHandles(Bounds);
+
+    /// <summary>Shift on a corner makes it a square.</summary>
+    public override Mark Reshaped(ShapeHandle handle, Point to, bool shift) => this with { Bounds = MarkGeometry.Resized(Bounds, handle, to, shift) };
 
     // Only the outline counts: erasing (or grabbing to move) inside an empty rectangle leaves it alone.
     protected override Geometry Centreline() => new RectangleGeometry(Bounds);

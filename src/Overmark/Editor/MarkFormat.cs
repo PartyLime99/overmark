@@ -27,6 +27,9 @@ internal sealed class MarkData
 
     public bool Arrowhead { get; set; }
 
+    /// <summary>For a redact box: pixelated rather than solid.</summary>
+    public bool Pixelate { get; set; }
+
     /// <summary>For a dimension: Horizontal, Vertical or Aligned.</summary>
     public string? Kind { get; set; }
 
@@ -34,6 +37,9 @@ internal sealed class MarkData
     public double[]? TextAt { get; set; }
 
     public double TextAngle { get; set; }
+
+    /// <summary>For a dimension: it had a length typed into it, which sets the picture's scale.</summary>
+    public bool Scale { get; set; }
 }
 
 /// <summary>Turns marks into <see cref="MarkData"/> and back, so they can be kept editable between editor sessions.</summary>
@@ -78,6 +84,11 @@ internal static class MarkFormat
                 data.Type = "ellipse";
                 data.Bounds = [m.Bounds.X, m.Bounds.Y, m.Bounds.Width, m.Bounds.Height];
                 break;
+            case RedactMark m:
+                data.Type = "redact";
+                data.Bounds = [m.Bounds.X, m.Bounds.Y, m.Bounds.Width, m.Bounds.Height];
+                data.Pixelate = m.Pixelate;
+                break;
             case TextMark m:
                 data.Type = "text";
                 data.Points = Flatten([m.Position]);
@@ -91,6 +102,7 @@ internal static class MarkFormat
                 data.Text = m.Text;
                 data.TextAt = m.TextAt is { } at ? [at.X, at.Y] : null;
                 data.TextAngle = m.TextAngle;
+                data.Scale = m.SetsScale;
                 break;
             default:
                 throw new NotSupportedException($"Can't keep a {mark.GetType().Name}");
@@ -118,9 +130,11 @@ internal static class MarkFormat
             "curve" when points.Count == 3 => new CurveMark(style, points[0], points[1], points[2], data.Arrowhead),
             "rectangle" when Bounds(data.Bounds) is { } bounds => new RectangleMark(style, bounds),
             "ellipse" when Bounds(data.Bounds) is { } bounds => new EllipseMark(style, bounds),
+            "redact" when Bounds(data.Bounds) is { } bounds => new RedactMark(style, bounds, data.Pixelate),
             "text" when points.Count == 1 && data.Text is { } text => new TextMark(style, points[0], text, data.Boxed),
             "dimension" when points.Count == 3 && Enum.TryParse<DimensionKind>(data.Kind, out var kind) && Enum.IsDefined(kind) =>
-                new DimensionMark(style, points[0], points[1], points[2], kind, data.Text ?? "", Points(data.TextAt) is [var at] ? at : null, data.TextAngle),
+                new DimensionMark(
+                    style, points[0], points[1], points[2], kind, data.Text ?? "", Points(data.TextAt) is [var at] ? at : null, data.TextAngle, data.Scale),
             _ => null,
         };
     }
