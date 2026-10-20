@@ -51,7 +51,7 @@ public class UiSnapshotTests
             editor.Close();
 
             var empty = new EditorWindow(null, null, new EditorSettings(), _ => { }, _ => { }, deleteCapture: _ => { },
-                howToCapture: () => "Take a screenshot to start editing: press PrtScn, and it opens here.");
+                howToCapture: () => "Take a screenshot to start editing: press PrtScn, and it opens here.", openFile: _ => { }, openPicture: _ => { });
             var emptyContent = (FrameworkElement)empty.Content;
             (emptyContent.Width, emptyContent.Height) = (1000, 640); // as the window would be; the note alone is small
             Save(emptyContent, new Size(1000, 640), "editor-empty.png");
@@ -60,6 +60,8 @@ public class UiSnapshotTests
             SaveTyping();
             SaveTextMarks();
             SaveDimensions();
+            SaveRedactAndHandles();
+            SaveScale();
             SaveOverlay();
             SaveTodayPane();
             SaveSeeThrough();
@@ -180,6 +182,80 @@ public class UiSnapshotTests
     }
 
     /// <summary>
+    /// The editor with a contact card redacted two ways (a pixelated box and a solid one, being dragged out), and a
+    /// selected rectangle and arrow showing their handles (one at a time in the app; the arrow's are drawn here too).
+    /// </summary>
+    private static void SaveRedactAndHandles()
+    {
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, 760, 420));
+            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x2B, 0x57, 0x9A)), null, new Rect(0, 0, 760, 60));
+            var lines = new[] { ("Jamie Smith", 26.0), ("jamie.smith@example.com", 16.0), ("0400 123 456", 16.0), ("Order 2026-1187 · $4,280.00", 16.0) };
+            var y = 90.0;
+            foreach (var (text, fontSize) in lines)
+            {
+                dc.DrawText(TextMark.Format(text, fontSize, Brushes.Black), new Point(60, y));
+                y += fontSize * 2;
+            }
+        }
+
+        var picture = new RenderTargetBitmap(760, 420, 96, 96, PixelFormats.Pbgra32);
+        picture.Render(visual);
+        picture.Freeze();
+
+        var editor = new EditorWindow(@"C:\x.png", picture, new EditorSettings { StrokeWidth = 5, Tool = "Redact", RedactPixelate = true }, _ => { }, _ => { });
+        var content = (FrameworkElement)editor.Content;
+        var size = new Size(1000, 560);
+        content.Measure(size);
+        content.Arrange(new Rect(size));
+        T Field<T>(string name) => (T)typeof(EditorWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(editor)!;
+        var document = Field<EditorDocument>("_document");
+        var black = new StrokeStyle(Palette.Colours[6], 5);
+        document.Add(new RedactMark(black, new Rect(56, 140, 250, 28), Pixelate: true));
+        var box = new RectangleMark(new StrokeStyle(Palette.Colours[0], 4), new Rect(420, 110, 260, 120));
+        document.Add(box);
+        document.Add(new ArrowMark(new StrokeStyle(Palette.Colours[4], 5), new Point(560, 330), new Point(690, 250)));
+
+        var tools = Field<DrawingTools>("_tools");
+        tools.Colour = Palette.Colours[6];
+        tools.PointerDown(new Point(56, 172), false, 8);
+        tools.RedactPixelate = false;
+        tools.PointerMove(new Point(190, 200), false);
+
+        var move = Field<MoveTool>("_move");
+        move.PointerDown(new Point(550, 110)); // the rectangle's top edge
+        move.PointerUp();
+        Save(content, size, "editor-redact.png");
+
+        ((System.Windows.Controls.Primitives.ToggleButton)editor.FindName("MoveButton")).IsChecked = true;
+        move.PointerDown(new Point(625, 290)); // the arrow
+        move.PointerUp();
+        Save(content, size, "editor-handles.png");
+
+        // Not closed, for the same reason as in SaveTyping.
+    }
+
+    /// <summary>The editor after 50 mm was typed into one dimension: the others say what they measure in mm, and the pill shows the scale.</summary>
+    private static void SaveScale()
+    {
+        var style = new StrokeStyle(Palette.Colours[0], 4);
+        var editor = new EditorWindow(@"C:\x.png", SampleCapture(760, 420), new EditorSettings { StrokeWidth = 4, Tool = "Dimension" }, _ => { }, _ => { });
+        var content = (FrameworkElement)editor.Content;
+        var size = new Size(1000, 560);
+        content.Measure(size);
+        content.Arrange(new Rect(size));
+        var document = (EditorDocument)typeof(EditorWindow).GetField("_document", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(editor)!;
+        document.Add(new DimensionMark(style, new Point(60, 140), new Point(260, 140), new Point(160, 110), DimensionKind.Horizontal, "200 px"));
+        document.Add(new DimensionMark(style, new Point(330, 120), new Point(330, 300), new Point(300, 210), DimensionKind.Vertical, "180 px"));
+        document.Add(new DimensionMark(style, new Point(420, 300), new Point(560, 180), new Point(560, 300), DimensionKind.Aligned, "184 px"));
+        var first = document.Marks[0];
+        document.Replace(first, ((DimensionMark)first) with { Text = "50.0 mm", SetsScale = true });
+        Save(content, size, "editor-scale.png");
+    }
+
+    /// <summary>
     /// The capture overlay part-way through a drag, with the magnifier, and with the toolbar shown too (in use it
     /// hides once a drag starts): a screenshot dragged from a corner, then a video dragged out from the centre (the same area).
     /// </summary>
@@ -284,7 +360,7 @@ public class UiSnapshotTests
             history.Add(new CaptureRecord(open, CaptureKind.Window, at.AddMinutes(-3), 900, 500));
             history.Add(new CaptureRecord(Shot("c.png", 640, 360), CaptureKind.Region, at, 640, 360));
 
-            var editor = new EditorWindow(open, SampleCapture(900, 500), new EditorSettings(), _ => { }, _ => { }, history, _ => { }, closeCapture: _ => { });
+            var editor = new EditorWindow(open, SampleCapture(900, 500), new EditorSettings(), _ => { }, _ => { }, history, _ => { }, closeCapture: _ => { }, openFile: _ => { }, openPicture: _ => { });
             var content = (FrameworkElement)editor.Content;
             var size = new Size(1300, 760);
             content.Measure(size);

@@ -35,9 +35,12 @@ internal enum DimensionPart
 /// it's too long to fit between the arrows. <see cref="TextAt"/> pins its centre somewhere else: on the line (or the
 /// line carried on past the arrows), or anywhere off it, with a leader line back to the dimension line.
 /// <see cref="TextAngle"/> turns the text, in degrees clockwise from level.
+/// <see cref="SetsScale"/> is true for the dimension that had a length typed into it last, which sets the picture's
+/// scale (see <see cref="DimensionScale"/> and <see cref="EditorDocument.Scale"/>).
 /// </remarks>
 internal sealed record DimensionMark(
-    StrokeStyle Style, Point A, Point B, Point Through, DimensionKind Kind, string Text, Point? TextAt = null, double TextAngle = 0) : Mark(Style)
+    StrokeStyle Style, Point A, Point B, Point Through, DimensionKind Kind, string Text, Point? TextAt = null, double TextAngle = 0,
+    bool SetsScale = false) : Mark(Style)
 {
     public double LineWidth => Math.Max(1, Style.Width / 2);
 
@@ -112,6 +115,20 @@ internal sealed record DimensionMark(
 
     public override Mark MovedBy(Vector offset) =>
         this with { A = A + offset, B = B + offset, Through = Through + offset, TextAt = TextAt + offset };
+
+    /// <summary>The two measured points.</summary>
+    public override IReadOnlyList<(ShapeHandle Handle, Point At)> Handles => [(ShapeHandle.Start, A), (ShapeHandle.End, B)];
+
+    /// <summary>
+    /// Moves a measured point (Shift snaps it to 0°, 45° or 90° from the other, as when it was picked); it keeps
+    /// measuring the same way, and its line and text stay where they are.
+    /// </summary>
+    public override Mark Reshaped(ShapeHandle handle, Point to, bool shift) => handle switch
+    {
+        ShapeHandle.Start => this with { A = shift ? MarkGeometry.SnapAngle(B, to) : to },
+        ShapeHandle.End => this with { B = shift ? MarkGeometry.SnapAngle(A, to) : to },
+        _ => this,
+    };
 
     public override bool IsTouchedBy(Point point, double radius) => Layout.PartAt(point, radius) != DimensionPart.None;
 

@@ -22,7 +22,8 @@ internal sealed record TypingState(string Text, Point Origin, double FontSize, C
 /// (<see cref="SetText"/>), and Enter or clicking elsewhere finishes it.
 /// The dimension tool takes three clicks: the two points to measure between, then where the dimension line goes
 /// (which also picks horizontal, vertical or aligned). Shift snaps the second point to 0°, 45° or 90° from the first,
-/// like a line. Then its text is typed like the text tool's, starting with the measured length in pixels.
+/// like a line. Then its text is typed like the text tool's, starting with the measured length in pixels, or in the
+/// picture's <see cref="Scale"/> once a length with a unit has been typed into a dimension.
 /// Text or a dimension already drawn can have its words changed (<see cref="EditText"/>, from double-clicking it with
 /// the move tool); it's typed in the same way, and finishing it raises <see cref="Edited"/>.
 /// The eraser and move tool make no marks; the editor handles them.
@@ -42,9 +43,11 @@ internal sealed class DrawingTools
     private double _width = Palette.DefaultThickness;
     private bool _curveArrowhead;
     private bool _textBoxed;
+    private bool _redactPixelate;
     private Point _textAnchor;
     private TextMark? _text;
     private DimensionMark? _dimension;
+    private string _dimensionTextWas = "";
     private Point _pointer;
     private bool _shift;
     private bool _pressingDimension;
@@ -140,6 +143,27 @@ internal sealed class DrawingTools
         }
     }
 
+    /// <summary>Whether the redact tool pixelates what's under its box, rather than covering it with a solid one.</summary>
+    public bool RedactPixelate
+    {
+        get => _redactPixelate;
+        set
+        {
+            _redactPixelate = value;
+            if (_drawing && Preview is RedactMark redact)
+            {
+                Preview = redact with { Pixelate = value };
+                PreviewChanged?.Invoke();
+            }
+        }
+    }
+
+    /// <summary>
+    /// What the picture's pixels measure in real units, if a length has been typed into a dimension; new dimensions
+    /// start with what they measure in it. Null for pixels.
+    /// </summary>
+    public DimensionScale? Scale { get; set; }
+
     /// <summary>The mark being drawn, shown on screen but not yet in the document.</summary>
     public Mark? Preview { get; private set; }
 
@@ -172,7 +196,7 @@ internal sealed class DrawingTools
     /// <summary>While a dimension is being placed: what it will measure, shown beside the pointer.</summary>
     public (string Text, Point At)? DimensionHint =>
         _dimensionPoints.Count == 2 && Preview is DimensionMark dimension
-            ? ($"{dimension.Kind}  ·  {Math.Round(dimension.Layout.Measured)} px  ·  click to place", _pointer)
+            ? ($"{dimension.Kind}  ·  {DimensionScale.Measured(dimension.Layout.Measured, Scale)}  ·  click to place", _pointer)
             : null;
 
     /// <summary>True if something is part-done: a mark being dragged, a curve waiting to be bent, a crop box, text being typed, or a dimension.</summary>
@@ -356,6 +380,7 @@ internal sealed class DrawingTools
                 break;
             case DimensionMark dimension:
                 Editing = mark;
+                _dimensionTextWas = dimension.Text;
                 ShowDimensionTyping(dimension);
                 break;
         }
@@ -403,7 +428,9 @@ internal sealed class DrawingTools
 
     /// <summary>
     /// Keeps the text being typed, unless it's blank. Trailing spaces and empty lines are dropped. A dimension is
-    /// kept even without text. Text that was already in the document goes back in its place (<see cref="Edited"/>).
+    /// kept even without text, and one whose text has been changed to a length with a unit sets the scale (one that
+    /// was setting it stops, if it's changed to anything else). Text that was already in the document goes back in
+    /// its place (<see cref="Edited"/>).
     /// </summary>
     private void FinishText()
     {
@@ -414,7 +441,11 @@ internal sealed class DrawingTools
 
         Mark? finished = (_text, _dimension) switch
         {
-            (_, { } dimension) => dimension with { Text = dimension.Text.TrimEnd() },
+            (_, { } dimension) when dimension.Text.TrimEnd() is var text => dimension with
+            {
+                Text = text,
+                SetsScale = text == _dimensionTextWas.TrimEnd() ? dimension.SetsScale : DimensionScale.FromText(text, dimension.Layout.Measured) is not null,
+            },
             ({ } text, _) when text.Text.TrimEnd() is { Length: > 0 } trimmed => text with { Text = trimmed },
             _ => null,
         };
@@ -470,7 +501,8 @@ internal sealed class DrawingTools
                 // The third click places the dimension line; then its text is typed, starting with the measured length.
                 var placed = PlacingDimension(point);
                 _dimensionPoints.Clear();
-                ShowDimensionTyping(placed with { Text = $"{Math.Round(placed.Layout.Measured)} px" });
+                _dimensionTextWas = DimensionScale.Measured(placed.Layout.Measured, Scale);
+                ShowDimensionTyping(placed with { Text = _dimensionTextWas });
                 return;
         }
 
@@ -556,9 +588,17 @@ internal sealed class DrawingTools
             ToolKind.Curve when longEnough => new CurveMark(_style, _start, MarkGeometry.Midpoint(_start, _snappedEnd), _snappedEnd, _curveArrowhead),
             ToolKind.Rectangle when rectangle.Width >= MinimumSize || rectangle.Height >= MinimumSize => new RectangleMark(_style, rectangle),
             ToolKind.Ellipse when rectangle.Width >= MinimumSize || rectangle.Height >= MinimumSize => new EllipseMark(_style, rectangle),
+            ToolKind.Redact when rectangle.Width >= MinimumSize && rectangle.Height >= MinimumSize => Redaction(rectangle),
             _ => null,
         };
         PreviewChanged?.Invoke();
+    }
+
+    /// <summary>A redact box over every pixel <paramref name="box"/> touches.</summary>
+    private RedactMark Redaction(Rect box)
+    {
+        var area = RedactMark.WholePixels(box);
+        return new RedactMark(_style, new Rect(area.X, area.Y, area.Width, area.Height), _redactPixelate);
     }
 
     private void ShowBendingCurve()

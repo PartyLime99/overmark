@@ -63,6 +63,17 @@
             </DrawingBrush.Drawing>
         </DrawingBrush>
 
+        <!-- The loaded pen's sample for the redact tool when it pixelates: a few blocks of greys. -->
+        <DrawingBrush x:Key="MosaicBrush" Stretch="Fill">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#9AA2AD" Geometry="M0,0 H4 V3 H0 Z" />
+                    <GeometryDrawing Brush="#5A626D" Geometry="M1,0 H2 V1 H1 Z M3,1 H4 V2 H3 Z M0,2 H1 V3 H0 Z M2,2 H3 V3 H2 Z" />
+                    <GeometryDrawing Brush="#C5CBD3" Geometry="M2,0 H3 V1 H2 Z M0,1 H1 V2 H0 Z M3,2 H4 V3 H3 Z" />
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
         <DropShadowEffect x:Key="FloatShadow" BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.14" Color="#16191D" />
 
         <!-- White floating panels: the dock, the hint and zoom pills, the flyouts. -->
@@ -592,6 +603,32 @@
             </Setter>
         </Style>
 
+        <!-- A small icon button in the list's heading. -->
+        <Style x:Key="PaneIconButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Foreground" Value="#3A414B" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="9" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                                <Setter Property="Foreground" Value="#16191D" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- A thin scroll bar that floats in the list's right-hand gutter, so it doesn't push the captures over and hide their x. -->
         <Style x:Key="PaneScrollBar" TargetType="ScrollBar">
             <Setter Property="Width" Value="6" />
@@ -697,8 +734,12 @@
         <!-- Today's captures, newest first; clicking one opens it in place of this one. -->
         <Border x:Name="RecentPane" DockPanel.Dock="Left" Width="176" Background="White" BorderBrush="#DADFE5" BorderThickness="0,0,1,0">
             <DockPanel>
-                <DockPanel DockPanel.Dock="Top" Margin="14,12,12,8">
-                    <TextBlock x:Name="RecentCount" DockPanel.Dock="Right" FontSize="11" Foreground="#5A626D" VerticalAlignment="Center" />
+                <DockPanel DockPanel.Dock="Top" Margin="14,8,8,4">
+                    <Button x:Name="OpenImageButton" DockPanel.Dock="Right" Style="{StaticResource PaneIconButton}"
+                            ToolTip="Open an image to mark up (Ctrl+O). You can also paste one (Ctrl+V), or drop one on the editor.">
+                        <Path Style="{StaticResource SmallIcon}" Width="13" Height="13" Data="M9,2 V16 M2,9 H16" />
+                    </Button>
+                    <TextBlock x:Name="RecentCount" DockPanel.Dock="Right" FontSize="11" Foreground="#5A626D" Margin="0,0,4,0" VerticalAlignment="Center" />
                     <TextBlock Text="Today" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
                 </DockPanel>
                 <Button x:Name="OpenFolderButton" DockPanel.Dock="Bottom" Style="{StaticResource PaneButton}" Margin="12,8,12,12" ToolTip="Show this capture in File Explorer">
@@ -760,6 +801,12 @@
                                   ToolTip="Put the text on a box, so it stands out on a busy background" />
                     <ToggleButton x:Name="ArrowheadToggle" Style="{StaticResource PillToggle}" Content="Arrowhead" Visibility="Collapsed"
                                   ToolTip="Put an arrowhead on the end of curves" />
+                    <ToggleButton x:Name="PixelateToggle" Style="{StaticResource PillToggle}" Content="Pixelate" Visibility="Collapsed"
+                                  ToolTip="Blur what's under the box into blocks, rather than covering it with a solid box. The thickness sets the block size." />
+                    <Border x:Name="ScaleChip" DockPanel.Dock="Right" Height="26" CornerRadius="13" Background="#EEF0F3" Padding="10,0" Margin="8,0,0,0" Visibility="Collapsed"
+                            ToolTip="The scale dimensions measure in, from the length typed into a dimension. Type a length into another dimension to change it, or delete that one to go back to pixels.">
+                        <TextBlock x:Name="ScaleText" FontSize="12" FontWeight="SemiBold" Foreground="#3A414B" VerticalAlignment="Center" />
+                    </Border>
                     <TextBlock x:Name="HintText" FontSize="12" Foreground="#4A525C" Margin="8,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 </DockPanel>
             </Border>
@@ -785,7 +832,7 @@
                         </Button>
                         <Rectangle Style="{StaticResource DockDivider}" />
 
-                        <RadioButton x:Name="MoveButton" Style="{StaticResource DockTool}" ToolTip="Move (V). Click a mark to select it, then drag it; the arrow keys nudge it and Delete removes it. Picking a colour or thickness changes the selected mark, and double-clicking text or a dimension changes its words. For a dimension, drag its text, its round handle to turn the text, its line to move it in or out, or an extension line to move it all.">
+                        <RadioButton x:Name="MoveButton" Style="{StaticResource DockTool}" ToolTip="Move (V). Click a mark to select it, then drag it; the arrow keys nudge it and Delete removes it. Drag its handles to reshape it: the ends of a line, arrow or curve (or a curve's middle, to bend it), a box's corners and sides, or a dimension's measured points. Picking a colour or thickness changes the selected mark, and double-clicking text or a dimension changes its words. For a dimension, drag its text, its round handle to turn the text, its line to move it in or out, or an extension line to move it all.">
                             <Path Style="{StaticResource Icon}" Data="M3,3 L15,7.6 L9.8,9.8 L7.6,15 Z M9.8,9.8 L14.8,14.8" />
                         </RadioButton>
                         <RadioButton x:Name="FreehandTool" Style="{StaticResource DockTool}" ToolTip="Freehand (P)">
@@ -800,10 +847,16 @@
                         <RadioButton x:Name="HighlighterTool" Style="{StaticResource DockTool}" ToolTip="Highlighter (H). Hold Shift for a straight line.">
                             <Path Style="{StaticResource Icon}" Data="M2,9 H16" StrokeThickness="6" Opacity="0.6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
                         </RadioButton>
+                        <RadioButton x:Name="RedactTool" Style="{StaticResource DockTool}" ToolTip="Redact (M). Drag a box over names, email addresses or figures to hide them: a solid box in the pen's colour, or switch on Pixelate to blur them into blocks (the thickness sets the block size). Hold Shift for a square.">
+                            <Grid Width="18" Height="18">
+                                <Path Style="{StaticResource Icon}" Data="M3,3.5 H15 M3,14.5 H11" />
+                                <Path Style="{StaticResource Icon}" Data="M3,9 H15" StrokeThickness="4.5" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
+                            </Grid>
+                        </RadioButton>
                         <RadioButton x:Name="TextTool" Style="{StaticResource DockTool}" ToolTip="Text (T). Click where it goes and type; Enter finishes, Shift+Enter starts a new line. The thickness sets the size.">
                             <Path Style="{StaticResource Icon}" Data="M4,4.5 H14 M9,4.5 V15 M7,15 H11" />
                         </RadioButton>
-                        <RadioButton x:Name="DimensionTool" Style="{StaticResource DockTool}" ToolTip="Dimension (D). Click two points (hold Shift for straight angles between them), then move to choose horizontal, vertical or aligned and click to place it. Type the text (it starts as the length in pixels), then Enter.">
+                        <RadioButton x:Name="DimensionTool" Style="{StaticResource DockTool}" ToolTip="Dimension (D). Click two points (hold Shift for straight angles between them), then move to choose horizontal, vertical or aligned and click to place it. Type the text (it starts as the length in pixels), then Enter. Type a length with a unit, such as 50 mm, and the other dimensions measure in that unit.">
                             <Path Style="{StaticResource Icon}" Data="M2,5 V15 M16,5 V15 M2.5,10 H15.5 M5.5,8 L2.5,10 L5.5,12 M12.5,8 L15.5,10 L12.5,12" />
                         </RadioButton>
                         <RadioButton x:Name="EraserTool" Style="{StaticResource DockTool}" ToolTip="Eraser (E). Click or drag across marks to remove them.">
@@ -833,6 +886,7 @@
                                         <Path x:Name="PenSample" Data="M6,27 C11,7 18,32 23.5,17 C26,10.5 28.5,10.5 31,9.5" StrokeLineJoin="Round"
                                               HorizontalAlignment="Left" VerticalAlignment="Top" />
                                         <TextBlock x:Name="PenSampleText" Text="Aa" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
+                                        <Border x:Name="PenSampleBox" Width="24" Height="18" CornerRadius="2" BorderBrush="#2E16191D" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
                                     </Grid>
                                 </Border>
                                 <StackPanel VerticalAlignment="Center" Margin="9,0,0,0">
@@ -880,6 +934,15 @@
                     </Border>
                     <TextBlock Text="No screenshot open" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,14,0,0" />
                     <TextBlock x:Name="NoCaptureHint" FontSize="13" Foreground="#4A525C" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0" />
+                    <StackPanel x:Name="NoCaptureOpenPanel" Margin="0,18,0,0">
+                        <Button x:Name="NoCaptureOpenButton" Style="{StaticResource PaneButton}" HorizontalAlignment="Center" ToolTip="Open an image to mark up (Ctrl+O)">
+                            <StackPanel Orientation="Horizontal" Margin="14,0">
+                                <Path Style="{StaticResource SmallIcon}" Width="15" Height="15" Data="M2,5 V14.5 H16 V6.5 H8.5 L7,4.5 H2 Z" />
+                                <TextBlock Text="Open an image…" Margin="7,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Text="or paste one (Ctrl+V), or drop one here" FontSize="12" Foreground="#5A626D" HorizontalAlignment="Center" Margin="0,8,0,0" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

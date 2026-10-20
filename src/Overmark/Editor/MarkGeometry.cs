@@ -3,9 +3,63 @@ using System.Windows.Media;
 
 namespace Overmark.Editor;
 
+/// <summary>
+/// The handles the move tool shows on a selected mark, for reshaping it: the ends of a line, arrow, curve or
+/// dimension (and a curve's bend in the middle), and the corners and sides of a box.
+/// </summary>
+internal enum ShapeHandle
+{
+    Start,
+    Through,
+    End,
+    TopLeft,
+    Top,
+    TopRight,
+    Right,
+    BottomRight,
+    Bottom,
+    BottomLeft,
+    Left,
+}
+
 /// <summary>Shape maths for marks. All coordinates are image pixels.</summary>
 internal static class MarkGeometry
 {
+    /// <summary>The handles of a box: its four corners and the middle of each side.</summary>
+    public static IReadOnlyList<(ShapeHandle Handle, Point At)> BoxHandles(Rect box)
+    {
+        var middle = Midpoint(box.TopLeft, box.BottomRight);
+        return
+        [
+            (ShapeHandle.TopLeft, box.TopLeft),
+            (ShapeHandle.Top, new Point(middle.X, box.Top)),
+            (ShapeHandle.TopRight, box.TopRight),
+            (ShapeHandle.Right, new Point(box.Right, middle.Y)),
+            (ShapeHandle.BottomRight, box.BottomRight),
+            (ShapeHandle.Bottom, new Point(middle.X, box.Bottom)),
+            (ShapeHandle.BottomLeft, box.BottomLeft),
+            (ShapeHandle.Left, new Point(box.Left, middle.Y)),
+        ];
+    }
+
+    /// <summary>
+    /// <paramref name="box"/> with the corner or side <paramref name="handle"/> dragged to <paramref name="to"/>, the
+    /// opposite corner or side staying put. A corner dragged with <paramref name="square"/> makes a square. Dragged
+    /// past the other side, it turns inside out, as when drawing.
+    /// </summary>
+    public static Rect Resized(Rect box, ShapeHandle handle, Point to, bool square) => handle switch
+    {
+        ShapeHandle.TopLeft => RectangleFrom(box.BottomRight, to, square),
+        ShapeHandle.TopRight => RectangleFrom(box.BottomLeft, to, square),
+        ShapeHandle.BottomRight => RectangleFrom(box.TopLeft, to, square),
+        ShapeHandle.BottomLeft => RectangleFrom(box.TopRight, to, square),
+        ShapeHandle.Top => new Rect(new Point(box.Left, to.Y), box.BottomRight),
+        ShapeHandle.Bottom => new Rect(box.TopLeft, new Point(box.Right, to.Y)),
+        ShapeHandle.Left => new Rect(new Point(to.X, box.Top), box.BottomRight),
+        ShapeHandle.Right => new Rect(box.TopLeft, new Point(to.X, box.Bottom)),
+        _ => box,
+    };
+
     /// <summary>
     /// Moves <paramref name="end"/> so the line from <paramref name="start"/> runs at the nearest multiple of 45°,
     /// keeping as much of its length along that direction as possible.

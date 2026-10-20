@@ -24,6 +24,12 @@ internal enum CaptureKind
     Window,
     LastRegion,
     FullScreen,
+
+    /// <summary>Not a capture: a picture pasted into the editor, saved as one.</summary>
+    Pasted,
+
+    /// <summary>Not a capture: an image from elsewhere opened in the editor (or a PNG copy of one Save can't write back).</summary>
+    Opened,
 }
 
 /// <summary>What to capture. <see cref="Record"/> means record a video of it rather than take a screenshot.</summary>

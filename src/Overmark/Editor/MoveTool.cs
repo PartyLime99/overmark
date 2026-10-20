@@ -17,10 +17,15 @@ internal enum MoveGrip
 
     /// <summary>The round handle that turns a dimension's text.</summary>
     TextAngle,
+
+    /// <summary>One of the selected mark's handles (see <see cref="Mark.Handles"/>), which reshapes it.</summary>
+    Handle,
 }
 
 /// <summary>
 /// The move tool: click a mark to select it and drag to move it; the arrow keys nudge it and Delete removes it.
+/// A selected mark shows handles where it can be reshaped: dragging the end of a line, arrow or curve moves that
+/// end (and a curve's middle bends it), a box's corners and sides resize it, and a dimension's measured points move.
 /// For a dimension, dragging its text moves just the text (snapping onto the dimension line when it's close), the
 /// round handle above the text turns it, dragging the dimension line moves it in or out, and dragging an extension
 /// line moves the whole dimension. Picking a colour or thickness gives it to the selection. Double-clicking text (or a
@@ -30,7 +35,7 @@ internal enum MoveGrip
 internal sealed class MoveTool
 {
     private readonly EditorDocument _document;
-    private (MoveGrip Grip, Point From, Mark Original)? _drag;
+    private (MoveGrip Grip, Point From, Mark Original, (ShapeHandle Handle, Point At)? Handle)? _drag;
     private bool _moving;
     private int _markCount;
 
@@ -59,24 +64,33 @@ internal sealed class MoveTool
     /// <summary>The handle's radius, in image pixels.</summary>
     public double HandleRadius => 6 * DipSize;
 
+    /// <summary>The handles for reshaping the selected mark, if it has any.</summary>
+    public IReadOnlyList<(ShapeHandle Handle, Point At)> Handles => SelectedMark?.Handles ?? [];
+
     private double Reach => 5 * DipSize;
 
     /// <summary>What a press at <paramref name="point"/> would take hold of, for the pointer's shape; null if nothing.</summary>
     public MoveGrip? GripAt(Point point) => Find(point)?.Grip;
 
+    /// <summary>The selected mark's handle a press at <paramref name="point"/> would take hold of, if any.</summary>
+    public ShapeHandle? HandleAt(Point point) => Find(point)?.Handle?.Handle;
+
     /// <summary>
     /// The text, or dimension, whose words a double-click at <paramref name="point"/> would change: the top-most mark
-    /// there, if it's one of those. (Not the handle that turns a dimension's text, which a double-click just turns.)
+    /// there, if it's one of those. (Not the handles that turn a dimension's text or move its points, which a
+    /// double-click just takes hold of.)
     /// </summary>
     public Mark? TextAt(Point point) =>
-        Find(point) is { Grip: not MoveGrip.TextAngle } hit && _document.Marks[hit.Index] is (TextMark or DimensionMark) and var mark ? mark : null;
+        Find(point) is { Grip: not (MoveGrip.TextAngle or MoveGrip.Handle) } hit && _document.Marks[hit.Index] is (TextMark or DimensionMark) and var mark
+            ? mark
+            : null;
 
     /// <summary>Selects whatever is under the pointer (or nothing) and gets ready to drag it.</summary>
     public void PointerDown(Point point)
     {
         var found = Find(point);
         Select(found?.Index);
-        _drag = found is { } hit ? (hit.Grip, point, _document.Marks[hit.Index]) : null;
+        _drag = found is { } hit ? (hit.Grip, point, _document.Marks[hit.Index], hit.Handle) : null;
         _moving = false;
     }
 
@@ -100,6 +114,7 @@ internal sealed class MoveTool
             (MoveGrip.DimensionText, DimensionMark dimension) => MoveText(dimension, offset),
             (MoveGrip.DimensionLine, DimensionMark dimension) => MoveLine(dimension, offset),
             (MoveGrip.TextAngle, DimensionMark dimension) => Turn(dimension, point, shift),
+            (MoveGrip.Handle, var mark) when drag.Handle is { } handle => Reshape(mark, handle.Handle, handle.At + offset, shift),
             _ => drag.Original.MovedBy(offset),
         };
         Change(index, moved);
@@ -126,10 +141,13 @@ internal sealed class MoveTool
         }
     }
 
-    /// <summary>Gives the selected mark a new colour (picking a colour while a mark is selected), as one undo step.</summary>
+    /// <summary>
+    /// Gives the selected mark a new colour (picking a colour while a mark is selected), as one undo step. A
+    /// pixelated redact box takes its colours from the picture, so it's left alone.
+    /// </summary>
     public void Recolour(Color colour)
     {
-        if (Selected is { } index && SelectedMark is { } mark && mark.Style.Color != colour)
+        if (Selected is { } index && SelectedMark is { } mark and not RedactMark { Pixelate: true } && mark.Style.Color != colour)
         {
             Change(index, mark with { Style = mark.Style with { Color = colour } });
             _document.FinishChanging();
@@ -175,6 +193,21 @@ internal sealed class MoveTool
         }
     }
 
+    /// <summary>
+    /// The mark with a handle dragged to <paramref name="to"/>. A dimension whose text says what it measured (it
+    /// hasn't been typed over) is measured again, so its text keeps up.
+    /// </summary>
+    private Mark Reshape(Mark mark, ShapeHandle handle, Point to, bool shift)
+    {
+        var reshaped = mark.Reshaped(handle, to, shift);
+        if (mark is DimensionMark dimension && reshaped is DimensionMark changed && _document.ShowsMeasurement(dimension))
+        {
+            return changed with { Text = DimensionScale.Measured(changed.Layout.Measured, _document.Scale) };
+        }
+
+        return reshaped;
+    }
+
     /// <summary>Text dragged near the dimension line snaps onto it; anywhere else it stays where it's put.</summary>
     private DimensionMark MoveText(DimensionMark dimension, Vector offset)
     {
@@ -205,12 +238,25 @@ internal sealed class MoveTool
 
     private Point HandleFor(DimensionLayout layout) => layout.TextCentre - layout.TextY * (layout.TextSize.Height / 2 + 18 * DipSize);
 
-    /// <summary>The top-most mark under <paramref name="point"/>, and which part of it; the selected text's handle comes first.</summary>
-    private (int Index, MoveGrip Grip)? Find(Point point)
+    /// <summary>
+    /// The top-most mark under <paramref name="point"/>, and which part of it. The selected mark's handles come first
+    /// (the one nearest the pointer, if they're close together), then the handle that turns a dimension's text.
+    /// </summary>
+    private (int Index, MoveGrip Grip, (ShapeHandle Handle, Point At)? Handle)? Find(Point point)
     {
-        if (Selected is { } selected && RotateHandle is { } handle && (point - handle).Length <= HandleRadius * 1.5)
+        if (Selected is { } selected)
         {
-            return (selected, MoveGrip.TextAngle);
+            var reach = HandleRadius * 1.5;
+            var nearest = Handles.Where(h => (point - h.At).Length <= reach).OrderBy(h => (point - h.At).Length).ToList();
+            if (nearest.Count > 0)
+            {
+                return (selected, MoveGrip.Handle, nearest[0]);
+            }
+
+            if (RotateHandle is { } handle && (point - handle).Length <= reach)
+            {
+                return (selected, MoveGrip.TextAngle, null);
+            }
         }
 
         var marks = _document.Marks;
@@ -227,12 +273,12 @@ internal sealed class MoveTool
                 };
                 if (grip is { } found)
                 {
-                    return (i, found);
+                    return (i, found, null);
                 }
             }
             else if (marks[i].IsTouchedBy(point, Reach))
             {
-                return (i, MoveGrip.Whole);
+                return (i, MoveGrip.Whole, null);
             }
         }
 

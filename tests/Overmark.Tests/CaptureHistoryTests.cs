@@ -87,6 +87,19 @@ public sealed class CaptureHistoryTests : IDisposable
     }
 
     [Fact]
+    public void Images_opened_from_elsewhere_are_listed_but_arent_the_last_capture()
+    {
+        var history = new CaptureHistory(HistoryPath);
+        history.Add(Record("shot.png", Today));
+        history.Add(Record("photo.jpg", Today.AddMinutes(1)) with { Kind = CaptureKind.Opened });
+        history.Close(Path.Combine(_folder, "photo.jpg"));
+
+        Assert.Equal("shot.png", Path.GetFileName(history.LatestScreenshot()?.Path));
+        Assert.True(history.Knows(Path.Combine(_folder, "PHOTO.jpg"))); // closed, but still known
+        Assert.False(history.Knows(Path.Combine(_folder, "other.png")));
+    }
+
+    [Fact]
     public void An_unreadable_file_starts_a_new_history()
     {
         File.WriteAllText(HistoryPath, "{ not json");

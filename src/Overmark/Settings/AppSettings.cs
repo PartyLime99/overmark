@@ -106,7 +106,7 @@ internal sealed class HotkeySettings
 /// <summary>The editor's choices, remembered between captures.</summary>
 internal sealed class EditorSettings
 {
-    /// <summary>Freehand, Line, Arrow, Curve, Rectangle, Ellipse, Highlighter, Text or Dimension.</summary>
+    /// <summary>Freehand, Line, Arrow, Curve, Rectangle, Ellipse, Highlighter, Redact, Text or Dimension.</summary>
     public string? Tool { get; set; } = "Arrow";
 
     /// <summary>A colour like "#E53935".</summary>
@@ -119,6 +119,9 @@ internal sealed class EditorSettings
 
     /// <summary>Whether text goes on a box of a contrasting colour.</summary>
     public bool TextBoxed { get; set; }
+
+    /// <summary>Whether the redact tool pixelates, rather than covering with a solid box.</summary>
+    public bool RedactPixelate { get; set; }
 
     /// <summary>The colour last picked with the custom colour button, if any.</summary>
     public string? CustomColour { get; set; }

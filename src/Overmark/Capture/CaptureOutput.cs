@@ -57,6 +57,12 @@ internal static class CaptureOutput
         return RecycleBin.TrySend(path, out problem);
     }
 
+    /// <summary>
+    /// Saves <paramref name="image"/> as a new PNG in <paramref name="folder"/>, named as captures are (for a picture
+    /// pasted into the editor, say). Returns its path. Throws if it can't be written.
+    /// </summary>
+    public static string SaveNew(BitmapSource image, string folder, string? fileNamePattern) => Save(EncodePng(image), folder, fileNamePattern);
+
     public static byte[] EncodePng(BitmapSource image)
     {
         var encoder = new PngBitmapEncoder();
@@ -96,7 +102,7 @@ internal static class CaptureOutput
     }
 
     /// <summary>A see-through image on a white background; an image without transparency as it is.</summary>
-    private static BitmapSource OnWhite(BitmapSource image)
+    public static BitmapSource OnWhite(BitmapSource image)
     {
         if (image.Format != PixelFormats.Bgra32 && image.Format != PixelFormats.Pbgra32)
         {

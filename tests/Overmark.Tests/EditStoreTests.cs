@@ -186,6 +186,9 @@ public sealed class EditStoreTests : IDisposable
             new TextMark(Red, new Point(3, 3), "Two lines\r\nof text", Boxed: true),
             new DimensionMark(Red, new Point(1, 1), new Point(9, 1), new Point(5, -3), DimensionKind.Horizontal, "8 px", new Point(12, -6), -30),
             new DimensionMark(Red, new Point(1, 1), new Point(1, 9), new Point(-3, 5), DimensionKind.Vertical, ""),
+            new DimensionMark(Red, new Point(1, 1), new Point(9, 1), new Point(5, -3), DimensionKind.Horizontal, "50 mm", SetsScale: true),
+            new RedactMark(Red, new Rect(2, 3, 4, 5), Pixelate: true),
+            new RedactMark(Red, new Rect(2, 3, 4, 5), Pixelate: false),
         ];
 
         foreach (var mark in marks)

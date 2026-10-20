@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Overmark.Editor;
 
@@ -50,7 +51,7 @@ internal sealed class CommittedMarksLayer : FrameworkElement
         {
             if (!ReferenceEquals(mark, _hidden))
             {
-                mark.Draw(dc);
+                mark.Draw(dc, _document.Image);
             }
         }
 
@@ -76,6 +77,9 @@ internal sealed class PreviewLayer : FrameworkElement
 
     /// <summary>How many image pixels one on-screen DIP covers at the current zoom.</summary>
     public double DipSize { get; set; } = 1;
+
+    /// <summary>The capture being drawn on, which a redact box being dragged out pixelates.</summary>
+    public BitmapSource? Picture { get; set; }
 
     /// <summary>The bend handle's radius, in image pixels.</summary>
     public double HandleRadius => 6 * DipSize;
@@ -128,12 +132,23 @@ internal sealed class PreviewLayer : FrameworkElement
         if (_move.SelectedMark is { } selected)
         {
             DrawSelection(dc, selected, _move.RotateHandle);
+            foreach (var (handle, at) in _move.Handles)
+            {
+                if (handle == ShapeHandle.Through)
+                {
+                    DrawHandle(dc, at); // round, like the curve's bend handle when it was drawn
+                }
+                else
+                {
+                    DrawSquareHandle(dc, at);
+                }
+            }
         }
 
         if (_tools.Preview is { } preview)
         {
             dc.PushClip(new RectangleGeometry(area));
-            preview.Draw(dc);
+            preview.Draw(dc, Picture);
             dc.Pop();
         }
 
@@ -223,6 +238,13 @@ internal sealed class PreviewLayer : FrameworkElement
 
     private void DrawHandle(DrawingContext dc, Point at) =>
         dc.DrawEllipse(Brushes.White, new Pen(AccentBrush, 2 * DipSize), at, HandleRadius, HandleRadius);
+
+    /// <summary>A handle for reshaping a mark: a small white square, so it doesn't look like the round turn or bend handles.</summary>
+    private void DrawSquareHandle(DrawingContext dc, Point at)
+    {
+        var half = 4.5 * DipSize;
+        dc.DrawRectangle(Brushes.White, new Pen(AccentBrush, 1.5 * DipSize), new Rect(at.X - half, at.Y - half, 2 * half, 2 * half));
+    }
 
     /// <summary>Black and white dashes, which show up on any background.</summary>
     private void DrawDashed(DrawingContext dc, Geometry shape)

@@ -12,6 +12,7 @@ internal enum ToolKind
     Rectangle,
     Ellipse,
     Highlighter,
+    Redact,
     Text,
     Dimension,
     Eraser,
@@ -53,6 +54,13 @@ internal static class Palette
         ToolKind.Text => Math.Max(10, thickness * 4),
         _ => thickness,
     };
+
+    /// <summary>
+    /// How big the blocks are, in image pixels, when the redact tool pixelates at the slider's thickness: three times
+    /// the thickness, so the default of 5 gives 15 px blocks, about the height of a line of text on screen. Never
+    /// smaller than 6 px, as small blocks can leave text readable.
+    /// </summary>
+    public static int BlockSize(double thickness) => (int)Math.Max(6, Math.Round(thickness * 3));
 
     /// <summary>What goes behind boxed text: white behind dark colours, near-black behind light ones (yellow, white).</summary>
     public static Color Backdrop(Color colour) =>
