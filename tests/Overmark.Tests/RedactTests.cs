@@ -57,7 +57,7 @@ public class RedactTests
     }
 
     [Fact]
-    public void Dragging_with_the_redact_tool_covers_every_pixel_it_touches()
+    public void Dragging_with_the_solid_box_tool_covers_every_pixel_it_touches()
     {
         _tools.Tool = ToolKind.Redact;
         _tools.Colour = Palette.Colours[6];
@@ -71,22 +71,24 @@ public class RedactTests
     }
 
     [Fact]
-    public void The_pixelate_switch_and_shift_apply_to_the_next_box()
+    public void The_pixelate_tool_makes_a_pixelated_box_and_shift_a_square_one()
     {
-        _tools.Tool = ToolKind.Redact;
-        _tools.RedactPixelate = true;
+        _tools.Tool = ToolKind.Pixelate;
 
         Drag(0, 0, 40, 10, shift: true);
 
         var redact = Assert.IsType<RedactMark>(Assert.Single(_committed));
         Assert.True(redact.Pixelate);
         Assert.Equal(new Rect(0, 0, 40, 40), redact.Bounds); // a square
+        Assert.Equal(new StrokeStyle(Palette.Colours[0], Palette.DefaultThickness), redact.Style);
     }
 
-    [Fact]
-    public void A_click_with_the_redact_tool_adds_nothing()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_click_with_a_redact_tool_adds_nothing(bool pixelate)
     {
-        _tools.Tool = ToolKind.Redact;
+        _tools.Tool = pixelate ? ToolKind.Pixelate : ToolKind.Redact;
 
         Drag(10, 10, 10, 10);
         Drag(10, 10, 60, 10); // no height

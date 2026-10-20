@@ -12,7 +12,12 @@ internal enum ToolKind
     Rectangle,
     Ellipse,
     Highlighter,
+
+    /// <summary>The redact tool's solid box.</summary>
     Redact,
+
+    /// <summary>The redact tool's pixelated box.</summary>
+    Pixelate,
     Text,
     Dimension,
     Eraser,

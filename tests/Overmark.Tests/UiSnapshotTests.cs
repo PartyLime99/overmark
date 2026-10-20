@@ -205,7 +205,7 @@ public class UiSnapshotTests
         picture.Render(visual);
         picture.Freeze();
 
-        var editor = new EditorWindow(@"C:\x.png", picture, new EditorSettings { StrokeWidth = 5, Tool = "Redact", RedactPixelate = true }, _ => { }, _ => { });
+        var editor = new EditorWindow(@"C:\x.png", picture, new EditorSettings { StrokeWidth = 5, Tool = "Pixelate" }, _ => { }, _ => { });
         var content = (FrameworkElement)editor.Content;
         var size = new Size(1000, 560);
         content.Measure(size);
@@ -218,10 +218,16 @@ public class UiSnapshotTests
         document.Add(box);
         document.Add(new ArrowMark(new StrokeStyle(Palette.Colours[4], 5), new Point(560, 330), new Point(690, 250)));
 
+        Save(content, size, "editor-pixelate.png");
+
+        // The redact flyout, as it pops up above the dock.
+        var flyout = (System.Windows.Controls.Primitives.Popup)editor.FindName("RedactFlyout");
+        Save((FrameworkElement)flyout.Child, new Size(double.PositiveInfinity, double.PositiveInfinity), "redact-flyout.png");
+
+        ((RadioButton)editor.FindName("RedactTool")).IsChecked = true;
         var tools = Field<DrawingTools>("_tools");
         tools.Colour = Palette.Colours[6];
         tools.PointerDown(new Point(56, 172), false, 8);
-        tools.RedactPixelate = false;
         tools.PointerMove(new Point(190, 200), false);
 
         var move = Field<MoveTool>("_move");

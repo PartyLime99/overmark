@@ -43,7 +43,6 @@ internal sealed class DrawingTools
     private double _width = Palette.DefaultThickness;
     private bool _curveArrowhead;
     private bool _textBoxed;
-    private bool _redactPixelate;
     private Point _textAnchor;
     private TextMark? _text;
     private DimensionMark? _dimension;
@@ -139,21 +138,6 @@ internal sealed class DrawingTools
             if (_bending)
             {
                 ShowBendingCurve();
-            }
-        }
-    }
-
-    /// <summary>Whether the redact tool pixelates what's under its box, rather than covering it with a solid one.</summary>
-    public bool RedactPixelate
-    {
-        get => _redactPixelate;
-        set
-        {
-            _redactPixelate = value;
-            if (_drawing && Preview is RedactMark redact)
-            {
-                Preview = redact with { Pixelate = value };
-                PreviewChanged?.Invoke();
             }
         }
     }
@@ -588,17 +572,17 @@ internal sealed class DrawingTools
             ToolKind.Curve when longEnough => new CurveMark(_style, _start, MarkGeometry.Midpoint(_start, _snappedEnd), _snappedEnd, _curveArrowhead),
             ToolKind.Rectangle when rectangle.Width >= MinimumSize || rectangle.Height >= MinimumSize => new RectangleMark(_style, rectangle),
             ToolKind.Ellipse when rectangle.Width >= MinimumSize || rectangle.Height >= MinimumSize => new EllipseMark(_style, rectangle),
-            ToolKind.Redact when rectangle.Width >= MinimumSize && rectangle.Height >= MinimumSize => Redaction(rectangle),
+            ToolKind.Redact or ToolKind.Pixelate when rectangle.Width >= MinimumSize && rectangle.Height >= MinimumSize => Redaction(rectangle),
             _ => null,
         };
         PreviewChanged?.Invoke();
     }
 
-    /// <summary>A redact box over every pixel <paramref name="box"/> touches.</summary>
+    /// <summary>A redact box over every pixel <paramref name="box"/> touches: solid, or pixelated with the pixelate tool.</summary>
     private RedactMark Redaction(Rect box)
     {
         var area = RedactMark.WholePixels(box);
-        return new RedactMark(_style, new Rect(area.X, area.Y, area.Width, area.Height), _redactPixelate);
+        return new RedactMark(_style, new Rect(area.X, area.Y, area.Width, area.Height), Pixelate: _tool == ToolKind.Pixelate);
     }
 
     private void ShowBendingCurve()

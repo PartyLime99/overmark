@@ -101,6 +101,24 @@
             <Setter Property="Stretch" Value="Uniform" />
         </Style>
 
+        <!-- The redact tools' icons, used in the dock and in their flyout: lines of text, the middle one hidden under a
+             solid bar or pixelated into blocks. -->
+        <ControlTemplate x:Key="SolidBoxIcon" TargetType="ContentControl">
+            <Grid Width="18" Height="18">
+                <Path Style="{StaticResource Icon}" Data="M3,3.5 H15 M3,14.5 H11" />
+                <Path Style="{StaticResource Icon}" Data="M3,9 H15" StrokeThickness="4.5" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
+            </Grid>
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="PixelateIcon" TargetType="ContentControl">
+            <Grid Width="18" Height="18">
+                <Path Style="{StaticResource Icon}" Data="M3,3.5 H15 M3,14.5 H11" />
+                <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" Data="M3,6.75 h4 v4.5 h-4 Z" />
+                <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" Data="M7,6.75 h4 v4.5 h-4 Z" Opacity="0.4" />
+                <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" Data="M11,6.75 h4 v4.5 h-4 Z" Opacity="0.7" />
+            </Grid>
+        </ControlTemplate>
+
         <Style x:Key="DockDivider" TargetType="Rectangle">
             <Setter Property="Width" Value="1" />
             <Setter Property="Height" Value="30" />
@@ -801,8 +819,6 @@
                                   ToolTip="Put the text on a box, so it stands out on a busy background" />
                     <ToggleButton x:Name="ArrowheadToggle" Style="{StaticResource PillToggle}" Content="Arrowhead" Visibility="Collapsed"
                                   ToolTip="Put an arrowhead on the end of curves" />
-                    <ToggleButton x:Name="PixelateToggle" Style="{StaticResource PillToggle}" Content="Pixelate" Visibility="Collapsed"
-                                  ToolTip="Blur what's under the box into blocks, rather than covering it with a solid box. The thickness sets the block size." />
                     <Border x:Name="ScaleChip" DockPanel.Dock="Right" Height="26" CornerRadius="13" Background="#EEF0F3" Padding="10,0" Margin="8,0,0,0" Visibility="Collapsed"
                             ToolTip="The scale dimensions measure in, from the length typed into a dimension. Type a length into another dimension to change it, or delete that one to go back to pixels.">
                         <TextBlock x:Name="ScaleText" FontSize="12" FontWeight="SemiBold" Foreground="#3A414B" VerticalAlignment="Center" />
@@ -847,12 +863,12 @@
                         <RadioButton x:Name="HighlighterTool" Style="{StaticResource DockTool}" ToolTip="Highlighter (H). Hold Shift for a straight line.">
                             <Path Style="{StaticResource Icon}" Data="M2,9 H16" StrokeThickness="6" Opacity="0.6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
                         </RadioButton>
-                        <RadioButton x:Name="RedactTool" Style="{StaticResource DockTool}" ToolTip="Redact (M). Drag a box over names, email addresses or figures to hide them: a solid box in the pen's colour, or switch on Pixelate to blur them into blocks (the thickness sets the block size). Hold Shift for a square.">
-                            <Grid Width="18" Height="18">
-                                <Path Style="{StaticResource Icon}" Data="M3,3.5 H15 M3,14.5 H11" />
-                                <Path Style="{StaticResource Icon}" Data="M3,9 H15" StrokeThickness="4.5" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" />
+                        <ToggleButton x:Name="RedactGroup" Style="{StaticResource GroupTool}" ToolTip="Redact: Solid box (M) and Pixelate (Shift+M), to hide names, email addresses or figures. Click again to pick the other.">
+                            <Grid>
+                                <ContentControl x:Name="RedactSolidIcon" Template="{StaticResource SolidBoxIcon}" Focusable="False" />
+                                <ContentControl x:Name="RedactPixelateIcon" Template="{StaticResource PixelateIcon}" Focusable="False" Visibility="Collapsed" />
                             </Grid>
-                        </RadioButton>
+                        </ToggleButton>
                         <RadioButton x:Name="TextTool" Style="{StaticResource DockTool}" ToolTip="Text (T). Click where it goes and type; Enter finishes, Shift+Enter starts a new line. The thickness sets the size.">
                             <Path Style="{StaticResource Icon}" Data="M4,4.5 H14 M9,4.5 V15 M7,15 H11" />
                         </RadioButton>
@@ -990,6 +1006,31 @@
                                 <TextBlock Style="{StaticResource FlyoutKey}" Text="O" />
                                 <Path Style="{StaticResource SmallIcon}" Data="M2.5,9 A6.5,5.5 0 1 1 15.5,9 A6.5,5.5 0 1 1 2.5,9 Z" />
                                 <TextBlock Style="{StaticResource FlyoutName}" Text="Circle" />
+                            </DockPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+            </Popup>
+
+            <Popup x:Name="RedactFlyout" PlacementTarget="{Binding ElementName=RedactGroup}" Placement="Custom" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
+                <Border Margin="14" Style="{StaticResource FloatCard}" CornerRadius="16" Padding="6" Width="172">
+                    <StackPanel>
+                        <RadioButton x:Name="RedactTool" Style="{StaticResource FlyoutTool}" ToolTip="Solid box (M). Drag a box over names, email addresses or figures to cover them in the pen's colour. Hold Shift for a square.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="M" />
+                                <Viewbox Width="16" Height="16">
+                                    <ContentControl Template="{StaticResource SolidBoxIcon}" Focusable="False" />
+                                </Viewbox>
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Solid box" />
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="PixelateTool" Style="{StaticResource FlyoutTool}" ToolTip="Pixelate (Shift+M). Drag a box over names, email addresses or figures to blur them into blocks; the thickness sets the block size. Hold Shift for a square.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="Shift+M" />
+                                <Viewbox Width="16" Height="16">
+                                    <ContentControl Template="{StaticResource PixelateIcon}" Focusable="False" />
+                                </Viewbox>
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Pixelate" />
                             </DockPanel>
                         </RadioButton>
                     </StackPanel>

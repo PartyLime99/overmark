@@ -44,12 +44,12 @@ Down the left side is **Today**: everything you've captured (or opened, or paste
 
 Marks stay **editable for a day**: reopen a capture within 24 hours of editing it and its marks can still be moved, reshaped, recoloured, made thicker or thinner, erased and have their text changed, even after saving. (The PNG always has them flattened in, for sharing.)
 
-Everything for drawing is in the dock along the bottom: undo and redo, the tools, the **loaded pen** (a sample of what the next mark will look like), the colours and the thickness slider, with a small dot and a large one either side of it that make it 1 px thinner or thicker. Pick the colour and thickness **first**; they apply to the next mark only (to change a mark you've already drawn, select it with the move tool, below). Line, Arrow and Curve share one dock button, as do Rectangle and Circle: it shows the one you used last, and clicking it again opens a small menu with the others (their keys work as always).
+Everything for drawing is in the dock along the bottom: undo and redo, the tools, the **loaded pen** (a sample of what the next mark will look like), the colours and the thickness slider, with a small dot and a large one either side of it that make it 1 px thinner or thicker. Pick the colour and thickness **first**; they apply to the next mark only (to change a mark you've already drawn, select it with the move tool, below). Line, Arrow and Curve share one dock button, as do Rectangle and Circle, and Solid box and Pixelate: it shows the one you used last, and clicking it again opens a small menu with the others (their keys work as always).
 
 | Key | Tool or action |
 |---|---|
 | P / L / A / C / R / O / H / T | Freehand, Line, Arrow, Curve, Rectangle, Circle, Highlighter, Text |
-| M | Redact: hide names, email addresses or figures under a solid box or pixelated blocks |
+| M / Shift+M | Redact with a solid box / pixelated blocks |
 | D | Dimension |
 | V | Move: select a mark and drag it, or drag its handles to reshape it; arrow keys nudge it, Delete removes it; double-click text to change it |
 | E / X | Eraser (removes whole marks) / Crop (drag a box, then Enter) |
@@ -67,7 +67,7 @@ To draw a **curve**, drag a straight line, then drag the round handle in its mid
 
 To add **text**, pick the text tool (T), click where it should go and type. Enter finishes it, Shift+Enter starts a new line, and clicking somewhere else finishes it and starts another there. The thickness slider sets the size (the default gives 20 px text), and the **Box behind text** switch in the pill above the picture puts the text on a box so it stands out on a busy background. The colour, size and box can still be changed while you're typing.
 
-To **hide** names, email addresses, figures and the like, pick the redact tool (M) and drag a box over them. It's a solid box in the pen's colour (press 7 for black first), or, with the **Pixelate** switch in the pill above the picture, the picture under it blurred into blocks (the thickness sets the block size: 15 px at the default). Saving, copying and pinning flatten it in, so what was underneath is gone from what you share.
+To **hide** names, email addresses, figures and the like, pick a redact tool and drag a box over them. The redact button in the dock holds two, like Rectangle and Circle: **Solid box** (M) covers them in the pen's colour (press 7 for black first), and **Pixelate** (Shift+M) blurs the picture under the box into blocks (the thickness sets the block size: 15 px at the default). The button shows the one you used last; click it again to pick the other. Saving, copying and pinning flatten the box in, so what was underneath is gone from what you share.
 
 To add a **dimension** (like SolidWorks' smart dimension), pick the dimension tool (D) and click the two points to measure between (hold Shift to keep them level, upright or at 45°). Then move the pointer: above or below the points gives a horizontal dimension, to the left or right a vertical one, and anywhere else an aligned one (the true distance). Click to place it, type the text (it starts as the length in pixels, selected so typing replaces it) and press Enter. Text too long for the gap moves just outside the line by itself.
 

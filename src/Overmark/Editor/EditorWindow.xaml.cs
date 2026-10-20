@@ -27,6 +27,7 @@ internal partial class EditorWindow : Window
 
     private static readonly ToolKind[] LineTools = [ToolKind.Line, ToolKind.Arrow, ToolKind.Curve];
     private static readonly ToolKind[] ShapeTools = [ToolKind.Rectangle, ToolKind.Ellipse];
+    private static readonly ToolKind[] RedactTools = [ToolKind.Redact, ToolKind.Pixelate];
 
     /// <summary>The tool's name and a one-line reminder of how it works, for the pill above the picture.</summary>
     private static readonly Dictionary<ToolKind, (string Name, string Hint)> ToolHints = new()
@@ -39,7 +40,8 @@ internal partial class EditorWindow : Window
         [ToolKind.Rectangle] = ("Rectangle", "drag a box · Shift makes a square"),
         [ToolKind.Ellipse] = ("Circle", "drag · Shift makes a perfect circle"),
         [ToolKind.Highlighter] = ("Highlighter", "four times as wide, see-through · Shift keeps it straight"),
-        [ToolKind.Redact] = ("Redact", "drag a box over what to hide · a solid box in the pen's colour, or pixelated · Shift makes a square"),
+        [ToolKind.Redact] = ("Solid box", "drag a box over what to hide, to cover it in the pen's colour · Shift makes a square"),
+        [ToolKind.Pixelate] = ("Pixelate", "drag a box over what to hide, to blur it into blocks · thickness sets the block size · Shift makes a square"),
         [ToolKind.Text] = ("Text", "click and type · Shift+Enter for a new line · size is 4 × thickness"),
         [ToolKind.Dimension] = ("Dimension", "click two points, then move to pick H, V or aligned and click · type a length (50 mm) to set the scale"),
         [ToolKind.Eraser] = ("Eraser", "click or drag across marks to remove them"),
@@ -65,6 +67,7 @@ internal partial class EditorWindow : Window
     private ToolKind _lastDrawingTool = ToolKind.Arrow;
     private ToolKind _lastLineTool = ToolKind.Arrow;
     private ToolKind _lastShapeTool = ToolKind.Rectangle;
+    private ToolKind _lastRedactTool = ToolKind.Redact;
     private bool _syncingTools;
     private Color? _customColour;
     private double _zoom = 1;
@@ -132,6 +135,7 @@ internal partial class EditorWindow : Window
             [ToolKind.Ellipse] = EllipseTool,
             [ToolKind.Highlighter] = HighlighterTool,
             [ToolKind.Redact] = RedactTool,
+            [ToolKind.Pixelate] = PixelateTool,
             [ToolKind.Text] = TextTool,
             [ToolKind.Dimension] = DimensionTool,
             [ToolKind.Eraser] = EraserTool,
@@ -150,6 +154,7 @@ internal partial class EditorWindow : Window
 
         SetUpFlyout(LinesGroup, LinesFlyout, LineTools, () => _lastLineTool);
         SetUpFlyout(ShapesGroup, ShapesFlyout, ShapeTools, () => _lastShapeTool);
+        SetUpFlyout(RedactGroup, RedactFlyout, RedactTools, () => _lastRedactTool);
 
         _customSwatch = BuildSwatches();
         ThicknessSlider.ValueChanged += (_, e) => SetThickness(e.NewValue);
@@ -160,8 +165,6 @@ internal partial class EditorWindow : Window
         ArrowheadToggle.Unchecked += (_, _) => SetCurveArrowhead(false);
         TextBoxToggle.Checked += (_, _) => SetTextBoxed(true);
         TextBoxToggle.Unchecked += (_, _) => SetTextBoxed(false);
-        PixelateToggle.Checked += (_, _) => SetRedactPixelate(true);
-        PixelateToggle.Unchecked += (_, _) => SetRedactPixelate(false);
         TypingBox.TextChanged += (_, _) => _tools.SetText(TypingBox.Text);
         CustomColourButton.Click += (_, _) => PickCustomColour();
         UndoButton.Click += (_, _) => Undo();
@@ -354,6 +357,10 @@ internal partial class EditorWindow : Window
         {
             _lastShapeTool = tool;
         }
+        else if (RedactTools.Contains(tool))
+        {
+            _lastRedactTool = tool;
+        }
 
         _syncingTools = true;
         try
@@ -366,6 +373,7 @@ internal partial class EditorWindow : Window
 
             LinesGroup.IsChecked = LineTools.Contains(tool);
             ShapesGroup.IsChecked = ShapeTools.Contains(tool);
+            RedactGroup.IsChecked = RedactTools.Contains(tool);
         }
         finally
         {
@@ -374,6 +382,11 @@ internal partial class EditorWindow : Window
 
         LinesIcon.Data = ToolIcon(_lastLineTool);
         ShapesIcon.Data = ToolIcon(_lastShapeTool);
+
+        // The redact icons are more than one shape, so both are there and one shows.
+        var pixelate = _lastRedactTool == ToolKind.Pixelate;
+        RedactSolidIcon.Visibility = pixelate ? Visibility.Collapsed : Visibility.Visible;
+        RedactPixelateIcon.Visibility = pixelate ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>The icon of the tool's button, borrowed for its group's button in the dock.</summary>
@@ -384,6 +397,7 @@ internal partial class EditorWindow : Window
     {
         LinesFlyout.IsOpen = false;
         ShapesFlyout.IsOpen = false;
+        RedactFlyout.IsOpen = false;
     }
 
     /// <summary>Windows 11 rounds the corners of normal windows; a window with its own title bar has to ask.</summary>
@@ -479,7 +493,6 @@ internal partial class EditorWindow : Window
         _tools.Tool = tool;
         ArrowheadToggle.Visibility = tool == ToolKind.Curve ? Visibility.Visible : Visibility.Collapsed;
         TextBoxToggle.Visibility = tool == ToolKind.Text ? Visibility.Visible : Visibility.Collapsed;
-        PixelateToggle.Visibility = tool == ToolKind.Redact ? Visibility.Visible : Visibility.Collapsed;
         ShowScale();
         ToolNameText.Text = ToolHints[tool].Name;
         HintText.Text = ToolHints[tool].Hint;
@@ -567,8 +580,8 @@ internal partial class EditorWindow : Window
         brush.Freeze();
         var tool = _tools.Tool;
         var text = tool == ToolKind.Text;
-        var redact = tool == ToolKind.Redact;
-        var pixelate = redact && _tools.RedactPixelate;
+        var redact = RedactTools.Contains(tool);
+        var pixelate = tool == ToolKind.Pixelate;
 
         PenSample.Visibility = text || redact ? Visibility.Collapsed : Visibility.Visible;
         PenSampleText.Visibility = text ? Visibility.Visible : Visibility.Collapsed;
@@ -601,13 +614,6 @@ internal partial class EditorWindow : Window
     private void SetTextBoxed(bool on)
     {
         _tools.TextBoxed = on;
-        RememberChoices();
-    }
-
-    private void SetRedactPixelate(bool on)
-    {
-        _tools.RedactPixelate = on;
-        ShowPen();
         RememberChoices();
     }
 
@@ -711,8 +717,6 @@ internal partial class EditorWindow : Window
             _tools.CurveArrowhead = settings.CurveArrowhead;
             TextBoxToggle.IsChecked = settings.TextBoxed;
             _tools.TextBoxed = settings.TextBoxed;
-            PixelateToggle.IsChecked = settings.RedactPixelate;
-            _tools.RedactPixelate = settings.RedactPixelate;
             ShowRecent = settings.ShowRecentCaptures;
 
             var tool = Enum.TryParse<ToolKind>(settings.Tool, true, out var saved) && saved is not (ToolKind.Move or ToolKind.Eraser or ToolKind.Crop)
@@ -740,7 +744,6 @@ internal partial class EditorWindow : Window
             StrokeWidth = _tools.Width,
             CurveArrowhead = _tools.CurveArrowhead,
             TextBoxed = _tools.TextBoxed,
-            RedactPixelate = _tools.RedactPixelate,
             CustomColour = _customColour is { } custom ? Hex(custom) : null,
             ShowRecentCaptures = RecentToggle.IsChecked == true,
         });
@@ -972,7 +975,7 @@ internal partial class EditorWindow : Window
             case Key.Enter:
                 _tools.Finish();
                 break;
-            case Key.Escape when LinesFlyout.IsOpen || ShapesFlyout.IsOpen:
+            case Key.Escape when LinesFlyout.IsOpen || ShapesFlyout.IsOpen || RedactFlyout.IsOpen:
                 CloseFlyouts();
                 break;
             case Key.Escape:
@@ -1004,6 +1007,9 @@ internal partial class EditorWindow : Window
                 break;
             case Key.H when !ctrl:
                 HighlighterTool.IsChecked = true;
+                break;
+            case Key.M when !ctrl && IsShiftDown:
+                PixelateTool.IsChecked = true;
                 break;
             case Key.M when !ctrl:
                 RedactTool.IsChecked = true;
