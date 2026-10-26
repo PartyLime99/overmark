@@ -152,6 +152,19 @@
                     <TextBlock Style="{StaticResource RowName}" Text="Pin to the screen" />
                 </DockPanel>
             </Button>
+            <Button x:Name="RemoveWhiteButton" Style="{StaticResource ActionRow}" ToolTip="Copies it again with the white background see-through; the saved file stays as it is">
+                <DockPanel>
+                    <!-- The editor's see-through icon, drawn on its 18-pixel grid and shrunk to this list's size. -->
+                    <Viewbox Width="16" Height="16" VerticalAlignment="Center">
+                        <Grid Width="18" Height="18">
+                            <Path Style="{StaticResource Icon}" Width="18" Height="18" Stretch="None" Data="M2.5,2.5 H15.5 V15.5 H2.5 Z" />
+                            <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" Opacity="0.5"
+                                  Data="M2.5,2.5 h3.25 v3.25 h-3.25 Z M9,2.5 h3.25 v3.25 h-3.25 Z M5.75,5.75 h3.25 v3.25 h-3.25 Z M12.25,5.75 h3.25 v3.25 h-3.25 Z M2.5,9 h3.25 v3.25 h-3.25 Z M9,9 h3.25 v3.25 h-3.25 Z M5.75,12.25 h3.25 v3.25 h-3.25 Z M12.25,12.25 h3.25 v3.25 h-3.25 Z" />
+                        </Grid>
+                    </Viewbox>
+                    <TextBlock Style="{StaticResource RowName}" Text="Remove background and copy" />
+                </DockPanel>
+            </Button>
             <Button x:Name="DeleteButton" Style="{StaticResource DeleteRow}" ToolTip="Moves the file to the Recycle Bin and takes it off the clipboard">
                 <DockPanel>
                     <TextBlock Style="{StaticResource RowNote}" Text="to the Recycle Bin" Foreground="#B42318" />

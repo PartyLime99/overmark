@@ -25,9 +25,13 @@ internal partial class CapturePopup : Window
     /// <param name="pin">Pins the image; null hides the pin button (e.g. for a video).</param>
     /// <param name="delete">Throws the capture away; null hides the delete button (e.g. when nothing was saved).</param>
     /// <param name="video">True for a recording: the first action reads Play rather than Edit.</param>
+    /// <param name="removeWhite">
+    /// Copies the capture again with its white background see-through, and returns what to show: the new picture (null
+    /// if nothing changed) and a heading saying how it went. Null hides the button (e.g. for a video).
+    /// </param>
     public CapturePopup(
         BitmapSource image, string heading, string details, string? path, MonitorInfo monitor, TimeSpan showFor,
-        Action? edit, Action? pin, Action? delete, bool video = false)
+        Action? edit, Action? pin, Action? delete, bool video = false, Func<(BitmapSource? Image, string Heading)>? removeWhite = null)
     {
         InitializeComponent();
         if (video)
@@ -51,6 +55,11 @@ internal partial class CapturePopup : Window
             DeleteButton.Visibility = Visibility.Collapsed;
         }
 
+        if (removeWhite is null)
+        {
+            RemoveWhiteButton.Visibility = Visibility.Collapsed;
+        }
+
         _monitor = monitor;
         Preview.Source = image;
         Heading.Text = heading;
@@ -69,6 +78,18 @@ internal partial class CapturePopup : Window
         {
             FadeOut();
             delete?.Invoke();
+        };
+        RemoveWhiteButton.Click += (_, _) =>
+        {
+            // Stays up to show how it went; it's a one-off, so the button goes.
+            var (cleared, outcome) = removeWhite!();
+            if (cleared is not null)
+            {
+                Preview.Source = cleared;
+            }
+
+            Heading.Text = outcome;
+            RemoveWhiteButton.Visibility = Visibility.Collapsed;
         };
         CloseButton.Click += (_, _) => FadeOut();
         EditButton.Click += (_, _) =>

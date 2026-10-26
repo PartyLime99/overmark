@@ -33,7 +33,8 @@ public class UiSnapshotTests
             var capture = SampleCapture(1280, 720);
             var monitor = new MonitorInfo("DISPLAY1", new ScreenRect(0, 0, 2560, 1440), new ScreenRect(0, 0, 2560, 1380), true, 120);
 
-            var popup = new CapturePopup(capture, "Copied and saved", "1280 × 720  ·  2026-10-15_10-30-00.png", @"C:\x.png", monitor, TimeSpan.FromSeconds(5), () => { }, () => { }, () => { });
+            var popup = new CapturePopup(capture, "Copied and saved", "1280 × 720  ·  2026-10-15_10-30-00.png", @"C:\x.png", monitor, TimeSpan.FromSeconds(5), () => { }, () => { }, () => { },
+                removeWhite: () => (null, "Background removed and copied"));
             Save((FrameworkElement)popup.Content, new Size(400, 400), "popup.png");
 
             var videoPopup = new CapturePopup(capture, "Recording copied and saved", "0:42  ·  1280 × 720  ·  2026-10-15_10-30-00.mp4", "x.mp4", monitor,

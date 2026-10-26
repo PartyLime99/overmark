@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Windows;
 using System.Windows.Media.Imaging;
+using Overmark.Editor;
 using Overmark.Hotkeys;
 using Overmark.Pinning;
 using Overmark.Platform;
@@ -301,13 +303,33 @@ internal sealed class CaptureController(
         }
 
         Action? edit = path is null ? null : () => openEditor(path);
-        Action? delete = path is null ? null : () => Delete(path, result.ClipboardVersion);
+
+        // Copying the capture again (without its background) moves the clipboard on, so delete looks for the new copy.
+        var clipboardVersion = result.ClipboardVersion;
+        Action? delete = path is null ? null : () => Delete(path, clipboardVersion);
         var monitors = Displays.GetMonitors();
         var pointer = Pointer.Position;
         var monitor = monitors.FirstOrDefault(m => m.Bounds.Contains(pointer)) ?? monitors[0];
         var pinAt = new PixelPoint(outcome.Region.Left, outcome.Region.Top);
 
-        var popup = new CapturePopup(image, heading, details, path, monitor, showFor, edit, () => pins.Open(image, pinAt, edit), delete);
+        var popup = new CapturePopup(image, heading, details, path, monitor, showFor, edit, () => pins.Open(image, pinAt, edit), delete,
+            removeWhite: () =>
+            {
+                if (Transparency.RemoveWhite(image, new Int32Rect(0, 0, image.PixelWidth, image.PixelHeight)) is not { } cleared)
+                {
+                    return (null, "No white background touching the edges");
+                }
+
+                if (!CaptureOutput.TryCopy(cleared, out var problem))
+                {
+                    Log.Warn(problem ?? "Couldn't copy the capture without its background");
+                    return (null, "Couldn't copy it, the clipboard is busy");
+                }
+
+                clipboardVersion = NativeMethods.GetClipboardSequenceNumber();
+                Log.Info("Copied the capture without its white background");
+                return (cleared, "Background removed and copied");
+            });
         popup.Closed += (_, _) =>
         {
             if (_popup == popup)
