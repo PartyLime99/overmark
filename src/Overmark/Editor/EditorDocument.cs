@@ -246,12 +246,13 @@ internal sealed class EditorDocument
     }
 
     /// <summary>
-    /// Makes the white background of the kept part see-through (see <see cref="Transparency"/>), as one undo step.
-    /// Marks stay as they are. Returns false if there was no white touching the edges to remove.
+    /// Makes the white background of the kept part see-through (see <see cref="Transparency"/>), as one undo step, or
+    /// with <paramref name="everywhere"/> all its pure white. Marks stay as they are. Returns false if there was no
+    /// white to remove.
     /// </summary>
-    public bool RemoveWhiteBackground()
+    public bool RemoveWhiteBackground(bool everywhere = false)
     {
-        if (Transparency.RemoveWhite(Image, Crop) is not { } cleared)
+        if (Transparency.RemoveWhite(Image, Crop, everywhere) is not { } cleared)
         {
             return false;
         }

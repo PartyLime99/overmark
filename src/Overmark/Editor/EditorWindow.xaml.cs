@@ -177,7 +177,10 @@ internal partial class EditorWindow : Window
         CustomColourButton.Click += (_, _) => PickCustomColour();
         UndoButton.Click += (_, _) => Undo();
         RedoButton.Click += (_, _) => _document.Redo();
-        RemoveWhiteButton.Click += (_, _) => RemoveWhiteBackground();
+        PlaceAboveDock(RemoveWhiteFlyout);
+        RemoveWhiteButton.Click += (_, _) => RemoveWhiteFlyout.IsOpen = !JustClosed(RemoveWhiteFlyout);
+        RemoveBackgroundButton.Click += (_, _) => RemoveWhiteBackground();
+        RemoveAllWhiteButton.Click += (_, _) => RemoveWhiteBackground(everywhere: true);
         FitButton.Click += (_, _) => FitToWindow();
         ActualSizeButton.Click += (_, _) => SetZoom(1, null);
         CopyButton.Click += (_, _) => CopyPicture();
@@ -335,17 +338,12 @@ internal partial class EditorWindow : Window
     /// </summary>
     private void SetUpFlyout(ToggleButton group, Popup flyout, ToolKind[] members, Func<ToolKind> last)
     {
-        flyout.CustomPopupPlacementCallback = (popup, target, _) =>
-            [new CustomPopupPlacement(new Point((target.Width - popup.Width) / 2, -popup.Height + 4), PopupPrimaryAxis.Horizontal)];
-        flyout.Closed += (_, _) => _flyoutClosedAt[flyout] = DateTime.UtcNow;
-
+        PlaceAboveDock(flyout);
         group.Click += (_, _) =>
         {
             if (members.Contains(_tools.Tool))
             {
-                // The click that closed the flyout (by landing outside it) shouldn't open it again straight away.
-                var justClosed = _flyoutClosedAt.TryGetValue(flyout, out var closedAt) && DateTime.UtcNow - closedAt < TimeSpan.FromMilliseconds(250);
-                flyout.IsOpen = !justClosed;
+                flyout.IsOpen = !JustClosed(flyout);
             }
             else
             {
@@ -360,6 +358,21 @@ internal partial class EditorWindow : Window
             _toolButtons[tool].Click += (_, _) => flyout.IsOpen = false;
         }
     }
+
+    /// <summary>Pops the flyout up centred above its dock button, and notes when it closes (for <see cref="JustClosed"/>).</summary>
+    private void PlaceAboveDock(Popup flyout)
+    {
+        flyout.CustomPopupPlacementCallback = (popup, target, _) =>
+            [new CustomPopupPlacement(new Point((target.Width - popup.Width) / 2, -popup.Height + 4), PopupPrimaryAxis.Horizontal)];
+        flyout.Closed += (_, _) => _flyoutClosedAt[flyout] = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Whether the flyout closed a moment ago: the click on its dock button that closed it (by landing outside it)
+    /// shouldn't open it again straight away.
+    /// </summary>
+    private bool JustClosed(Popup flyout) =>
+        _flyoutClosedAt.TryGetValue(flyout, out var closedAt) && DateTime.UtcNow - closedAt < TimeSpan.FromMilliseconds(250);
 
     /// <summary>Marks the selected tool in the dock and flyouts, and shows each group's current (or last) tool.</summary>
     private void ShowToolButtons()
@@ -414,6 +427,7 @@ internal partial class EditorWindow : Window
         LinesFlyout.IsOpen = false;
         ShapesFlyout.IsOpen = false;
         RedactFlyout.IsOpen = false;
+        RemoveWhiteFlyout.IsOpen = false;
     }
 
     /// <summary>Windows 11 rounds the corners of normal windows; a window with its own title bar has to ask.</summary>
@@ -1002,7 +1016,7 @@ internal partial class EditorWindow : Window
             case Key.Enter:
                 _tools.Finish();
                 break;
-            case Key.Escape when LinesFlyout.IsOpen || ShapesFlyout.IsOpen || RedactFlyout.IsOpen:
+            case Key.Escape when LinesFlyout.IsOpen || ShapesFlyout.IsOpen || RedactFlyout.IsOpen || RemoveWhiteFlyout.IsOpen:
                 CloseFlyouts();
                 break;
             case Key.Escape:
@@ -1055,6 +1069,9 @@ internal partial class EditorWindow : Window
                 break;
             case Key.X when !ctrl:
                 CropTool.IsChecked = true;
+                break;
+            case Key.B when !ctrl && IsShiftDown:
+                RemoveWhiteBackground(everywhere: true);
                 break;
             case Key.B when !ctrl:
                 RemoveWhiteBackground();
@@ -1163,10 +1180,19 @@ internal partial class EditorWindow : Window
         Surface.Background = _document.IsSeeThrough ? Brushes.Transparent : Brushes.White;
     }
 
-    private void RemoveWhiteBackground()
+    /// <summary>B: the white background goes; Shift+B (<paramref name="everywhere"/>): all pure white goes.</summary>
+    private void RemoveWhiteBackground(bool everywhere = false)
     {
+        RemoveWhiteFlyout.IsOpen = false; // picked from it, or by key while it was open
         _tools.Finish();
-        ShowStatus(_document.RemoveWhiteBackground() ? "White background removed (Ctrl+Z brings it back)" : "No white background touching the edges");
+        var removed = _document.RemoveWhiteBackground(everywhere);
+        ShowStatus((removed, everywhere) switch
+        {
+            (true, false) => "White background removed (Ctrl+Z brings it back)",
+            (true, true) => "All white removed (Ctrl+Z brings it back)",
+            (false, false) => "No white background touching the edges",
+            (false, true) => "No pure white to remove",
+        });
     }
 
     /// <summary>The marks Ctrl+C copies (see <see cref="_copyTarget"/>) that are still on the capture; none for the picture.</summary>

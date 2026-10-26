@@ -330,6 +330,50 @@ public class EditorDocumentTests
         });
     }
 
+    [Fact]
+    public void Removing_all_white_takes_the_white_inside_too_as_its_own_undo_step()
+    {
+        RunOnUiThread(() =>
+        {
+            // A black ring on white, with white inside it.
+            var pixels = new byte[10 * 10 * 4];
+            for (var y = 0; y < 10; y++)
+            {
+                for (var x = 0; x < 10; x++)
+                {
+                    var p = (y * 10 + x) * 4;
+                    var ring = x is >= 2 and <= 7 && y is >= 2 and <= 7 && (x is 2 or 7 || y is 2 or 7);
+                    var shade = ring ? (byte)0 : (byte)255;
+                    (pixels[p], pixels[p + 1], pixels[p + 2], pixels[p + 3]) = (shade, shade, shade, 255);
+                }
+            }
+
+            var image = BitmapSource.Create(10, 10, 96, 96, PixelFormats.Bgra32, null, pixels, 40);
+            image.Freeze();
+            var document = new EditorDocument(image);
+            byte Alpha(int x, int y)
+            {
+                var bgra = new byte[10 * 10 * 4];
+                document.Image.CopyPixels(bgra, 40, 0);
+                return bgra[(y * 10 + x) * 4 + 3];
+            }
+
+            Assert.True(document.RemoveWhiteBackground());
+            Assert.Equal(0, Alpha(0, 0));
+            Assert.Equal(255, Alpha(5, 5)); // inside the ring
+
+            Assert.True(document.RemoveWhiteBackground(everywhere: true));
+            Assert.Equal(0, Alpha(5, 5));
+            Assert.Equal(255, Alpha(2, 2)); // the ring
+            Assert.False(document.RemoveWhiteBackground(everywhere: true)); // none left
+
+            document.Undo();
+            Assert.Equal(255, Alpha(5, 5));
+            Assert.Equal(0, Alpha(0, 0));
+            return true;
+        });
+    }
+
     // WPF rendering needs a single-threaded-apartment thread; test runner threads aren't.
     private static T RunOnUiThread<T>(Func<T> work)
     {
