@@ -66,6 +66,7 @@ On first run, if Windows' *"Use the Print screen key to open screen capture"* se
   - Click the picture, or **Edit**, to open the editor (brought to the front).
   - Drag it into Outlook, Teams, Word, a folder, etc.
   - **Pin to the screen**.
+  - **Remove background and copy**: copies the capture again with its white background see-through, as the editor's button does (pure white touching the edges goes, its edges softened). The saved file stays as it is. The preview then shows the result, the heading says *Background removed and copied* (or that there was no white background), and the row goes.
   - **Delete** it, for a capture taken by mistake: the file goes to the Recycle Bin (so it can be put back), and the clipboard is emptied if it still holds the capture. The row is red, and turns pink under the mouse.
 
 ## Editor

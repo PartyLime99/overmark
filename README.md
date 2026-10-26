@@ -17,7 +17,7 @@ Press **PrtScn** and the screen freezes, with crosshairs and a magnifier. Then:
 - **Esc** or right-click cancels.
 - The **toolbar** at the bottom has **Photo** / **Video** (R switches), **Corner** / **Centre** (C switches; Centre drags out from the middle), **Last** region (L), **Full** screen (F), **Settings** and **Esc** to cancel.
 
-Each capture is copied to the clipboard and saved as a PNG in `Pictures\Screenshots`. A preview pops up in the corner: **click** the picture (or **Edit**) to edit, **drag** it into Outlook, Teams or a folder, **pin** it so it floats on top of everything, or **delete** it if it was a mistake (it goes to the Recycle Bin, and off the clipboard).
+Each capture is copied to the clipboard and saved as a PNG in `Pictures\Screenshots`. A preview pops up in the corner: **click** the picture (or **Edit**) to edit, **drag** it into Outlook, Teams or a folder, **pin** it so it floats on top of everything, **remove the white background and copy** it (for pasting a CAD model onto a coloured slide, say; the saved file stays as it is), or **delete** it if it was a mistake (it goes to the Recycle Bin, and off the clipboard).
 
 | Key | Action |
 |---|---|
