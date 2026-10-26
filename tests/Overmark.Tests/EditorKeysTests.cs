@@ -10,6 +10,7 @@ using Overmark.Settings;
 namespace Overmark.Tests;
 
 /// <summary>Keys pressed in an editor window that's never shown.</summary>
+[Collection(WindowTests.Name)]
 public class EditorKeysTests
 {
     private static BitmapSource Image(int width, int height)

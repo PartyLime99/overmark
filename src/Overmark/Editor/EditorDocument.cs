@@ -22,8 +22,8 @@ internal sealed class EditorDocument
     private EraseMarks? _erasing;
     private DimensionScale? _erasingScale;
 
-    // The mark being moved by the current drag, which undoes in one step. The scale as it was before the drag.
-    private ReplaceMark? _changing;
+    // The marks being moved by the current drag, which undo in one step. The scale as it was before the drag.
+    private ChangeMarks? _changing;
     private DimensionScale? _changingScale;
 
     public EditorDocument(BitmapSource image)
@@ -81,7 +81,16 @@ internal sealed class EditorDocument
         !dimension.SetsScale && dimension.Text == DimensionScale.Measured(dimension.Layout.Measured, Scale);
 
     /// <summary>Adds a mark. A dimension that had a length typed into it sets the scale (see <see cref="DimensionMark.SetsScale"/>).</summary>
-    public void Add(Mark mark) => Do(new AddMark(mark), mark);
+    public void Add(Mark mark) => Do(new AddMarks([mark]), mark);
+
+    /// <summary>Adds several marks on top, in order (pasted together), as one undo step.</summary>
+    public void Add(IReadOnlyList<Mark> marks)
+    {
+        if (marks.Count > 0)
+        {
+            Do(new AddMarks(marks), marks.LastOrDefault(mark => mark is DimensionMark { SetsScale: true }));
+        }
+    }
 
     /// <summary>Removes every mark touching a circle of <paramref name="radius"/> at <paramref name="point"/>.</summary>
     public void EraseAt(Point point, double radius)
@@ -127,24 +136,34 @@ internal sealed class EditorDocument
     /// Swaps the mark at <paramref name="index"/> for a changed (moved) copy. Changes to the same mark until
     /// <see cref="FinishChanging"/> make one undo step, so a whole drag undoes at once.
     /// </summary>
-    public void Change(int index, Mark changed)
+    public void Change(int index, Mark changed) => Change([(index, changed)]);
+
+    /// <summary>
+    /// Swaps marks for changed (moved) copies, by their indexes. Changes to the same marks until
+    /// <see cref="FinishChanging"/> make one undo step, so a drag undoes at once however many marks it moves.
+    /// </summary>
+    public void Change(IReadOnlyList<(int Index, Mark Changed)> changes)
     {
         FinishErasing();
-        if (_changing?.Index != index)
+        if (_changing is null || !_changing.IsOf(changes.Select(change => change.Index)))
         {
             FinishChanging();
             _changingScale = Scale;
-            _changing = new ReplaceMark(index, _marks[index]);
+            _changing = new ChangeMarks([.. changes.Select(change => (change.Index, _marks[change.Index]))]);
         }
 
-        _marks[index] = changed;
-        _changing.After = changed;
+        foreach (var (index, changed) in changes)
+        {
+            _marks[index] = changed;
+            _changing.Set(index, changed);
+        }
+
         Changed?.Invoke();
     }
 
     /// <summary>
-    /// Ends a drag, making the change one undo step (none if the mark ended up where it started). Moving the points of
-    /// the dimension that sets the scale changes the scale, and the other dimensions follow now.
+    /// Ends a drag, making the change one undo step (none if the marks ended up where they started). Moving the points
+    /// of the dimension that sets the scale changes the scale, and the other dimensions follow now.
     /// </summary>
     public void FinishChanging()
     {
@@ -154,7 +173,7 @@ internal sealed class EditorDocument
         }
 
         _changing = null;
-        if (edit.After != edit.Before)
+        if (edit.HasChanged)
         {
             _undo.Push(WithScaleFollowed(edit, _changingScale, null));
             _redo.Clear();
@@ -163,12 +182,23 @@ internal sealed class EditorDocument
         Changed?.Invoke();
     }
 
-    /// <summary>Removes one mark (the move tool's Delete key).</summary>
-    public void Remove(int index)
+    /// <summary>Removes one mark.</summary>
+    public void Remove(int index) => Remove([index]);
+
+    /// <summary>Removes marks by their indexes (the move tool's Delete key), as one undo step.</summary>
+    public void Remove(IEnumerable<int> indexes)
     {
+        // Taken out from the top down, as the eraser does, so the indexes below stay right.
         var edit = new EraseMarks();
-        edit.Removed.Add((index, _marks[index]));
-        Do(edit);
+        foreach (var index in indexes.Distinct().OrderDescending())
+        {
+            edit.Removed.Add((index, _marks[index]));
+        }
+
+        if (edit.Removed.Count > 0)
+        {
+            Do(edit);
+        }
     }
 
     /// <summary>
@@ -355,12 +385,12 @@ internal sealed class EditorDocument
         public abstract void Revert(EditorDocument document);
     }
 
-    private sealed class AddMark(Mark mark) : Edit
+    private sealed class AddMarks(IReadOnlyList<Mark> marks) : Edit
     {
-        public override void Apply(EditorDocument document) => document._marks.Add(mark);
+        public override void Apply(EditorDocument document) => document._marks.AddRange(marks);
 
-        // Undo is last-in first-out (and erasing puts marks back where they were), so this mark is the last one.
-        public override void Revert(EditorDocument document) => document._marks.RemoveAt(document._marks.Count - 1);
+        // Undo is last-in first-out (and erasing puts marks back where they were), so these marks are the last ones.
+        public override void Revert(EditorDocument document) => document._marks.RemoveRange(document._marks.Count - marks.Count, marks.Count);
     }
 
     /// <summary>Marks removed by one eraser drag, with the position each had when it was removed.</summary>
@@ -385,7 +415,40 @@ internal sealed class EditorDocument
         }
     }
 
-    /// <summary>A mark swapped for a changed copy in the same place, e.g. when it's moved.</summary>
+    /// <summary>Marks swapped for changed copies in their places, as they're dragged.</summary>
+    private sealed class ChangeMarks(IEnumerable<(int Index, Mark Before)> marks) : Edit
+    {
+        private readonly List<(int Index, Mark Before, Mark After)> _changes = [.. marks.Select(mark => (mark.Index, mark.Before, mark.Before))];
+
+        public bool HasChanged => _changes.Any(change => change.After != change.Before);
+
+        /// <summary>True if this changes just the marks at <paramref name="indexes"/>.</summary>
+        public bool IsOf(IEnumerable<int> indexes) => indexes.Order().SequenceEqual(_changes.Select(change => change.Index).Order());
+
+        public void Set(int index, Mark after)
+        {
+            var at = _changes.FindIndex(change => change.Index == index);
+            _changes[at] = _changes[at] with { After = after };
+        }
+
+        public override void Apply(EditorDocument document)
+        {
+            foreach (var (index, _, after) in _changes)
+            {
+                document._marks[index] = after;
+            }
+        }
+
+        public override void Revert(EditorDocument document)
+        {
+            foreach (var (index, before, _) in _changes)
+            {
+                document._marks[index] = before;
+            }
+        }
+    }
+
+    /// <summary>A mark swapped for a changed copy in the same place, e.g. when its words change.</summary>
     private sealed class ReplaceMark(int index, Mark before) : Edit
     {
         public int Index { get; } = index;

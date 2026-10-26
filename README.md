@@ -51,7 +51,8 @@ Everything for drawing is in the dock along the bottom: undo and redo, the tools
 | P / L / A / C / R / O / H / T | Freehand, Line, Arrow, Curve, Rectangle, Circle, Highlighter, Text |
 | M / Shift+M | Redact with a solid box / pixelated blocks |
 | D | Dimension |
-| V | Move: select a mark and drag it, or drag its handles to reshape it; arrow keys nudge it, Delete removes it; double-click text to change it |
+| V | Move: select a mark and drag it, or drag its handles to reshape it; Shift+click or Ctrl+click, or drag a box, to select several; arrow keys nudge, Delete removes; double-click text to change it |
+| Ctrl+A | Select every mark |
 | E / X | Eraser (removes whole marks) / Crop (drag a box, then Enter) |
 | B | Remove the white background (makes it see-through) |
 | Shift (while drawing) | Straight angles for lines, arrows, curves and a dimension's two points; squares and circles; straight highlighter |
@@ -59,8 +60,9 @@ Everything for drawing is in the dock along the bottom: undo and redo, the tools
 | [ / ] | Thinner / thicker (Shift: by 5), like the dots either side of the slider |
 | Enter / Esc | Finish a curve, crop, text or dimension / drop it and go back to the move tool |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
-| Ctrl+C / Ctrl+S | Copy / save over the capture file |
-| Ctrl+O / Ctrl+V | Open an image / paste one |
+| Ctrl+C | Copy the marks you picked or drew last; or the picture, once you've clicked its tile in Today or an empty spot on it with the move tool (the **Copy** button always copies the picture) |
+| Ctrl+V | Paste copied marks onto this capture (a step down and right each time); or open a copied picture or image file |
+| Ctrl+O / Ctrl+S | Open an image / save over the capture file |
 | Ctrl+0 / Ctrl+1 / Ctrl+scroll | Fit / actual size / zoom |
 
 To draw a **curve**, drag a straight line, then drag the round handle in its middle to bend it. The **Arrowhead** switch in the pill above the picture adds an arrowhead.
@@ -73,7 +75,9 @@ To add a **dimension** (like SolidWorks' smart dimension), pick the dimension to
 
 To measure in **real units**, type a length with a unit into one dimension, such as `50 mm` or `2.5 in` (mm, cm, m, µm, in, ft, " and ' all work). That sets the picture's scale: the other dimensions that still showed their length in pixels show it in that unit instead, to as many decimal places as you typed, and new ones start that way. The pill above the picture shows the scale (e.g. *1 mm = 4.28 px*) while the dimension tool is picked. Typing a length into another dimension changes the scale, and deleting that dimension (or changing its text to something that isn't a length) goes back to pixels. Text you've typed yourself is never changed.
 
-To **move** marks, pick the move tool (V). Click a mark to select it and drag it; the arrow keys nudge it and Delete removes it. A selected mark shows small square **handles** where it can be reshaped: drag the ends of a line or arrow, the ends or middle of a curve (to bend it again), the corners and sides of a rectangle, circle or redact box (Shift on a corner keeps it square), or a dimension's two measured points (a dimension still showing its measured length measures again). While it's selected, picking a colour or thickness changes it (the dots, [ and ] step from its own thickness). **Double-click** text, or a dimension, to change what it says: type, then press Enter (Esc leaves it as it was). For a dimension, drag its text to put it anywhere (near the line it snaps on; elsewhere it gets a leader line), drag the round handle above the text to turn it (Shift turns it freely), drag the dimension line to move it in or out, or drag an extension line to move the whole thing. Other tools never move marks, so you can draw on top of them.
+To **move** marks, pick the move tool (V). Click a mark to select it and drag it; the arrow keys nudge it and Delete removes it. To select **several**, Shift+click or Ctrl+click them (again takes one out), drag a box from an empty spot round the marks you want (only marks wholly inside it; Shift or Ctrl adds to what's selected), or press Ctrl+A for all of them. Dragging any of them moves them all, and the arrow keys, Delete, colours and thickness change them all; click one of them without dragging to select just it. A mark selected on its own shows small square **handles** where it can be reshaped: drag the ends of a line or arrow, the ends or middle of a curve (to bend it again), the corners and sides of a rectangle, circle or redact box (Shift on a corner keeps it square), or a dimension's two measured points (a dimension still showing its measured length measures again). While it's selected, picking a colour or thickness changes it (the dots, [ and ] step from its own thickness). **Double-click** text, or a dimension, to change what it says: type, then press Enter (Esc leaves it as it was). For a dimension, drag its text to put it anywhere (near the line it snaps on; elsewhere it gets a leader line), drag the round handle above the text to turn it (Shift turns it freely), drag the dimension line to move it in or out, or drag an extension line to move the whole thing. Other tools never move marks, so you can draw on top of them.
+
+To **copy** marks, select them (or just draw one) and press **Ctrl+C**, then **Ctrl+V** to paste them onto this capture or another one, even in another editor window. The copies land a little down and to the right, as they were arranged, selected so you can drag them into place; pasting again puts the next copies a step further on, always inside the picture. A pasted dimension measures in the picture it's pasted on, and never sets that picture's scale. Ctrl+C copies the whole picture again once you click its tile in Today, or an empty spot on it with the move tool (or press Esc to let go of the selection); the **Copy** button always copies the picture.
 
 To lift a picture off a white background (a CAD model, say), click the **checkerboard** button in the dock (B). Pure white that touches the edges of the picture becomes see-through, shown as a checkerboard; white inside the picture, like a label, stays. The edges next to it are softened, so they don't leave a white fringe on a dark background. Saving keeps the transparency (PNG), and copying puts it on the clipboard for apps that take PNG, such as Word and PowerPoint. Ctrl+Z brings the white back.
 

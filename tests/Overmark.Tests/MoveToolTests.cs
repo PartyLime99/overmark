@@ -239,6 +239,12 @@ public class MoveToolTests
         _move.PointerUp();
     }
 
+    private void ShiftClick(Point on)
+    {
+        _move.PointerDown(on, add: true);
+        _move.PointerUp();
+    }
+
     [Fact]
     public void A_selected_line_shows_handles_at_its_ends_and_one_drags_just_that_end()
     {
@@ -370,5 +376,216 @@ public class MoveToolTests
 
         Assert.Null(_move.TextAt(new Point(300, 200))); // its point B
         Assert.Same(dimension, _move.TextAt(new Point(300, 175))); // its extension line, further along
+    }
+
+    [Fact]
+    public void A_pasted_mark_lands_a_step_down_and_right_selected_and_undoes_in_one_step()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _document.Add(line);
+
+        _move.Paste([new CopiedMark(line, Measures: false)], 1);
+
+        Assert.Equal([line, line.MovedBy(new Vector(10, 10))], _document.Marks);
+        Assert.Equal(1, _move.Selected);
+        _document.Undo();
+        Assert.Equal([line], _document.Marks);
+    }
+
+    [Fact]
+    public void Each_paste_lands_a_step_further_on_and_a_step_is_the_same_on_screen_at_any_zoom()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _move.DipSize = 2; // zoomed out to 50%
+
+        _move.Paste([new CopiedMark(line, Measures: false)], 1);
+        _move.Paste([new CopiedMark(line, Measures: false)], 2);
+
+        Assert.Equal([line.MovedBy(new Vector(20, 20)), line.MovedBy(new Vector(40, 40))], _document.Marks);
+    }
+
+    [Fact]
+    public void A_pasted_mark_is_kept_inside_the_crop()
+    {
+        var crop = new Rect(50, 50, 200, 100);
+        _document.CropTo(crop);
+
+        // A step on would take it over the bottom-right edge; one copied from a bigger capture is nowhere near.
+        foreach (var bounds in new[] { new Rect(200, 100, 40, 40), new Rect(1000, -500, 40, 40) })
+        {
+            _move.Paste([new CopiedMark(new RectangleMark(Red, bounds), Measures: false)], 1);
+            Assert.True(crop.Contains(_document.Marks[^1].Extent), $"{_document.Marks[^1].Extent} is outside the crop");
+        }
+
+        // Too big to fit: its top-left corner goes in the crop's.
+        _move.Paste([new CopiedMark(new RectangleMark(Red, new Rect(0, 0, 400, 300)), Measures: false)], 1);
+        Assert.Equal(crop.TopLeft, _document.Marks[^1].Extent.TopLeft);
+    }
+
+    [Fact]
+    public void A_pasted_dimension_measures_in_this_pictures_scale_without_setting_it()
+    {
+        // Here, the 200 px dimension was typed as 50 mm.
+        _document.Add(Dimension() with { Text = "50 mm", SetsScale = true });
+        var scale = _document.Scale;
+
+        // From another capture, where its 100 px were typed as 10 in.
+        var copied = new DimensionMark(Red, new Point(0, 300), new Point(100, 300), new Point(50, 280), DimensionKind.Horizontal, "10 in", SetsScale: true);
+        _move.Paste([new CopiedMark(copied, Measures: true)], 1);
+
+        var pasted = Assert.IsType<DimensionMark>(_document.Marks[1]);
+        Assert.False(pasted.SetsScale);
+        Assert.Equal("25 mm", pasted.Text);
+        Assert.Equal(scale, _document.Scale);
+        Assert.True(Assert.IsType<DimensionMark>(_document.Marks[0]).SetsScale);
+    }
+
+    [Fact]
+    public void A_pasted_dimension_with_its_own_words_keeps_them()
+    {
+        _move.Paste([new CopiedMark(Dimension() with { Text = "Gap" }, Measures: false)], 1);
+
+        Assert.Equal("Gap", Assert.IsType<DimensionMark>(_document.Marks[0]).Text);
+    }
+
+    [Fact]
+    public void Shift_click_adds_a_mark_to_the_selection_and_takes_it_out_again()
+    {
+        _document.Add(new LineMark(Red, new Point(10, 10), new Point(100, 10)));
+        _document.Add(new LineMark(Red, new Point(10, 50), new Point(100, 50)));
+        Select(new Point(50, 10));
+
+        ShiftClick(new Point(50, 50));
+        Assert.Equal([0, 1], _move.Selection);
+        Assert.Null(_move.Selected); // not just one
+        Assert.Empty(_move.Handles);
+
+        ShiftClick(new Point(50, 10));
+        Assert.Equal([1], _move.Selection);
+        Assert.Equal(1, _move.Selected);
+        Assert.NotEmpty(_move.Handles);
+    }
+
+    [Fact]
+    public void Dragging_one_of_several_selected_marks_moves_them_all_in_one_undo_step()
+    {
+        var top = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        var box = new RectangleMark(Red, new Rect(200, 200, 50, 50));
+        var other = new LineMark(Red, new Point(10, 300), new Point(100, 300));
+        _document.Add(top);
+        _document.Add(box);
+        _document.Add(other);
+        Select(new Point(50, 10));
+        ShiftClick(new Point(200, 220));
+
+        Drag(new Point(50, 10), new Point(70, 40));
+
+        Assert.Equal([top.MovedBy(new Vector(20, 30)), box.MovedBy(new Vector(20, 30)), other], _document.Marks);
+        Assert.Equal([0, 1], _move.Selection);
+        _document.Undo();
+        Assert.Equal([top, box, other], _document.Marks);
+        Assert.Equal([0, 1], _move.Selection);
+    }
+
+    [Fact]
+    public void Clicking_one_of_several_selected_marks_without_moving_selects_just_it()
+    {
+        _document.Add(new LineMark(Red, new Point(10, 10), new Point(100, 10)));
+        _document.Add(new LineMark(Red, new Point(10, 50), new Point(100, 50)));
+        _document.MarkSaved();
+        _move.SelectAll();
+
+        Select(new Point(50, 50));
+
+        Assert.Equal([1], _move.Selection);
+        Assert.False(_document.HasUnsavedChanges); // nothing moved
+    }
+
+    [Fact]
+    public void A_box_from_an_empty_spot_selects_the_marks_wholly_inside_it()
+    {
+        _document.Add(new LineMark(Red, new Point(10, 10), new Point(100, 10)));
+        _document.Add(new LineMark(Red, new Point(10, 50), new Point(100, 50)));
+        _document.Add(new LineMark(Red, new Point(10, 90), new Point(300, 90))); // reaches out of the box
+        _document.Add(new LineMark(Red, new Point(10, 200), new Point(100, 200)));
+        _document.MarkSaved();
+
+        _move.PointerDown(new Point(0, 0));
+        _move.PointerMove(new Point(150, 120), false);
+        Assert.Equal(new Rect(0, 0, 150, 120), _move.SelectionBox!.Value);
+        Assert.Equal([0, 1], _move.Selection); // as it's dragged
+        _move.PointerUp();
+        Assert.Null(_move.SelectionBox);
+        Assert.Equal([0, 1], _move.Selection);
+
+        // Shift (or Ctrl) adds what's in the next box.
+        _move.PointerDown(new Point(0, 180), add: true);
+        _move.PointerMove(new Point(150, 220), false);
+        _move.PointerUp();
+        Assert.Equal([0, 1, 3], _move.Selection);
+
+        // Otherwise, a box starts again; one round nothing selects nothing.
+        _move.PointerDown(new Point(400, 300));
+        _move.PointerMove(new Point(450, 350), false);
+        _move.PointerUp();
+        Assert.Empty(_move.Selection);
+        Assert.False(_document.HasUnsavedChanges); // selecting changed no marks
+    }
+
+    [Fact]
+    public void Several_selected_marks_nudge_recolour_thicken_and_delete_together_each_in_one_undo_step()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        var box = new RectangleMark(Red, new Rect(200, 200, 50, 50));
+        var pixelated = new RedactMark(Red, new Rect(300, 50, 40, 40), Pixelate: true);
+        _document.Add(line);
+        _document.Add(box);
+        _document.Add(pixelated);
+        _move.SelectAll();
+
+        _move.Nudge(new Vector(1, 0));
+        Assert.Equal([line.MovedBy(new Vector(1, 0)), box.MovedBy(new Vector(1, 0)), pixelated.MovedBy(new Vector(1, 0))], _document.Marks);
+        _document.Undo();
+        Assert.Equal([line, box, pixelated], _document.Marks);
+
+        _move.Recolour(Palette.Colours[1]);
+        Assert.Equal(Palette.Colours[1], _document.Marks[0].Style.Color);
+        Assert.Equal(Palette.Colours[1], _document.Marks[1].Style.Color);
+        Assert.Same(pixelated, _document.Marks[2]); // its colours come from the picture
+        _document.Undo();
+        Assert.Equal([line, box, pixelated], _document.Marks);
+
+        _move.SetThickness(6, finished: false);
+        _move.SetThickness(8);
+        Assert.Equal(8, _document.Marks[0].Style.Width);
+        Assert.Equal(8, _document.Marks[1].Style.Width);
+        _document.Undo();
+        Assert.Equal([line, box, pixelated], _document.Marks);
+
+        _move.DeleteSelected();
+        Assert.Empty(_document.Marks);
+        Assert.Empty(_move.Selection);
+        _document.Undo();
+        Assert.Equal([line, box, pixelated], _document.Marks);
+    }
+
+    [Fact]
+    public void Several_marks_pasted_together_keep_their_arrangement_inside_the_crop_and_are_selected()
+    {
+        var crop = new Rect(0, 0, 300, 200);
+        _document.CropTo(crop);
+        _document.Add(new LineMark(Red, new Point(10, 10), new Point(20, 10)));
+        var left = new RectangleMark(Red, new Rect(200, 150, 20, 20));
+        var right = new RectangleMark(Red, new Rect(275, 170, 20, 20)); // a step on takes it out
+        var copied = new CopiedMark[] { new(left, Measures: false), new(right, Measures: false) };
+
+        _move.Paste(copied, 1);
+
+        var pasted = _document.Marks.Skip(1).ToList();
+        Assert.Equal(right.Bounds.TopLeft - left.Bounds.TopLeft, ((RectangleMark)pasted[1]).Bounds.TopLeft - ((RectangleMark)pasted[0]).Bounds.TopLeft);
+        Assert.All(pasted, mark => Assert.True(crop.Contains(mark.Extent), $"{mark.Extent} is outside the crop"));
+        Assert.Equal([1, 2], _move.Selection);
+        _document.Undo();
+        Assert.Single(_document.Marks);
     }
 }

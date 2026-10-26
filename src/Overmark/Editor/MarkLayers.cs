@@ -61,15 +61,16 @@ internal sealed class CommittedMarksLayer : FrameworkElement
 
 /// <summary>
 /// Draws what's in progress (the mark being drawn, a frame round text being typed, a curve's bend handle, a
-/// dimension's picked points, the crop box, the eraser's circle, the move tool's selection) and takes the mouse
-/// input for drawing. Coordinates are image pixels; <see cref="DipSize"/> keeps handles and text a constant size on
-/// screen at any zoom.
+/// dimension's picked points, the crop box, the eraser's circle, the move tool's selection and selection box) and
+/// takes the mouse input for drawing. Coordinates are image pixels; <see cref="DipSize"/> keeps handles and text a
+/// constant size on screen at any zoom.
 /// </summary>
 internal sealed class PreviewLayer : FrameworkElement
 {
     private static readonly Brush AccentBrush = Frozen(new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D)));
     private static readonly Brush DimBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x88, 0, 0, 0)));
     private static readonly Brush LabelBrush = Frozen(new SolidColorBrush(Color.FromArgb(0xE0, 0x20, 0x20, 0x20)));
+    private static readonly Brush SelectingBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x1A, 0xE5, 0x48, 0x4D)));
 
     private DrawingTools? _tools;
     private MoveTool? _move;
@@ -129,20 +130,28 @@ internal sealed class PreviewLayer : FrameworkElement
             return;
         }
 
-        if (_move.SelectedMark is { } selected)
+        // An outline round each selected mark; the handles only while one is selected on its own.
+        foreach (var selected in _move.SelectedMarks)
         {
             DrawSelection(dc, selected, _move.RotateHandle);
-            foreach (var (handle, at) in _move.Handles)
+        }
+
+        foreach (var (handle, at) in _move.Handles)
+        {
+            if (handle == ShapeHandle.Through)
             {
-                if (handle == ShapeHandle.Through)
-                {
-                    DrawHandle(dc, at); // round, like the curve's bend handle when it was drawn
-                }
-                else
-                {
-                    DrawSquareHandle(dc, at);
-                }
+                DrawHandle(dc, at); // round, like the curve's bend handle when it was drawn
             }
+            else
+            {
+                DrawSquareHandle(dc, at);
+            }
+        }
+
+        if (_move.SelectionBox is { } selecting)
+        {
+            dc.DrawRectangle(SelectingBrush, null, selecting);
+            DrawDashed(dc, new RectangleGeometry(selecting));
         }
 
         if (_tools.Preview is { } preview)
