@@ -371,4 +371,74 @@ public class MoveToolTests
         Assert.Null(_move.TextAt(new Point(300, 200))); // its point B
         Assert.Same(dimension, _move.TextAt(new Point(300, 175))); // its extension line, further along
     }
+
+    [Fact]
+    public void A_pasted_mark_lands_a_step_down_and_right_selected_and_undoes_in_one_step()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _document.Add(line);
+
+        _move.Paste(new CopiedMark(line, Measures: false), 1);
+
+        Assert.Equal([line, line.MovedBy(new Vector(10, 10))], _document.Marks);
+        Assert.Equal(1, _move.Selected);
+        _document.Undo();
+        Assert.Equal([line], _document.Marks);
+    }
+
+    [Fact]
+    public void Each_paste_lands_a_step_further_on_and_a_step_is_the_same_on_screen_at_any_zoom()
+    {
+        var line = new LineMark(Red, new Point(10, 10), new Point(100, 10));
+        _move.DipSize = 2; // zoomed out to 50%
+
+        _move.Paste(new CopiedMark(line, Measures: false), 1);
+        _move.Paste(new CopiedMark(line, Measures: false), 2);
+
+        Assert.Equal([line.MovedBy(new Vector(20, 20)), line.MovedBy(new Vector(40, 40))], _document.Marks);
+    }
+
+    [Fact]
+    public void A_pasted_mark_is_kept_inside_the_crop()
+    {
+        var crop = new Rect(50, 50, 200, 100);
+        _document.CropTo(crop);
+
+        // A step on would take it over the bottom-right edge; one copied from a bigger capture is nowhere near.
+        foreach (var bounds in new[] { new Rect(200, 100, 40, 40), new Rect(1000, -500, 40, 40) })
+        {
+            _move.Paste(new CopiedMark(new RectangleMark(Red, bounds), Measures: false), 1);
+            Assert.True(crop.Contains(_document.Marks[^1].Extent), $"{_document.Marks[^1].Extent} is outside the crop");
+        }
+
+        // Too big to fit: its top-left corner goes in the crop's.
+        _move.Paste(new CopiedMark(new RectangleMark(Red, new Rect(0, 0, 400, 300)), Measures: false), 1);
+        Assert.Equal(crop.TopLeft, _document.Marks[^1].Extent.TopLeft);
+    }
+
+    [Fact]
+    public void A_pasted_dimension_measures_in_this_pictures_scale_without_setting_it()
+    {
+        // Here, the 200 px dimension was typed as 50 mm.
+        _document.Add(Dimension() with { Text = "50 mm", SetsScale = true });
+        var scale = _document.Scale;
+
+        // From another capture, where its 100 px were typed as 10 in.
+        var copied = new DimensionMark(Red, new Point(0, 300), new Point(100, 300), new Point(50, 280), DimensionKind.Horizontal, "10 in", SetsScale: true);
+        _move.Paste(new CopiedMark(copied, Measures: true), 1);
+
+        var pasted = Assert.IsType<DimensionMark>(_document.Marks[1]);
+        Assert.False(pasted.SetsScale);
+        Assert.Equal("25 mm", pasted.Text);
+        Assert.Equal(scale, _document.Scale);
+        Assert.True(Assert.IsType<DimensionMark>(_document.Marks[0]).SetsScale);
+    }
+
+    [Fact]
+    public void A_pasted_dimension_with_its_own_words_keeps_them()
+    {
+        _move.Paste(new CopiedMark(Dimension() with { Text = "Gap" }, Measures: false), 1);
+
+        Assert.Equal("Gap", Assert.IsType<DimensionMark>(_document.Marks[0]).Text);
+    }
 }

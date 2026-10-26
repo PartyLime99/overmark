@@ -29,8 +29,9 @@ internal enum MoveGrip
 /// For a dimension, dragging its text moves just the text (snapping onto the dimension line when it's close), the
 /// round handle above the text turns it, dragging the dimension line moves it in or out, and dragging an extension
 /// line moves the whole dimension. Picking a colour or thickness gives it to the selection. Double-clicking text (or a
-/// dimension) is for changing its words, which the editor does with <see cref="DrawingTools.EditText"/>. Each drag,
-/// nudge, recolour or change of thickness is one undo step. No UI, so it can be unit tested.
+/// dimension) is for changing its words, which the editor does with <see cref="DrawingTools.EditText"/>. A mark pasted
+/// from the clipboard lands selected. Each drag, nudge, recolour, change of thickness or paste is one undo step. No UI,
+/// so it can be unit tested.
 /// </summary>
 internal sealed class MoveTool
 {
@@ -194,6 +195,28 @@ internal sealed class MoveTool
     }
 
     /// <summary>
+    /// Adds a mark copied to the clipboard, as one undo step, and selects it. It lands <paramref name="steps"/> steps
+    /// (10 on-screen pixels each) down and to the right of where it was copied from, moved back inside the crop if that
+    /// would take it out. A dimension comes as an ordinary one, which doesn't set the scale; if it said what it
+    /// measured, it says what it measures here.
+    /// </summary>
+    public void Paste(CopiedMark copied, int steps)
+    {
+        var mark = copied.Mark;
+        if (mark is DimensionMark dimension)
+        {
+            dimension = dimension with { SetsScale = false };
+            mark = copied.Measures ? dimension with { Text = DimensionScale.Measured(dimension.Layout.Measured, _document.Scale) } : dimension;
+        }
+
+        var step = Math.Max(1, Math.Round(10 * DipSize)) * steps;
+        mark = mark.MovedBy(new Vector(step, step));
+        mark = mark.MovedBy(IntoCrop(mark.Extent));
+        _document.Add(mark);
+        Select(_document.Marks.Count - 1);
+    }
+
+    /// <summary>
     /// The mark with a handle dragged to <paramref name="to"/>. A dimension whose text says what it measured (it
     /// hasn't been typed over) is measured again, so its text keeps up.
     /// </summary>
@@ -237,6 +260,18 @@ internal sealed class MoveTool
     }
 
     private Point HandleFor(DimensionLayout layout) => layout.TextCentre - layout.TextY * (layout.TextSize.Height / 2 + 18 * DipSize);
+
+    /// <summary>How far <paramref name="area"/> has to move to be inside the crop (to its top or left edge, where it's too big to fit).</summary>
+    private Vector IntoCrop(Rect area)
+    {
+        var crop = _document.Crop;
+        return new Vector(Into(area.Left, area.Width, crop.X, crop.Width), Into(area.Top, area.Height, crop.Y, crop.Height));
+
+        static double Into(double start, double length, double from, double size) =>
+            start + length > from + size ? Math.Max(from, from + size - length) - start
+            : start < from ? from - start
+            : 0;
+    }
 
     /// <summary>
     /// The top-most mark under <paramref name="point"/>, and which part of it. The selected mark's handles come first

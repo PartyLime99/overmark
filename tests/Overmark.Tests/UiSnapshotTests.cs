@@ -16,6 +16,7 @@ namespace Overmark.Tests;
 /// Renders Overmark's windows to PNG files without ever showing them on screen, for checking layout by eye.
 /// Only runs when OVERMARK_SNAPSHOTS names a folder to write to.
 /// </summary>
+[Collection(WindowTests.Name)]
 public class UiSnapshotTests
 {
     private static readonly string? Folder = Environment.GetEnvironmentVariable("OVERMARK_SNAPSHOTS");

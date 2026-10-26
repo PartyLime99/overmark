@@ -32,7 +32,7 @@ internal partial class EditorWindow : Window
     /// <summary>The tool's name and a one-line reminder of how it works, for the pill above the picture.</summary>
     private static readonly Dictionary<ToolKind, (string Name, string Hint)> ToolHints = new()
     {
-        [ToolKind.Move] = ("Move", "drag a mark to move it, or its handles to reshape it · double-click text to change it · arrow keys nudge · Delete removes"),
+        [ToolKind.Move] = ("Move", "drag a mark to move it, or its handles to reshape it · double-click text to change it · arrow keys nudge · Delete removes · Ctrl+C, Ctrl+V copy it"),
         [ToolKind.Freehand] = ("Freehand", "drag to draw · a click makes a dot"),
         [ToolKind.Line] = ("Line", "drag from start to end · Shift snaps to 0°, 45° or 90°"),
         [ToolKind.Arrow] = ("Arrow", "drag from tail to tip · Shift snaps to 0°, 45° or 90°"),
@@ -75,6 +75,14 @@ internal partial class EditorWindow : Window
     private bool _applyingSettings;
     private bool _leaving;
     private Point? _erasingFrom;
+
+    // What Ctrl+C copies: the mark picked or drawn last, while it's still on the capture, or (null) the picture, once
+    // it's shown, its tile in the list is clicked or the move tool clicks an empty spot on it.
+    private Mark? _copyTarget;
+
+    // The mark last pasted from the clipboard (as it was there), and how many times, so each paste lands a step further on.
+    private string? _pasted;
+    private int _pastes;
 
     // Today's captures down the left side, with thumbnails kept between refreshes of the list.
     private readonly CaptureHistory? _history;
@@ -172,7 +180,7 @@ internal partial class EditorWindow : Window
         RemoveWhiteButton.Click += (_, _) => RemoveWhiteBackground();
         FitButton.Click += (_, _) => FitToWindow();
         ActualSizeButton.Click += (_, _) => SetZoom(1, null);
-        CopyButton.Click += (_, _) => Copy();
+        CopyButton.Click += (_, _) => CopyPicture();
         SaveButton.Click += (_, _) => Save();
         PinButton.Click += (_, _) => Pin();
         DeleteButton.Click += (_, _) => DeleteCapture();
@@ -209,9 +217,17 @@ internal partial class EditorWindow : Window
         };
 
         // Lambdas rather than method groups, so they reach whichever capture is showing now.
-        _tools.Committed += mark => SayIfScaleChanges(() => _document.Add(mark));
+        _tools.Committed += mark =>
+        {
+            SayIfScaleChanges(() => _document.Add(mark));
+            _copyTarget = mark;
+        };
         _tools.CropApplied += area => _document.CropTo(area);
-        _tools.Edited += (mark, changed) => SayIfScaleChanges(() => _document.Replace(mark, changed));
+        _tools.Edited += (mark, changed) =>
+        {
+            SayIfScaleChanges(() => _document.Replace(mark, changed));
+            _copyTarget = changed;
+        };
         _tools.PreviewChanged += ShowTypingBox;
         _tools.PreviewChanged += () => CommittedLayer.Hidden = _tools.Editing;
         _statusTimer.Tick += (_, _) =>
@@ -769,7 +785,9 @@ internal partial class EditorWindow : Window
                 }
                 else
                 {
+                    // Clicking a mark picks it for Ctrl+C; clicking an empty spot picks the picture.
                     _move.PointerDown(point);
+                    _copyTarget = _move.SelectedMark;
                 }
 
                 break;
@@ -859,14 +877,15 @@ internal partial class EditorWindow : Window
         var step = IsShiftDown ? 5 : 1;
         e.Handled = true;
 
-        // Opening or pasting an image works with or without a capture open (while typing, Ctrl+V pastes text).
+        // Opening or pasting an image works with or without a capture open (while typing, Ctrl+V pastes text); a copied
+        // mark pastes onto the capture that's open.
         if (ctrl && key == Key.O && _openFile is not null)
         {
             OpenImage();
             return;
         }
 
-        if (ctrl && key == Key.V && _tools.Typing is null && _openFile is not null)
+        if (ctrl && key == Key.V && _tools.Typing is null && (_path is not null || _openFile is not null))
         {
             Paste();
             return;
@@ -936,7 +955,9 @@ internal partial class EditorWindow : Window
 
             if (key == Key.Escape)
             {
+                // Letting go of the mark leaves Ctrl+C copying the picture.
                 _move.ClearSelection();
+                _copyTarget = null;
                 return;
             }
         }
@@ -1142,10 +1163,37 @@ internal partial class EditorWindow : Window
         ShowStatus(_document.RemoveWhiteBackground() ? "White background removed (Ctrl+Z brings it back)" : "No white background touching the edges");
     }
 
+    /// <summary>The mark Ctrl+C copies (see <see cref="_copyTarget"/>), or null for the picture.</summary>
+    private Mark? MarkToCopy => _copyTarget is { } mark && _document.Marks.Any(m => ReferenceEquals(m, mark)) ? mark : null;
+
+    /// <summary>Ctrl+C: copies the mark picked or drawn last (see <see cref="MarkToCopy"/>), or else the picture.</summary>
     private void Copy()
     {
         _tools.Finish();
-        ShowStatus(CaptureOutput.TryCopy(_document.Render(), out var problem) ? "Copied to the clipboard" : problem!);
+        if (MarkToCopy is not { } mark)
+        {
+            CopyPicture();
+            return;
+        }
+
+        // A dimension saying what it measures (or the one whose typed length set the scale) measures again where it's pasted.
+        var measures = mark is DimensionMark dimension && (dimension.SetsScale || _document.ShowsMeasurement(dimension));
+        if (MarkClipboard.TryCopy(new CopiedMark(mark, measures), out var problem))
+        {
+            _pasted = null;
+            ShowStatus($"{MarkClipboard.NameOf(mark)} copied (Ctrl+V pastes it)");
+        }
+        else
+        {
+            ShowStatus(problem!);
+        }
+    }
+
+    /// <summary>The Copy button, and Ctrl+C with no mark picked: copies the picture, crop and marks included.</summary>
+    private void CopyPicture()
+    {
+        _tools.Finish();
+        ShowStatus(CaptureOutput.TryCopy(_document.Render(), out var problem) ? "Picture copied to the clipboard" : problem!);
     }
 
     /// <summary>Pins the image and gets the editor out of the way; edits stay in the minimised editor.</summary>
@@ -1206,11 +1254,17 @@ internal partial class EditorWindow : Window
     }
 
     /// <summary>
-    /// Ctrl+V: a picture on the clipboard is saved as a new capture and opens in place of this one; an image file
-    /// copied in File Explorer opens as it is.
+    /// Ctrl+V: a mark copied from a capture is pasted onto this one. A picture on the clipboard is saved as a new
+    /// capture and opens in place of this one; an image file copied in File Explorer opens as it is.
     /// </summary>
     private void Paste()
     {
+        if (_path is not null && MarkClipboard.Read() is { } text && MarkClipboard.FromText(text) is { } copied)
+        {
+            PasteMark(text, copied);
+            return;
+        }
+
         var (file, picture) = ImageFiles.FromClipboard();
         if (file is not null)
         {
@@ -1222,8 +1276,21 @@ internal partial class EditorWindow : Window
         }
         else
         {
-            ShowStatus("Nothing to paste: copy a picture, or an image file, first");
+            ShowStatus(_path is null ? "Nothing to paste: copy a picture, or an image file, first" : "Nothing to paste: copy a mark, a picture or an image file first");
         }
+    }
+
+    /// <summary>
+    /// Pastes a copied mark (<paramref name="text"/> as it was on the clipboard) onto this capture, selected with the
+    /// move tool so it can be dragged into place. Pasting the same one again lands each copy a step further on.
+    /// </summary>
+    private void PasteMark(string text, CopiedMark copied)
+    {
+        _tools.Finish();
+        _pastes = text == _pasted ? _pastes + 1 : 1;
+        _pasted = text;
+        MoveButton.IsChecked = true;
+        _move.Paste(copied, _pastes);
     }
 
     /// <summary>An image file, or a picture, dragged over the editor can be dropped on it to open.</summary>
@@ -1619,9 +1686,11 @@ internal partial class EditorWindow : Window
     {
         _tools.Cancel();
         _document.Changed -= OnDocumentChanged;
+        _move.Changed -= FollowSelection;
         _path = path;
         _document = document;
         _move = new MoveTool(_document);
+        _copyTarget = null;
         _leaving = false;
         _erasingFrom = null;
         DrawingLayer.EraserAt = null;
@@ -1685,6 +1754,7 @@ internal partial class EditorWindow : Window
         CommittedLayer.Attach(_document);
         DrawingLayer.Attach(_tools, _move);
         _document.Changed += OnDocumentChanged;
+        _move.Changed += FollowSelection;
         ShowCrop();
         ShowPicture();
         ShowScale();
@@ -1696,6 +1766,15 @@ internal partial class EditorWindow : Window
         ShowCrop();
         ShowPicture();
         ShowScale();
+    }
+
+    /// <summary>The mark selected with the move tool is what Ctrl+C copies, as it is now (moved, recoloured or pasted).</summary>
+    private void FollowSelection()
+    {
+        if (_move.SelectedMark is { } selected)
+        {
+            _copyTarget = selected;
+        }
     }
 
     private static string KindName(CaptureRecord record) => record.IsVideo
@@ -1710,14 +1789,21 @@ internal partial class EditorWindow : Window
             _ => "Region",
         };
 
-    /// <summary>A video plays in the default player; a screenshot opens in place of this one.</summary>
+    /// <summary>
+    /// A video plays in the default player; a screenshot opens in place of this one. Clicking the one that's open
+    /// picks its picture for Ctrl+C, rather than the mark picked or drawn last.
+    /// </summary>
     private void OpenRecent(CaptureRecord record)
     {
         if (record.IsVideo)
         {
             RecordingController.Play(record.Path);
         }
-        else if (!string.Equals(record.Path, _path, StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(record.Path, _path, StringComparison.OrdinalIgnoreCase))
+        {
+            _copyTarget = null;
+        }
+        else
         {
             _switchTo?.Invoke(record.Path);
         }

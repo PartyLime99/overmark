@@ -8,6 +8,7 @@ using Overmark.Settings;
 namespace Overmark.Tests;
 
 /// <summary>Showing another capture in the same editor window (as switching from the list of today's captures does).</summary>
+[Collection(WindowTests.Name)]
 public class EditorSwitchingTests
 {
     [Fact]
