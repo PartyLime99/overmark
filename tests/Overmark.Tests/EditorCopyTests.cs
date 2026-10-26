@@ -23,7 +23,7 @@ public class EditorCopyTests
         Draw(editor, new Point(10, 10), new Point(50, 50));
         Draw(editor, new Point(60, 10), new Point(90, 50));
 
-        Assert.Same(Document(editor).Marks[1], MarkToCopy(editor));
+        Assert.Same(Document(editor).Marks[1], Assert.Single(MarksToCopy(editor)));
         editor.CloseWithoutAsking();
     });
 
@@ -39,12 +39,12 @@ public class EditorCopyTests
         move.PointerUp();
         Press(editor, Key.Right);
 
-        var copied = Assert.IsType<LineMark>(MarkToCopy(editor));
+        var copied = Assert.IsType<LineMark>(Assert.Single(MarksToCopy(editor)));
         Assert.Same(Document(editor).Marks[0], copied);
         Assert.Equal(new Point(11, 10), copied.Start); // nudged
 
         Press(editor, Key.Escape);
-        Assert.Null(MarkToCopy(editor));
+        Assert.Empty(MarksToCopy(editor));
         editor.CloseWithoutAsking();
     });
 
@@ -56,7 +56,7 @@ public class EditorCopyTests
 
         Document(editor).Undo();
 
-        Assert.Null(MarkToCopy(editor));
+        Assert.Empty(MarksToCopy(editor));
         editor.CloseWithoutAsking();
     });
 
@@ -70,7 +70,7 @@ public class EditorCopyTests
         editor.ShowCapture(@"C:\second.png", Image(300, 200), null);
         editor.ShowCapture(@"C:\x.png", first.Image, first);
 
-        Assert.Null(MarkToCopy(editor));
+        Assert.Empty(MarksToCopy(editor));
         editor.CloseWithoutAsking();
     });
 
@@ -87,12 +87,12 @@ public class EditorCopyTests
             history.Add(new Overmark.Capture.CaptureRecord(open, Overmark.Capture.CaptureKind.Region, DateTime.Today, 400, 300));
             var editor = new EditorWindow(open, Image(400, 300), new EditorSettings { Tool = "Line" }, _ => { }, _ => { }, history, _ => { });
             Draw(editor, new Point(10, 10), new Point(50, 50));
-            Assert.NotNull(MarkToCopy(editor));
+            Assert.NotEmpty(MarksToCopy(editor));
 
             var tile = (Button)((Panel)editor.FindName("RecentList")).Children[0];
             tile.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, tile));
 
-            Assert.Null(MarkToCopy(editor));
+            Assert.Empty(MarksToCopy(editor));
             editor.CloseWithoutAsking();
         }
         finally
@@ -121,18 +121,45 @@ public class EditorCopyTests
         var step = Math.Round(10 * move.DipSize);
         var line = new LineMark(new StrokeStyle(Colors.Red, 4), new Point(10, 10), new Point(50, 10));
 
-        PasteMark(editor, new CopiedMark(line, Measures: false));
-        PasteMark(editor, new CopiedMark(line, Measures: false));
+        PasteMarks(editor, new CopiedMark(line, Measures: false));
+        PasteMarks(editor, new CopiedMark(line, Measures: false));
 
         Assert.Equal([line.MovedBy(new Vector(step, step)), line.MovedBy(new Vector(2 * step, 2 * step))], Document(editor).Marks);
         Assert.Equal(ToolKind.Move, Field<DrawingTools>(editor, "_tools").Tool);
         Assert.Equal(1, move.Selected);
-        Assert.Same(Document(editor).Marks[1], MarkToCopy(editor));
+        Assert.Same(Document(editor).Marks[1], Assert.Single(MarksToCopy(editor)));
 
         // Something else copied starts again from one step on.
         var other = line with { End = new Point(90, 10) };
-        PasteMark(editor, new CopiedMark(other, Measures: false));
+        PasteMarks(editor, new CopiedMark(other, Measures: false));
         Assert.Equal(other.MovedBy(new Vector(step, step)), Document(editor).Marks[2]);
+        editor.CloseWithoutAsking();
+    });
+
+    [Fact]
+    public void Several_selected_marks_are_copied_together_and_pasted_together() => RunOnUiThread(() =>
+    {
+        var editor = Editor("Line");
+        Draw(editor, new Point(10, 10), new Point(50, 10));
+        Draw(editor, new Point(10, 60), new Point(50, 60));
+        Draw(editor, new Point(10, 110), new Point(50, 110));
+        Press(editor, Key.Escape); // to the move tool
+        var move = Field<MoveTool>(editor, "_move");
+        move.PointerDown(new Point(30, 10));
+        move.PointerUp();
+        move.PointerDown(new Point(30, 110), add: true);
+        move.PointerUp();
+
+        var marks = Document(editor).Marks;
+        Assert.Equal([marks[0], marks[2]], MarksToCopy(editor));
+
+        PasteMarks(editor, [.. MarksToCopy(editor).Select(mark => new CopiedMark(mark, Measures: false))]);
+        Assert.Equal(5, marks.Count);
+        Assert.Equal([3, 4], move.Selection);
+        Assert.Equal([marks[3], marks[4]], MarksToCopy(editor));
+
+        Press(editor, Key.Escape);
+        Assert.Empty(MarksToCopy(editor));
         editor.CloseWithoutAsking();
     });
 
@@ -141,12 +168,12 @@ public class EditorCopyTests
 
     private static EditorDocument Document(EditorWindow editor) => Field<EditorDocument>(editor, "_document");
 
-    private static Mark? MarkToCopy(EditorWindow editor) =>
-        (Mark?)typeof(EditorWindow).GetProperty("MarkToCopy", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(editor);
+    private static IReadOnlyList<Mark> MarksToCopy(EditorWindow editor) =>
+        (IReadOnlyList<Mark>)typeof(EditorWindow).GetProperty("MarksToCopy", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(editor)!;
 
-    /// <summary>Pastes <paramref name="copied"/> as Ctrl+V does when it's on the clipboard.</summary>
-    private static void PasteMark(EditorWindow editor, CopiedMark copied) =>
-        typeof(EditorWindow).GetMethod("PasteMark", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(editor, [MarkClipboard.ToText(copied), copied]);
+    /// <summary>Pastes <paramref name="copied"/> as Ctrl+V does when they're on the clipboard.</summary>
+    private static void PasteMarks(EditorWindow editor, params CopiedMark[] copied) =>
+        typeof(EditorWindow).GetMethod("PasteMarks", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(editor, [MarkClipboard.ToText(copied), copied]);
 
     private static void Draw(EditorWindow editor, Point from, Point to)
     {

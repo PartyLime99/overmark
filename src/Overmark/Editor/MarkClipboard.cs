@@ -9,13 +9,13 @@ namespace Overmark.Editor;
 internal sealed record CopiedMark(Mark Mark, bool Measures);
 
 /// <summary>
-/// Puts a mark on the clipboard and reads it back, so it can be pasted onto this capture, another one, or one in
-/// another editor. It's kept in Overmark's own clipboard format, as JSON in the shape editable copies keep marks in
+/// Puts marks on the clipboard and reads them back, so they can be pasted onto this capture, another one, or one in
+/// another editor. They're kept in Overmark's own clipboard format, as JSON in the shape editable copies keep marks in
 /// (see <see cref="MarkFormat"/>); other apps see nothing to paste.
 /// </summary>
 internal static class MarkClipboard
 {
-    public const string Format = "Overmark.Mark";
+    public const string Format = "Overmark.Marks";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -41,17 +41,22 @@ internal static class MarkClipboard
         _ => "Mark",
     };
 
-    public static string ToText(CopiedMark copied) =>
-        JsonSerializer.Serialize(new Stored { Mark = MarkFormat.ToData(copied.Mark), Measures = copied.Measures }, JsonOptions);
+    public static string ToText(IReadOnlyList<CopiedMark> copied) =>
+        JsonSerializer.Serialize(new Stored { Marks = [.. copied.Select(c => new StoredMark { Mark = MarkFormat.ToData(c.Mark), Measures = c.Measures })] }, JsonOptions);
 
-    /// <summary>The mark <paramref name="text"/> holds, or null if it isn't one this version can read.</summary>
-    public static CopiedMark? FromText(string text)
+    /// <summary>
+    /// The marks <paramref name="text"/> holds, in order, leaving out any of a kind this version can't read; null if
+    /// there are none.
+    /// </summary>
+    public static IReadOnlyList<CopiedMark>? FromText(string text)
     {
         try
         {
-            return JsonSerializer.Deserialize<Stored>(text, JsonOptions) is { Mark: { } data } stored && MarkFormat.FromData(data) is { } mark
-                ? new CopiedMark(mark, stored.Measures)
-                : null;
+            var marks = JsonSerializer.Deserialize<Stored>(text, JsonOptions)?.Marks?
+                .Select(stored => stored.Mark is { } data && MarkFormat.FromData(data) is { } mark ? new CopiedMark(mark, stored.Measures) : null)
+                .OfType<CopiedMark>()
+                .ToList();
+            return marks is { Count: > 0 } ? marks : null;
         }
         catch (JsonException)
         {
@@ -60,7 +65,7 @@ internal static class MarkClipboard
     }
 
     /// <summary>Puts <paramref name="copied"/> on the clipboard, in place of whatever was there. Returns false (saying why) if it couldn't.</summary>
-    public static bool TryCopy(CopiedMark copied, out string? problem)
+    public static bool TryCopy(IReadOnlyList<CopiedMark> copied, out string? problem)
     {
         var data = new DataObject();
         data.SetData(Format, ToText(copied), autoConvert: false);
@@ -85,7 +90,7 @@ internal static class MarkClipboard
         }
     }
 
-    /// <summary>The mark on the clipboard, as it was put there by <see cref="TryCopy"/>, or null if there isn't one.</summary>
+    /// <summary>The marks on the clipboard, as they were put there by <see cref="TryCopy"/>, or null if there aren't any.</summary>
     public static string? Read()
     {
         try
@@ -101,6 +106,11 @@ internal static class MarkClipboard
     }
 
     private sealed class Stored
+    {
+        public List<StoredMark>? Marks { get; set; }
+    }
+
+    private sealed class StoredMark
     {
         public MarkData? Mark { get; set; }
 
