@@ -342,6 +342,12 @@ public class UiSnapshotTests
         Save((FrameworkElement)editor.Content, new Size(1180, 760), "editor-see-through.png");
         File.WriteAllBytes(Path.Combine(Folder!, "see-through.png"), CaptureOutput.EncodePng(document.Render()));
 
+        // Then the white inside the picture too, and the flyout for picking which.
+        document.RemoveWhiteBackground(everywhere: true);
+        Save((FrameworkElement)editor.Content, new Size(1180, 760), "editor-all-white.png");
+        var flyout = (System.Windows.Controls.Primitives.Popup)editor.FindName("RemoveWhiteFlyout");
+        Save((FrameworkElement)flyout.Child, new Size(double.PositiveInfinity, double.PositiveInfinity), "remove-white-flyout.png");
+
         // Not closed: with the background removed, closing would ask (in a real dialog, on screen) whether to save.
     }
 

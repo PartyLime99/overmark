@@ -5,20 +5,22 @@ using System.Windows.Media.Imaging;
 namespace Overmark.Editor;
 
 /// <summary>
-/// Makes a capture's white background see-through, e.g. to lift a CAD model off its white background. Only pure white
-/// that touches the edges goes, so white inside the picture (labels, enclosed areas) stays. The pixels right next to
-/// it are softened: anti-aliased edges are part white, and would otherwise leave a white fringe on a dark background.
+/// Makes a capture's white background see-through, e.g. to lift a CAD model off its white background. Usually only pure
+/// white that touches the edges goes, so white inside the picture (labels, enclosed areas) stays; it can take all pure
+/// white instead, holes and all. The pixels right next to it are softened: anti-aliased edges are part white, and would
+/// otherwise leave a white fringe on a dark background.
 /// </summary>
 internal static class Transparency
 {
     /// <summary>
     /// A copy of <paramref name="image"/> with the white background inside <paramref name="area"/> (the kept part of
-    /// the image) made see-through, or null if no white touches the area's edges.
+    /// the image) made see-through, or null if no white touches the area's edges. With <paramref name="everywhere"/>,
+    /// all pure white in the area goes, not just the background, and it's null only if there's none.
     /// </summary>
-    public static BitmapSource? RemoveWhite(BitmapSource image, Int32Rect area)
+    public static BitmapSource? RemoveWhite(BitmapSource image, Int32Rect area, bool everywhere = false)
     {
         var (pixels, stride) = Bgra32(image);
-        if (RemoveWhite(pixels, image.PixelWidth, image.PixelHeight, area) == 0)
+        if (RemoveWhite(pixels, image.PixelWidth, image.PixelHeight, area, everywhere) == 0)
         {
             return null;
         }
@@ -29,10 +31,10 @@ internal static class Transparency
     }
 
     /// <summary>
-    /// The work behind <see cref="RemoveWhite(BitmapSource, Int32Rect)"/>, in place on Bgra32 pixels (alpha not
+    /// The work behind <see cref="RemoveWhite(BitmapSource, Int32Rect, bool)"/>, in place on Bgra32 pixels (alpha not
     /// premultiplied). Returns how many white pixels it made see-through; if none, nothing is changed.
     /// </summary>
-    public static int RemoveWhite(byte[] pixels, int width, int height, Int32Rect area)
+    public static int RemoveWhite(byte[] pixels, int width, int height, Int32Rect area, bool everywhere = false)
     {
         var left = area.X;
         var top = area.Y;
@@ -53,6 +55,14 @@ internal static class Transparency
         {
             Reach(left, y);
             Reach(right, y);
+            if (everywhere)
+            {
+                // Every white pixel is a start, so the flood has nowhere left to go: it just clears them.
+                for (var x = left + 1; x < right; x++)
+                {
+                    Reach(x, y);
+                }
+            }
         }
 
         // Flood across the background, side to side only: a diagonal step would leak through a one-pixel outline.

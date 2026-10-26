@@ -119,6 +119,26 @@
             </Grid>
         </ControlTemplate>
 
+        <!-- The icons for removing white, used in the dock and in its flyout: a checkerboard for see-through, all of it
+             for all white, or just round a solid middle for the background. -->
+        <ControlTemplate x:Key="AllWhiteIcon" TargetType="ContentControl">
+            <Grid Width="18" Height="18">
+                <Path Style="{StaticResource Icon}" Data="M2.5,2.5 H15.5 V15.5 H2.5 Z" />
+                <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" Opacity="0.5"
+                      Data="M2.5,2.5 h3.25 v3.25 h-3.25 Z M9,2.5 h3.25 v3.25 h-3.25 Z M5.75,5.75 h3.25 v3.25 h-3.25 Z M12.25,5.75 h3.25 v3.25 h-3.25 Z M2.5,9 h3.25 v3.25 h-3.25 Z M9,9 h3.25 v3.25 h-3.25 Z M5.75,12.25 h3.25 v3.25 h-3.25 Z M12.25,12.25 h3.25 v3.25 h-3.25 Z" />
+            </Grid>
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="BackgroundIcon" TargetType="ContentControl">
+            <Grid Width="18" Height="18">
+                <Path Style="{StaticResource Icon}" Data="M2.5,2.5 H15.5 V15.5 H2.5 Z" />
+                <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" Opacity="0.5"
+                      Data="M2.5,2.5 h3.25 v3.25 h-3.25 Z M9,2.5 h3.25 v3.25 h-3.25 Z M12.25,5.75 h3.25 v3.25 h-3.25 Z M2.5,9 h3.25 v3.25 h-3.25 Z M5.75,12.25 h3.25 v3.25 h-3.25 Z M12.25,12.25 h3.25 v3.25 h-3.25 Z" />
+                <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}"
+                      Data="M9,5.75 A3.25,3.25 0 1 1 9,12.25 A3.25,3.25 0 1 1 9,5.75 Z" />
+            </Grid>
+        </ControlTemplate>
+
         <Style x:Key="DockDivider" TargetType="Rectangle">
             <Setter Property="Width" Value="1" />
             <Setter Property="Height" Value="30" />
@@ -174,6 +194,7 @@
             <Setter Property="Tag" Value="{x:Static Visibility.Visible}" />
         </Style>
 
+        <!-- A button in the dock. Tag shows the corner mark, for one that opens a flyout of choices. -->
         <Style x:Key="DockButton" TargetType="Button">
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Width" Value="38" />
@@ -181,12 +202,16 @@
             <Setter Property="Margin" Value="1,0" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
             <Setter Property="Foreground" Value="#3A414B" />
+            <Setter Property="Tag" Value="{x:Static Visibility.Collapsed}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" CornerRadius="12" Background="Transparent">
+                        <Grid Background="Transparent">
+                            <Border x:Name="Chrome" CornerRadius="12" Background="Transparent" />
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                            <Path Data="M5,0 L5,5 L0,5 Z" Fill="#3A414B" Opacity="0.55" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                  Margin="0,0,5,5" Visibility="{TemplateBinding Tag}" />
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
@@ -231,6 +256,31 @@
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#16191D" />
                                 <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Something to do in a flyout, laid out like a tool. -->
+        <Style x:Key="FlyoutAction" TargetType="Button">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Foreground" Value="#16191D" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="10" Background="Transparent" Padding="10,0">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F0F2F5" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#E4E8EC" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -881,12 +931,9 @@
                         <RadioButton x:Name="CropTool" Style="{StaticResource DockTool}" ToolTip="Crop (X). Drag a box, then press Enter.">
                             <Path Style="{StaticResource Icon}" Data="M5,1.5 V13 H16.5 M1.5,5 H13 V16.5" />
                         </RadioButton>
-                        <Button x:Name="RemoveWhiteButton" Style="{StaticResource DockButton}" ToolTip="Remove the white background (B). Pure white touching the edges becomes see-through, and the edges next to it are softened so they don't leave a white fringe. White inside the picture and your marks stay.">
-                            <Grid Width="18" Height="18">
-                                <Path Style="{StaticResource Icon}" Data="M2.5,2.5 H15.5 V15.5 H2.5 Z" />
-                                <Path Fill="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" Opacity="0.5"
-                                      Data="M2.5,2.5 h3.25 v3.25 h-3.25 Z M9,2.5 h3.25 v3.25 h-3.25 Z M5.75,5.75 h3.25 v3.25 h-3.25 Z M12.25,5.75 h3.25 v3.25 h-3.25 Z M2.5,9 h3.25 v3.25 h-3.25 Z M9,9 h3.25 v3.25 h-3.25 Z M5.75,12.25 h3.25 v3.25 h-3.25 Z M12.25,12.25 h3.25 v3.25 h-3.25 Z" />
-                            </Grid>
+                        <Button x:Name="RemoveWhiteButton" Style="{StaticResource DockButton}" Tag="{x:Static Visibility.Visible}"
+                                ToolTip="Remove white, making it see-through: the background (B), or all pure white (Shift+B). Click to pick.">
+                            <ContentControl Template="{StaticResource AllWhiteIcon}" Focusable="False" />
                         </Button>
                     </StackPanel>
 
@@ -1033,6 +1080,31 @@
                                 <TextBlock Style="{StaticResource FlyoutName}" Text="Pixelate" />
                             </DockPanel>
                         </RadioButton>
+                    </StackPanel>
+                </Border>
+            </Popup>
+
+            <Popup x:Name="RemoveWhiteFlyout" PlacementTarget="{Binding ElementName=RemoveWhiteButton}" Placement="Custom" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
+                <Border Margin="14" Style="{StaticResource FloatCard}" CornerRadius="16" Padding="6" Width="172">
+                    <StackPanel>
+                        <Button x:Name="RemoveBackgroundButton" Style="{StaticResource FlyoutAction}" ToolTip="Remove the white background (B). Pure white touching the edges becomes see-through, and the edges next to it are softened so they don't leave a white fringe. White inside the picture and your marks stay.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="B" />
+                                <Viewbox Width="16" Height="16">
+                                    <ContentControl Template="{StaticResource BackgroundIcon}" Focusable="False" />
+                                </Viewbox>
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="Background" />
+                            </DockPanel>
+                        </Button>
+                        <Button x:Name="RemoveAllWhiteButton" Style="{StaticResource FlyoutAction}" ToolTip="Remove all white (Shift+B). Every pure white pixel becomes see-through, inside the picture too (holes, labels, enclosed areas), and the edges next to it are softened. Your marks stay.">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource FlyoutKey}" Text="Shift+B" />
+                                <Viewbox Width="16" Height="16">
+                                    <ContentControl Template="{StaticResource AllWhiteIcon}" Focusable="False" />
+                                </Viewbox>
+                                <TextBlock Style="{StaticResource FlyoutName}" Text="All white" />
+                            </DockPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
             </Popup>

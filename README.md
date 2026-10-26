@@ -54,7 +54,7 @@ Everything for drawing is in the dock along the bottom: undo and redo, the tools
 | V | Move: select a mark and drag it, or drag its handles to reshape it; Shift+click or Ctrl+click, or drag a box, to select several; arrow keys nudge, Delete removes; double-click text to change it |
 | Ctrl+A | Select every mark |
 | E / X | Eraser (removes whole marks) / Crop (drag a box, then Enter) |
-| B | Remove the white background (makes it see-through) |
+| B / Shift+B | Remove the white background / all pure white (makes it see-through) |
 | Shift (while drawing) | Straight angles for lines, arrows, curves and a dimension's two points; squares and circles; straight highlighter |
 | 1–8, 9 | The palette colours; your custom colour |
 | [ / ] | Thinner / thicker (Shift: by 5), like the dots either side of the slider |
@@ -79,7 +79,7 @@ To **move** marks, pick the move tool (V). Click a mark to select it and drag it
 
 To **copy** marks, select them (or just draw one) and press **Ctrl+C**, then **Ctrl+V** to paste them onto this capture or another one, even in another editor window. The copies land a little down and to the right, as they were arranged, selected so you can drag them into place; pasting again puts the next copies a step further on, always inside the picture. A pasted dimension measures in the picture it's pasted on, and never sets that picture's scale. Ctrl+C copies the whole picture again once you click its tile in Today, or an empty spot on it with the move tool (or press Esc to let go of the selection); the **Copy** button always copies the picture.
 
-To lift a picture off a white background (a CAD model, say), click the **checkerboard** button in the dock (B). Pure white that touches the edges of the picture becomes see-through, shown as a checkerboard; white inside the picture, like a label, stays. The edges next to it are softened, so they don't leave a white fringe on a dark background. Saving keeps the transparency (PNG), and copying puts it on the clipboard for apps that take PNG, such as Word and PowerPoint. Ctrl+Z brings the white back.
+To lift a picture off a white background (a CAD model, say), click the **checkerboard** button in the dock and pick **Background** (or press B). Pure white that touches the edges of the picture becomes see-through, shown as a checkerboard; white inside the picture, like a label, stays. To take the white inside too (holes, enclosed areas), pick **All white** (Shift+B) instead: every pure white pixel goes. Either way, the edges next to it are softened, so they don't leave a white fringe on a dark background. Saving keeps the transparency (PNG), and copying puts it on the clipboard for apps that take PNG, such as Word and PowerPoint. Ctrl+Z brings the white back.
 
 The **Pin** button in the title bar floats the image on top of everything. To drop a capture into an email, chat or folder, drag the preview that pops up after capturing. The **bin** button deletes the capture: after you confirm, the file goes to the Recycle Bin and the editor moves on to the next capture in Today (or shows none, if that was the last).
 

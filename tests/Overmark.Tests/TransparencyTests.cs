@@ -55,6 +55,56 @@ public class TransparencyTests
     }
 
     [Fact]
+    public void Everywhere_takes_the_enclosed_white_too()
+    {
+        // A ring (as above) with a grey pixel in the white inside it, which gets softened like any other edge.
+        var pixels = White(7, 7);
+        for (var i = 1; i <= 5; i++)
+        {
+            Set(pixels, 7, i, 1, 0, 0, 0);
+            Set(pixels, 7, i, 5, 0, 0, 0);
+            Set(pixels, 7, 1, i, 0, 0, 0);
+            Set(pixels, 7, 5, i, 0, 0, 0);
+        }
+
+        Set(pixels, 7, 3, 3, 128, 128, 128);
+
+        Assert.Equal(24 + 8, Transparency.RemoveWhite(pixels, 7, 7, All(7, 7), everywhere: true));
+        Assert.Equal(0, Alpha(pixels, 7, 0, 0));
+        Assert.Equal(0, Alpha(pixels, 7, 2, 2));
+        Assert.Equal(0, Alpha(pixels, 7, 4, 3));
+        Assert.Equal(255, Alpha(pixels, 7, 1, 1)); // the black ring stays solid
+        Assert.Equal(127, Alpha(pixels, 7, 3, 3));
+    }
+
+    [Fact]
+    public void Everywhere_keeps_to_the_kept_area()
+    {
+        var pixels = White(6, 6);
+        Set(pixels, 6, 2, 2, 0, 0, 0);
+
+        Assert.Equal(15, Transparency.RemoveWhite(pixels, 6, 6, new Int32Rect(1, 1, 4, 4), everywhere: true));
+        Assert.Equal(255, Alpha(pixels, 6, 0, 0));
+        Assert.Equal(255, Alpha(pixels, 6, 5, 5));
+        Assert.Equal(0, Alpha(pixels, 6, 3, 3));
+    }
+
+    [Fact]
+    public void Everywhere_with_no_white_changes_nothing()
+    {
+        var pixels = White(4, 4);
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            pixels[i + 1] = 200;
+        }
+
+        var before = pixels.ToArray();
+
+        Assert.Equal(0, Transparency.RemoveWhite(pixels, 4, 4, All(4, 4), everywhere: true));
+        Assert.Equal(before, pixels);
+    }
+
+    [Fact]
     public void The_background_does_not_leak_through_a_diagonal_gap()
     {
         // A ring with its top-left corner missing: the white inside only meets the outside at a corner.
